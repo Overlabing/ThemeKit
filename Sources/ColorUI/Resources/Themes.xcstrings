@@ -1,0 +1,94 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Orange and pink": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orange et rose"
+          }
+        }
+      }
+    },
+    "Teal and green": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bleu canard et vert"
+          }
+        }
+      }
+    },
+    "Indigo and blue": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indigo et bleu"
+          }
+        }
+      }
+    },
+    "Red and orange": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rouge et orange"
+          }
+        }
+      }
+    },
+    "Purple and pink": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Violet et rose"
+          }
+        }
+      }
+    },
+    "Mint and cyan": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menthe et cyan"
+          }
+        }
+      }
+    },
+    "Brown and yellow": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brun et jaune"
+          }
+        }
+      }
+    },
+    "System color": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couleur du système"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
