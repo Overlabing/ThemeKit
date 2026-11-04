@@ -68,15 +68,17 @@ public struct ColorRoles: Sendable {
         self.tokens = tokens
         self.appearance = appearance
         self.placement = placement
-        let frame = Legibility.fitted(theme, surfaces: tokens.surfaces(in: appearance), in: appearance)
+        let frame = Legibility.fitted(
+            theme, accents: tokens.accents, surfaces: tokens.surfaces(in: appearance), in: appearance)
         switch placement {
         case .frame:
             legibility = frame
         case .column:
             legibility = Legibility.of(
-                theme, surfaces: tokens.columnSurfaces(in: appearance), hueScale: frame.hueScale, in: appearance)
+                theme, accents: tokens.accents, surfaces: tokens.columnSurfaces(in: appearance),
+                hueScale: frame.hueScale, in: appearance)
         }
-        resolved = ResolvedColors(theme, in: appearance)
+        resolved = ResolvedColors(theme, accents: tokens.accents, in: appearance)
         focus = RGBA.keyboardFocus(in: appearance)
     }
 
@@ -125,6 +127,24 @@ public struct ColorRoles: Sendable {
     /// Text and glyphs drawn in the Theme's colour: the primary hue mixed with ink by the solved share.
     public var tintText: Color { Color(rgba: tintTextRGBA) }
     public var tintTextRGBA: RGBA { resolved.primary.mixed(with: resolved.ink, by: legibility.tintMix) }
+
+    /// The hue `DesignTokens.accents` gives index `index`; an index past the end wraps, a negative one counts from the
+    /// end. Draw a dot or a tile in it; draw text in `accentInk(at:)`. With no accents the Theme's own hue.
+    public func accentHue(at index: Int) -> Hue {
+        let hues = tokens.accents
+        return hues.isEmpty ? theme.primary : hues[((index % hues.count) + hues.count) % hues.count]
+    }
+
+    /// Text in the accent hue of index `index` (an account's name, say): the hue mixed with ink by the solved share, so
+    /// it reaches 4.5:1 on every surface text sits on, the column's fill included when the roles are solved there. The
+    /// raw hue falls as low as 1.0:1 on them (the worst accent).
+    public func accentInk(at index: Int) -> Color { Color(rgba: accentInkRGBA(at: index)) }
+    public func accentInkRGBA(at index: Int) -> RGBA {
+        let hues = tokens.accents
+        guard !hues.isEmpty else { return tintTextRGBA }
+        let slot = ((index % hues.count) + hues.count) % hues.count
+        return resolved.accents[slot].mixed(with: resolved.ink, by: legibility.accentMix[slot])
+    }
 
     /// The outline of a selected or current row under Increase Contrast: the secondary ink, 4.5:1 on the row's fill
     /// and on the frame around it (the system separator stays near 1.2:1 there).
@@ -259,7 +279,7 @@ public struct WithColorRoles<Content: View>: View {
     @Environment(\.surfacePlacement) private var placement
     @Environment(\.theme) private var theme
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.kitContrast) private var contrast
     private let content: (ColorRoles) -> Content
 
     public init(@ViewBuilder _ content: @escaping (ColorRoles) -> Content) {

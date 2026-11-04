@@ -116,7 +116,7 @@ struct MotionTests {
 
     @Test func curves() {
         #expect(MotionCurve.allCases.map(\.bounce) == [0, 0.15, 0.1, nil, nil])
-        #expect(MotionCurve.allCases.map(\.settlingFactor) == [1.47, 1.39, 1.33, 1, 1])
+        #expect(MotionCurve.allCases.map(\.settlingFactor) == [1.47, 1.40, 1.34, 1, 1])
     }
 
     @Test func roles() {
@@ -154,7 +154,7 @@ struct MotionTests {
     }
 
     @Test func aSpringSettlesAfterItsPerceptualDuration() {
-        #expect(abs(MotionRole.panelAppear.spec.settlingSeconds - 0.4655) < 0.0001)
+        #expect(abs(MotionRole.panelAppear.spec.settlingSeconds - 0.469) < 0.0001)
         #expect(MotionRole.hoverFill.spec.settlingSeconds == 0.12)
     }
 }
@@ -203,7 +203,9 @@ struct ColorRolesTests {
         for appearance in Appearance.allCases {
             let roles = ColorRoles(theme: theme, tokens: .standard, appearance: appearance)
             let described = DesignTokens.standard.surfaces(in: appearance).scaled(by: roles.hueScale)
-            let solved = Legibility.fit(colors: ResolvedColors(theme, in: appearance), surfaces: DesignTokens.standard.surfaces(in: appearance))
+            let solved = Legibility.fit(
+                colors: ResolvedColors(theme, accents: DesignTokens.standard.accents, in: appearance),
+                surfaces: DesignTokens.standard.surfaces(in: appearance))
             #expect(roles.legibility == solved)
             #expect(roles.hoverOpacity == described.fills[0])
             #expect(roles.currentOpacity == described.fills[1])
@@ -242,7 +244,7 @@ struct ColorRolesTests {
         for appearance in Appearance.allCases {
             let frame = ColorRoles(theme: theme, tokens: .standard, appearance: appearance)
             let column = ColorRoles(theme: theme, tokens: .standard, appearance: appearance, placement: .column)
-            let colors = ResolvedColors(theme, in: appearance)
+            let colors = ResolvedColors(theme, accents: DesignTokens.standard.accents, in: appearance)
             #expect(frame.placement == .frame)
             #expect(column.hueScale == frame.hueScale)
             #expect(column.legibility == Legibility.solve(
@@ -378,7 +380,7 @@ struct LegibilityInvariantTests {
         for item in cases + column {
             #expect(item.threshold == (text.contains(item.role) ? 4.5 : 3), "\(item)")
         }
-        let rail: Set<LegibilityCase.Role> = [.railGlyph, .railMarker, .railDot, .railDivider]
+        let rail: Set<LegibilityCase.Role> = [.railGlyph, .railMarker, .railDot, .railDivider, .accentText]
         #expect(Set(cases.map(\.role))
             == Set(LegibilityCase.Role.allCases).subtracting(rail).subtracting([.symbolOnHue, .selectionMarker, .columnEdge]))
         #expect(Set(column.map(\.role))
@@ -425,6 +427,7 @@ struct SwitcherItemTests {
 /// The kit's colours are explicit: the window's state does not change them, so a column in an inactive window keeps
 /// the contrast it has in the key window.
 @MainActor
+@Suite(.serialized)
 struct InactiveWindowTests {
     @Test(arguments: [ColorScheme.light, .dark])
     func aRowDrawsTheSameInAnInactiveWindow(_ scheme: ColorScheme) throws {

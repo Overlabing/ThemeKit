@@ -11,6 +11,9 @@ public struct DesignTokens: Sendable, Equatable {
     public var size = Size()
     public var type = TypeScale()
     public var gradient = WindowGradient()
+    /// The hues that colour things by index (an account, say), in order: `ColorRoles.accentInk(at:)` solves a text ink
+    /// for each at 4.5:1 on every surface. An index past the end wraps.
+    public var accents: [Hue] = Hue.allCases
 
     public init() {}
 
@@ -89,8 +92,33 @@ extension DesignTokens {
         public var railDotGap: CGFloat = xs
         public var railCaption: CGFloat = xs
         public var railFoldPadding: CGFloat = xs
+        /// A badge's fill around its text: sideways and up and down.
+        public var badgeHorizontal: CGFloat = s
+        public var badgeVertical: CGFloat = xxs
+        /// A label-only icon button: from its label to the edge of its target, each side.
+        public var buttonLabelHorizontal: CGFloat = s
+        /// A segmented pill: between its segments and from them to its edge, and from a segment's label to its edge.
+        public var segmentGap: CGFloat = xxs
+        public var segmentPadding: CGFloat = xs
+        public var segmentHorizontal: CGFloat = m
+        /// Between a segment's symbol and its title, and from the title to the marker bar under it.
+        public var segmentContent: CGFloat = xs
+        public var segmentMarkerGap: CGFloat = xxs
+        /// The margin a `List` cell keeps round its content on macOS even with zero insets (measured on macOS 27; a
+        /// negative inset cancels it), none on iOS. `listRowCell(state:)` cancels it.
+        public var listCellMargin: CGFloat = Self.platformListCellMargin
+        /// A banner: between its title and its message.
+        public var bannerLines: CGFloat = xxs
 
         public init() {}
+
+        public static var platformListCellMargin: CGFloat {
+            #if os(macOS)
+            s
+            #else
+            0
+            #endif
+        }
     }
 
     /// Corner radii, always `.continuous`. Nested shapes stay concentric: outer = inner + the inset between them.
@@ -205,6 +233,8 @@ extension DesignTokens {
         /// The switcher and the Space rail: an item's glyph circle. The glass switcher (deprecated): an unselected
         /// item's width, every item's minimum height.
         public var glyphCircle: CGFloat = 24
+        /// A small glyph circle (`ThemeGlyph` at `GlyphSize.small`: a search header's).
+        public var glyphCircleSmall: CGFloat = 16
         public var switcherItemWidth: CGFloat = 52
         public var switcherItemHeight: CGFloat = 40
         /// A list column: minimum, ideal and maximum widths.
@@ -219,6 +249,12 @@ extension DesignTokens {
         public var railDivider: CGFloat = Spacing.l
         public var railCount: CGFloat = Spacing.l
         public var railDotsMax: Int = 4
+        /// The tallest a Space rail panel grows before it scrolls.
+        public var railPanelMaxHeight: CGFloat = 480
+        /// A segmented pill: its height (a target, plus the padding above and below its segments), and the marker bar
+        /// under the selected segment's title (its thickness is `selectionMarker`).
+        public var segmentedPill: CGFloat = Self.platformMinTarget + 2 * Spacing.xs
+        public var segmentMarker: CGFloat = Spacing.m
 
         public init() {}
 
@@ -244,8 +280,15 @@ extension DesignTokens {
         public var pillTitle = TextRole(.body, .semibold)
         public var initial = TextRole(.callout, .bold)
         public var glyphCircle = TextRole(.caption, .bold)
+        public var glyphCircleSmall = TextRole(.caption2, .bold)
         public var switcherLabel = TextRole(.callout, .semibold)
         public var banner = TextRole(.callout)
+        public var bannerTitle = TextRole(.callout, .semibold)
+        /// The label of a button that has no symbol (a label-only icon button, a banner's action).
+        public var buttonLabel = TextRole(.callout, .semibold)
+        /// A segmented pill's titles: the others, and the selected one.
+        public var segment = TextRole(.callout)
+        public var segmentSelected = TextRole(.callout, .semibold)
         public var accessory = TextRole(.caption, .semibold)
 
         public init() {}

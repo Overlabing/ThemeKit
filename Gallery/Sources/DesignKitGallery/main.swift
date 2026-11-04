@@ -7,7 +7,8 @@ import SwiftUI
 // Renders the gallery offscreen with ImageRenderer: no window, nothing on screen. ImageRenderer does not draw Liquid
 // Glass reliably (shapes vanish), so glass surfaces are drawn with `.material`; the live look needs a window on screen.
 // `DesignKitGallery <output directory> [Theme id…]`: the sample Themes, or the ones named. `DesignKitGallery rail
-// <output directory>`: the Space rail's windows and states (RailGallery.swift).
+// <output directory>`: the Space rail's windows and states (RailGallery.swift). `DesignKitGallery client <output
+// directory>`: the 0.2.4 controls and a real List of rows (ClientGallery.swift).
 
 enum Kind: String, CaseIterable {
     case components
@@ -145,6 +146,13 @@ func audit() {
             cases += tokens.railCases(for: theme, in: appearance)
         }
     }
+    for theme in Palette.standard.themes {
+        for appearance in Appearance.allCases {
+            for placement in SurfacePlacement.allCases {
+                cases += tokens.accentCases(for: theme, in: appearance, placement: placement)
+            }
+        }
+    }
     for item in cases {
         print([item.themeID, "\(item.appearance)", item.placement.rawValue, item.role.rawValue, item.surface.rawValue,
                "\(item.before)", "\(item.after)",
@@ -156,12 +164,16 @@ if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "audit" {
     audit()
     exit(0)
 }
+if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "client" {
+    MainActor.assumeIsolated { runClient(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory)) }
+    exit(0)
+}
 if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "rail" {
     MainActor.assumeIsolated { runRail(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory)) }
     exit(0)
 }
 guard CommandLine.arguments.count >= 2 else {
-    print("usage: DesignKitGallery <output directory> [Theme id…] | rail <output directory> | audit")
+    print("usage: DesignKitGallery <output directory> [Theme id…] | rail <output directory> | client <output directory> | audit")
     exit(2)
 }
 let named = CommandLine.arguments.dropFirst(2).map { id in

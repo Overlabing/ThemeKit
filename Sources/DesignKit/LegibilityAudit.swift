@@ -42,6 +42,9 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
         /// The hairline between the rail's groups: `ColorRoles.railDivider` instead of the separator, on the column's
         /// fill.
         case railDivider
+        /// Text in an accent hue by index (`ColorRoles.accentInk(at:)`, an account's name): the hue mixed with ink
+        /// instead of the raw hue, the worst of `DesignTokens.accents` counted, held to the text threshold.
+        case accentText
     }
 
     public enum SurfaceKind: String, Sendable, CaseIterable {
@@ -274,6 +277,58 @@ extension DesignTokens {
             themeID: theme.id, colors: ResolvedColors(theme, in: appearance),
             dotHues: Hue.allCases.map { RGBA($0.systemColor, in: appearance) }, separator: .separator(in: appearance),
             in: appearance)
+    }
+
+    /// Text in each of `accentHues` by index (`ColorRoles.accentInk(at:)`) for one Theme in one appearance, on the
+    /// window's gradient or inside a list column: on the bare surface (the gradient, or the column's fill), on a hovered,
+    /// a current and a selected row, and on the panel that groups rows. Each case counts the worst accent: `before` is
+    /// the raw hue, `after` its ink, against 4.5:1.
+    public func accentCases(
+        themeID: String, colors: ResolvedColors, accentHues: [RGBA], in appearance: Appearance,
+        placement: SurfacePlacement = .frame
+    ) -> [LegibilityCase] {
+        var withAccents = colors
+        withAccents.accents = accentHues
+        let frameSolved = Legibility.fit(colors: withAccents, surfaces: surfaces(in: appearance))
+        let solved = placement == .frame
+            ? frameSolved
+            : Legibility.solve(
+                colors: withAccents, surfaces: columnSurfaces(in: appearance), hueScale: frameSolved.hueScale)
+        let described = surfaces(in: appearance, placement: placement).scaled(by: solved.hueScale)
+        let (top, content) = described.samples(colors)
+        let panels = described.neutralFills.flatMap { opacity in
+            content.map { colors.ink.opacity(opacity).composited(over: $0) }
+        }
+        func filled(_ opacity: Double) -> [RGBA] {
+            (content + panels).map { colors.primary.opacity(opacity).composited(over: $0) }
+        }
+        let rows: [(LegibilityCase.SurfaceKind, [RGBA])] = [
+            (placement == .frame ? .frame : .columnFill, top + content),
+            (.hoveredRow, filled(described.fills[0])),
+            (.currentRow, filled(described.fills.count > 1 ? described.fills[1] : described.fills[0])),
+            (.selectedRow, filled(solved.selected)),
+            (.layerPanel, panels),
+        ]
+        let inks = zip(accentHues, solved.accentMix).map { $0.mixed(with: colors.ink, by: $1) }
+        func worst(_ marks: [RGBA], on surfaces: [RGBA]) -> Double {
+            let range = Contrast.luminances(surfaces)
+            return marks.map { Contrast.worst(opaque: $0, onLuminances: range) }.min() ?? 21
+        }
+        return rows.map { kind, surfaces in
+            LegibilityCase(
+                themeID: themeID, appearance: appearance, placement: placement, role: .accentText, surface: kind,
+                before: worst(accentHues.map { RGBA(red: $0.red, green: $0.green, blue: $0.blue) }, on: surfaces),
+                after: worst(inks, on: surfaces), threshold: emphasis.textContrast)
+        }
+    }
+
+    /// The same with the system's colours for `theme` in `appearance`, every hue of `accents` as an accent.
+    public func accentCases(
+        for theme: Theme, in appearance: Appearance, placement: SurfacePlacement = .frame
+    ) -> [LegibilityCase] {
+        accentCases(
+            themeID: theme.id, colors: ResolvedColors(theme, in: appearance),
+            accentHues: accents.map { RGBA($0.systemColor, in: appearance) }, in: appearance, placement: placement)
     }
 
     /// A symbol on each system hue (a tile's colour), white before, the kit's ink after, against 3:1.
