@@ -36,7 +36,7 @@ struct LegibilityTests {
     /// themes in four appearances; the colours are those the system gave when the expectations were recorded).
     @Test(arguments: Golden.all)
     func solvingMatchesTheOriginalSolver(_ golden: Golden) {
-        let solved = Legibility.solve(golden.colors, surfaces: .listColumn(in: golden.appearance))
+        let solved = Legibility.solve(colors: golden.colors, surfaces: .listColumn(in: golden.appearance))
         let name = "\(golden.theme) \(golden.appearance)"
         #expect(abs(solved.selected - golden.selected) < 1e-12, "selected \(name)")
         #expect(abs(solved.secondaryAlpha - golden.secondaryAlpha) < 1e-12, "secondaryAlpha \(name)")
@@ -55,7 +55,7 @@ struct LegibilityTests {
     /// Every text reaches 4.5:1 on every surface in the light appearances (the ones whose inks are solved).
     @Test(arguments: Golden.all.filter { !$0.appearance.isDark })
     func everyTextReachesAAInLight(_ golden: Golden) {
-        let solved = Legibility.solve(golden.colors, surfaces: .listColumn(in: golden.appearance))
+        let solved = Legibility.solve(colors: golden.colors, surfaces: .listColumn(in: golden.appearance))
         let name = "\(golden.theme) \(golden.appearance)"
         #expect(solved.worstLabel >= Contrast.text, "label \(name)")
         #expect(solved.worstSecondary >= Contrast.text, "secondary \(name)")
@@ -67,7 +67,7 @@ struct LegibilityTests {
     @Test(arguments: Golden.all)
     func gradientAndSelectionShow(_ golden: Golden) {
         let surfaces = Surfaces.listColumn(in: golden.appearance)
-        let solved = Legibility.solve(golden.colors, surfaces: surfaces)
+        let solved = Legibility.solve(colors: golden.colors, surfaces: surfaces)
         #expect(solved.gradientShows >= 1.3)
         #expect(
             solved.selectionShows >= surfaces.selection.visibility - 0.005 || solved.selected == surfaces.selection.cap)
@@ -81,7 +81,7 @@ struct LegibilityTests {
             gradient: .light, contentTop: 0, fills: [], selection: .init(floor: 0, cap: 0, visibility: 1), tintFills: [])
         var colors = golden.colors
         colors.accents = []
-        let solved = Legibility.solve(colors, surfaces: bare)
+        let solved = Legibility.solve(colors: colors, surfaces: bare)
         #expect(solved.accentMix.isEmpty)
         #expect(solved.worstAccent == 21)
         #expect(solved.selected == 0)
@@ -94,8 +94,8 @@ struct LegibilityTests {
         var low = high
         high.contentTop = 0.1
         low.contentTop = 0.6
-        let a = Legibility.solve(golden.colors, surfaces: high)
-        let b = Legibility.solve(golden.colors, surfaces: low)
+        let a = Legibility.solve(colors: golden.colors, surfaces: high)
+        let b = Legibility.solve(colors: golden.colors, surfaces: low)
         #expect(a != b)
     }
 }

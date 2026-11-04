@@ -9,6 +9,7 @@ let package = Package(
         .library(name: "ColorCore", targets: ["ColorCore"]),
         .library(name: "ColorPlatform", targets: ["ColorPlatform"]),
         .library(name: "ColorUI", targets: ["ColorUI"]),
+        .library(name: "DesignKit", targets: ["DesignKit"]),
     ],
     targets: [
         .target(name: "ColorCore"),
@@ -19,4 +20,8 @@ let package = Package(
         .testTarget(name: "ColorCoreTests", dependencies: ["ColorCore"]),
         .testTarget(name: "ColorPlatformTests", dependencies: ["ColorCore", "ColorPlatform"]),
         .testTarget(name: "ColorUITests", dependencies: ["ColorCore", "ColorPlatform", "ColorUI"]),
+        .target(
+            name: "DesignKit", dependencies: ["ColorCore", "ColorPlatform", "ColorUI"],
+            resources: [.process("Resources")]),
+        .testTarget(name: "DesignKitTests", dependencies: ["ColorCore", "ColorPlatform", "ColorUI", "DesignKit"]),
     ])

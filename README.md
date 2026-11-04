@@ -16,16 +16,18 @@ only.
 | `ColorCore` | Foundation only | `RGBA`, WCAG `Contrast`, `Appearance`, `Hue`, `Theme`, `Palette`, `GradientSpec`, and the `Legibility` solver |
 | `ColorPlatform` | `ColorCore`, AppKit or UIKit | System-color resolution per `Appearance`, `NativeColor` alias, cached `Legibility.of(…)` |
 | `ColorUI` | `ColorCore`, `ColorPlatform`, SwiftUI | `GradientBackground`, `View.theme(_:)` with the `\.theme` environment value, `ThemeSwatch`, localized `Theme.displayName` |
+| `DesignKit` | the three above, SwiftUI | Design tokens, motion roles, colour roles from the solver, and the small views of a themed list column (see below) |
 
 ## Install
 
 ```swift
-.package(url: "https://github.com/Overlabing/ThemeKit", exact: "0.1.0")
+.package(url: "https://github.com/Overlabing/ThemeKit", exact: "0.2.0")
 ```
 
 ## Use
 
 ```swift
+import ColorCore
 import ColorUI
 
 struct Root: View {
@@ -61,12 +63,47 @@ legibility.tintMix          // share of ink to mix into the primary hue for a ti
 legibility.worstTint        // lowest ratio reached
 ```
 
-`Legibility.solve(_:surfaces:)` in `ColorCore` takes already-resolved `ResolvedColors`, so it runs and tests without a
+`Legibility.solve(colors:surfaces:)` in `ColorCore` takes already-resolved `ResolvedColors`, so it runs and tests without a
 window.
 
-## Not in 0.1
+## Design kit
 
-Free-color Themes and a picker.
+`DesignKit` turns a Theme into a window: one set of tokens (`DesignTokens.standard`), named motions (`MotionRole`),
+colours from the legibility solver (`ColorRoles`), and the small views a themed list column is made of.
+
+```swift
+import ColorCore
+import ColorUI
+import DesignKit
+
+struct Root: View {
+    let theme = Palette.standard.themes[0]
+
+    var body: some View {
+        ColumnLayout(side: .left) {
+            VStack(spacing: 0) {
+                StatusLine(tile: .tintedSymbol("tray.full"), title: "All · Inbox", count: 4, isOpen: false)
+                ListRow("Selected", state: RowState(isSelected: true)) { Tile(.initial("S")) }
+                Spacer()
+                GlassSwitcher(items, selection: current, label: "Spaces") { current = $0 }
+            }
+        } detail: {
+            DetailView()
+        }
+        .designTokens(.standard)   // the default; set it to inject an adjusted copy
+        .theme(theme)
+    }
+}
+```
+
+The rule for apps that use it: **no raw number in a view**. A new value becomes a token first. Tokens, views,
+accessibility behaviour and the legibility audit are described in [docs/design-kit.md](docs/design-kit.md); changes per
+release in [CHANGELOG.md](CHANGELOG.md).
+
+## Not yet
+
+Free-color Themes and a picker. Larger shells (settings window, onboarding sheet, theme editor, command panel) come in a
+later release.
 
 ## Tests
 

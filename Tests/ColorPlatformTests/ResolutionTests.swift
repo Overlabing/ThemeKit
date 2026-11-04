@@ -86,7 +86,7 @@ struct SystemLegibilityTests {
         let first = Legibility.of(theme, surfaces: surfaces, in: appearance)
         let again = Legibility.of(theme, surfaces: surfaces, in: appearance)
         #expect(first == again)
-        #expect(first == Legibility.solve(ResolvedColors(theme, in: appearance), surfaces: surfaces))
+        #expect(first == Legibility.solve(colors: ResolvedColors(theme, in: appearance), surfaces: surfaces))
     }
 
     @Test func differentSurfacesAreNotServedFromTheSameCacheEntry() throws {
@@ -104,7 +104,7 @@ struct SystemLegibilityTests {
             for appearance in [Appearance.light, .lightIncreasedContrast] {
                 for theme in Palette.standard.themes {
                     _ = Legibility.solve(
-                        ResolvedColors(theme, accents: theme.accents(plus: [.mint, .yellow]), in: appearance),
+                        colors: ResolvedColors(theme, accents: theme.accents(plus: [.mint, .yellow]), in: appearance),
                         surfaces: .listColumn(in: appearance))
                 }
             }
