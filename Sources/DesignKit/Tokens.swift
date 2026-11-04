@@ -54,6 +54,12 @@ extension DesignTokens {
         public var bannerHorizontal: CGFloat = m
         /// Inset of a content canvas inside its column, and the canvas's inner margin.
         public var canvasInset: CGFloat = m
+        /// Inset of a list column's surface from the window's edges (top, bottom, outer side). Equal to `canvasInset`,
+        /// so the column and the canvas beside it line up and keep the same gap to the window and to each other.
+        public var columnInset: CGFloat = m
+        /// From the window's top edge (the top of the layout, when the content runs under the title bar) to the
+        /// column's first row: `columnInset`, then the column's own margin (`listMargin`) inside its surface.
+        public var columnTop: CGFloat = xl
         /// Between two icon buttons in a pill, and between two groups of buttons.
         public var pillActionGap: CGFloat = s
         /// Between a floating pill and the edges of what it floats over.
@@ -92,6 +98,9 @@ extension DesignTokens {
         public var layer: CGFloat = 12
         public var banner: CGFloat = 12
         public var canvas: CGFloat = 12
+        /// A list column's surface: `row` plus the 4 pt from the surface's edge to a row's background
+        /// (`listMargin - rowInsetHorizontal`), so the rows' backgrounds stay concentric to it.
+        public var column: CGFloat = 12
 
         public init() {}
     }
@@ -115,6 +124,11 @@ extension DesignTokens {
         public var glassTint: Double = 0.35
         /// A nested panel's background, in `.primary` (not the hue).
         public var layer: Double = 0.06
+        /// A list column's own surface: the plain window background (`.background`, not the hue) laid over the
+        /// gradient at this opacity, per appearance. The column reads darker than the page frame in dark and lighter in
+        /// light, and keeps a trace of the Theme. Opaque under Reduce Transparency.
+        public var columnLight: Double = 0.5
+        public var columnDark: Double = 0.5
         /// A discreet item: its tile, glyph and fill at this share.
         public var discreet: Double = 0.5
         /// Relative luminance above which a background counts as light (a floating control takes the light
@@ -138,6 +152,9 @@ extension DesignTokens {
         public var disabled: Double = 0.4
 
         public init() {}
+
+        /// The column's backdrop in one appearance.
+        public func column(isDark: Bool) -> Double { isDark ? columnDark : columnLight }
 
         public func contrasted(_ opacity: Double, _ increased: Bool) -> Double {
             increased ? min(1, opacity * increasedContrastFactor) : opacity

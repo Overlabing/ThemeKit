@@ -15,6 +15,7 @@ enum Kind: String, CaseIterable {
     case columnRight = "column-right"
     case browserLeft = "browser-main-window-left"
     case browserRight = "browser-main-window-right"
+    case browserAccessibility = "browser-main-window-left-contrast-transparency"
 }
 
 struct Shot {
@@ -39,6 +40,8 @@ struct Shot {
             case .columnRight: CompositionSheet(side: .right)
             case .browserLeft: BrowserSample(side: .left)
             case .browserRight: BrowserSample(side: .right)
+            case .browserAccessibility:
+                BrowserSample(side: .left).accessibilityOverrides(increaseContrast: true, reduceTransparency: true)
             }
         }
         .designTokens(.standard)
@@ -119,21 +122,25 @@ func run(output: URL, themes: [Theme]) {
     }
 }
 
-/// Prints every legibility case of the standard tokens, one tab-separated row each: Theme (or hue), appearance, role,
-/// surface, the system default's ratio, the kit's ratio, the threshold.
+/// Prints every legibility case of the standard tokens, one tab-separated row each: Theme (or hue), appearance,
+/// placement, role, surface, the system default's ratio, the kit's ratio, the threshold.
 func audit() {
     let tokens = DesignTokens.standard
     var cases: [LegibilityCase] = []
-    for theme in Palette.standard.themes {
-        for appearance in Appearance.allCases {
-            cases += tokens.legibilityCases(for: theme, in: appearance)
+    for placement in SurfacePlacement.allCases {
+        for theme in Palette.standard.themes {
+            for appearance in Appearance.allCases {
+                cases += tokens.legibilityCases(for: theme, in: appearance, placement: placement)
+            }
+        }
+        if placement == .frame {
+            for appearance in Appearance.allCases {
+                cases += tokens.symbolCases(in: appearance)
+            }
         }
     }
-    for appearance in Appearance.allCases {
-        cases += tokens.symbolCases(in: appearance)
-    }
     for item in cases {
-        print([item.themeID, "\(item.appearance)", item.role.rawValue, item.surface.rawValue,
+        print([item.themeID, "\(item.appearance)", item.placement.rawValue, item.role.rawValue, item.surface.rawValue,
                "\(item.before)", "\(item.after)",
                String(format: "%.1f", item.threshold)].joined(separator: "\t"))
     }

@@ -2,8 +2,8 @@ import ColorCore
 import DesignKit
 import SwiftUI
 
-/// A browser's main window composed from the kit, the way a mail client's is: the column of Tabs on the window
-/// background, the page in a content canvas, no bar above the page. The address field and Back, Forward, Reload sit
+/// A browser's main window composed from the kit, the way a mail client's is: the column of Tabs on its own surface,
+/// the page in a content canvas on the window's gradient, no bar above the page. The address field and Back, Forward, Reload sit
 /// where a status line sits, at the top of the column.
 struct BrowserSample: View {
     @Environment(\.designTokens) private var tokens
@@ -23,7 +23,6 @@ struct BrowserSample: View {
                 IconButton("Reload", systemImage: "arrow.clockwise") {}
             }
             .padding(.horizontal, tokens.spacing.listMargin)
-            .padding(.top, tokens.spacing.listMargin)
             .padding(.bottom, tokens.spacing.statusLineToList)
             ListRow("Mail") { Tile(.symbol("envelope.fill", .blue)) }
             ListRow("Calendar") { Tile(.symbol("calendar", .red)) }
