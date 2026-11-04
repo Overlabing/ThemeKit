@@ -39,3 +39,26 @@ public struct Palette: Sendable, Equatable {
 
     public func theme(id: String) -> Theme? { themes.first { $0.id == id } }
 }
+
+/// A hue named relative to a Theme, or a fixed one: what `DesignTokens.accents` lists so that an order can follow the
+/// Theme ("the Theme's own hues first"). `.primary` and `.secondary` resolve against the Theme they are drawn in.
+public enum Accent: Hashable, Sendable {
+    case primary
+    case secondary
+    case hue(Hue)
+
+    /// The system hue this accent is in `theme`.
+    public func hue(in theme: Theme) -> Hue {
+        switch self {
+        case .primary: theme.primary
+        case .secondary: theme.secondary
+        case .hue(let hue): hue
+        }
+    }
+}
+
+extension Sequence where Element == Accent {
+    /// Each accent resolved against `theme`, in order. A duplicate keeps its place: `[.primary, .hue(.indigo)]` in a
+    /// Theme whose primary is indigo gives indigo twice, since an index (an account's, say) names the slot.
+    public func hues(in theme: Theme) -> [Hue] { map { $0.hue(in: theme) } }
+}

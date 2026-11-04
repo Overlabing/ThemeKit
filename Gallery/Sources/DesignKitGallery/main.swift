@@ -125,7 +125,8 @@ func run(output: URL, themes: [Theme]) {
 }
 
 /// Prints every legibility case of the standard tokens, one tab-separated row each: Theme (or hue), appearance,
-/// placement, role, surface, the system default's ratio, the kit's ratio, the threshold.
+/// placement, role, surface, the system default's ratio, the kit's ratio, the threshold. Then the accent cases with the
+/// Theme's own hues first, their Theme id suffixed with the list.
 func audit() {
     let tokens = DesignTokens.standard
     var cases: [LegibilityCase] = []
@@ -153,11 +154,25 @@ func audit() {
             }
         }
     }
-    for item in cases {
-        print([item.themeID, "\(item.appearance)", item.placement.rawValue, item.role.rawValue, item.surface.rawValue,
+    // The Theme's own hues first (Oisillon's account order, issue #17): the same accent cases, the list resolved
+    // against each Theme. Their Theme id carries the list, so they do not collide with the default order's.
+    var themeFirst = tokens
+    themeFirst.accents = [.primary, .secondary, .hue(.mint), .hue(.yellow)]
+    var themeFirstCases: [LegibilityCase] = []
+    for theme in Palette.standard.themes {
+        for appearance in Appearance.allCases {
+            for placement in SurfacePlacement.allCases {
+                themeFirstCases += themeFirst.accentCases(for: theme, in: appearance, placement: placement)
+            }
+        }
+    }
+    func emit(_ item: LegibilityCase, themeID: String) {
+        print([themeID, "\(item.appearance)", item.placement.rawValue, item.role.rawValue, item.surface.rawValue,
                "\(item.before)", "\(item.after)",
                String(format: "%.1f", item.threshold)].joined(separator: "\t"))
     }
+    for item in cases { emit(item, themeID: item.themeID) }
+    for item in themeFirstCases { emit(item, themeID: "\(item.themeID)[primary,secondary,mint,yellow]") }
 }
 
 if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "audit" {

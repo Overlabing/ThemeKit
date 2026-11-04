@@ -299,8 +299,10 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   Profile change fades. `accessibilityOverrides(reduceMotion: true)` simulates it in previews and renders and
   `accessibilityOverrides(fullMotion: true)` lifts a Reduce Motion the system has on (Reduce Motion wins if both are set).
 - **Accent inks**: `ColorRoles.accentInk(at: index)` is text in the `index`th hue of `DesignTokens.accents` (the twelve system
-  hues, wrapping), mixed with ink until it reaches 4.5:1 on every surface text sits on, the column's included; draw a dot or
-  tile in `accentHue(at:)`. `accentCases(for:in:placement:)` lists them (280 cases, worst accent counted).
+  hues by default, wrapping), mixed with ink until it reaches 4.5:1 on every surface text sits on, the column's included; draw
+  a dot or tile in `accentHue(at:)`. The list is `[Accent]`: `.primary` and `.secondary` follow the Theme
+  (`accentHues(in:)`), so `[.primary, .secondary, .hue(.mint), .hue(.yellow)]` puts the Theme's own hues first, and a hue
+  listed twice keeps both slots. `accentCases(for:in:placement:)` lists them (280 cases, worst accent counted).
 - **Focus and disabled**: `IconButton`, a banner's buttons and `SegmentedPill` draw the kit's focus ring on keyboard focus
   (their own, the system's effect is off) and are dimmed to `Emphasis.disabled` when disabled; `controlFocusPreview()` forces
   the ring for renders.
@@ -316,7 +318,8 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   records the 804 cases of 0.2.1, the 14 selection marker cases added in 0.2.2 (818 on the frame) and the 798 column
   cases of 0.2.3 (1616). `railCases(for:in:)` lists the Space rail's marks on the column's fill (168 in 0.2.4): a quiet
   glyph at 4.5:1 on the fill and its hover disc, the marker, a folded Profile's dots (every system hue, the worst
-  counted) and the divider at 3:1; `accentCases` lists the 280 accent text cases of 0.2.4 (2064 cases in all). Glass is measured as anything between the window background (its Reduce Transparency fill) and
+  counted) and the divider at 3:1; `accentCases` lists the 280 accent text cases of 0.2.4 (2064 cases in all), and 0.2.5 adds 280 with the Theme's own hues
+  first, `[.primary, .secondary, .hue(.mint), .hue(.yellow)]` (2344). Glass is measured as anything between the window background (its Reduce Transparency fill) and
   what is under it; the switcher's capsule over the bottom of the column (`switcherTop`).
 - **Inactive window**: the kit's inks are explicit and read no window state, so a column keeps its contrast when the
   window resigns key. Draw it with `ColumnSurface` in a plain split item: a system sidebar (`NSSplitViewItem(sidebarWithViewController:)`,

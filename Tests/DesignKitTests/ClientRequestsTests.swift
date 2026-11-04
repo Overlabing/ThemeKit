@@ -180,8 +180,11 @@ struct NewTokenTests {
     }
 
     @Test func theAccentsAreTheTwelveHues() {
-        #expect(tokens.accents == Hue.allCases)
+        #expect(tokens.accents == Hue.allCases.map(Accent.hue))
         #expect(tokens.accents.count == 12)
+        for theme in Palette.standard.themes {
+            #expect(tokens.accentHues(in: theme) == Hue.allCases)
+        }
     }
 }
 
