@@ -118,6 +118,14 @@ and the values it solved for them (recorded on macOS 27.0.1), and require identi
 on the system's own colors run only on macOS 27; the 4.5:1 invariants run everywhere. The package also builds for iOS
 (`xcodebuild -scheme ThemeKit-Package -destination 'generic/platform=iOS Simulator' build`).
 
+## Contributing
+
+Once per clone, `scripts/tools.sh install-hooks` installs the commit hooks of [AppTooling](https://github.com/Overlabing/AppTooling)
+(a leak scan of what you commit, and Claude attribution stripped from commit messages). The `hygiene` workflow checks the
+same on every pull request: no private shape in the tree or the history, no Claude attribution and no personal email
+address in the commits, the title or the description. `scripts/check-attribution.sh <base> <head>` runs the last check
+locally.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
