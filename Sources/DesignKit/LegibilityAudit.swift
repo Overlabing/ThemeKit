@@ -1,9 +1,10 @@
 import ColorCore
 import ColorPlatform
 
-/// One text or glyph role on one kind of surface, for one Theme (or one hue) and appearance: the contrast the system's
-/// default colour reaches there (`before`) and the contrast the kit's colour reaches (`after`), against `threshold`:
-/// 4.5:1 for text, 3:1 for glyphs, focus rings and outlines.
+/// One text or glyph role on one kind of surface, for one Theme (or one hue) and appearance, on the window's gradient
+/// or inside a list column (`placement`): the contrast the system's default colour reaches there (`before`) and the
+/// contrast the kit's colour reaches (`after`), against `threshold`: 4.5:1 for text, 3:1 for glyphs, focus rings,
+/// outlines and the column's edge.
 public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
     public enum Role: String, Sendable, CaseIterable {
         /// Secondary text: `ColorRoles.secondaryText` instead of the system's secondary label.
@@ -26,6 +27,9 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
         /// The bar at the leading edge of a selected row outside Increase Contrast: `ColorRoles.selectionMarker`. The
         /// system default is no marker, so `before` is how far the fill alone sets the row apart from what is under it.
         case selectionMarker
+        /// The edge of a list column's surface: `ColorRoles.columnEdge` instead of the separator, against the gradient
+        /// outside the column (surface `frame`) and against the column's fill inside (surface `columnFill`).
+        case columnEdge
     }
 
     public enum SurfaceKind: String, Sendable, CaseIterable {
@@ -47,11 +51,16 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
         case switcherSelection
         /// The hue itself, opaque.
         case solidHue
+        /// A list column's own fill: the plain background at `Emphasis.column(isDark:)` over the gradient, top to
+        /// bottom, and the plain background alone (Reduce Transparency). Inside a column it takes the place of `frame`.
+        case columnFill
     }
 
     /// The Theme's id, or the hue's name for a symbol on a hue.
     public let themeID: String
     public let appearance: Appearance
+    /// On the window's gradient or inside a list column.
+    public let placement: SurfacePlacement
     public let role: Role
     public let surface: SurfaceKind
     public let before: Double
@@ -62,33 +71,41 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
     public var isFixed: Bool { before < threshold && after >= threshold }
 
     public var description: String {
-        "\(themeID) \(appearance) \(role.rawValue) on \(surface.rawValue): \(before) → \(after) (≥ \(threshold))"
+        let place = placement == .frame ? "" : " in the \(placement.rawValue)"
+        return "\(themeID) \(appearance) \(role.rawValue) on \(surface.rawValue)\(place): \(before) → \(after) (≥ \(threshold))"
     }
 }
 
 extension DesignTokens {
-    /// Every text and glyph role on every surface the kit draws them on, for one Theme in one appearance, with resolved
-    /// colours (pure: runs without a window). The focus ring cases need the system's focus colour, the outline cases
-    /// (Increase Contrast only) the separator's; without them those cases are left out.
+    /// Every text and glyph role on every surface the kit draws them on, for one Theme in one appearance, on the
+    /// window's gradient or inside a list column, with resolved colours (pure: runs without a window). The focus ring
+    /// cases need the system's focus colour, the outline cases (Increase Contrast only) the separator's; without them
+    /// those cases are left out. Inside a column the surfaces sit on its fill (`columnSurfaces(in:)`), the hue keeps
+    /// the frame's share, a symbol or a text on the opaque hue is left to the frame's cases (nothing under it changes),
+    /// and the column's edge has its two cases.
     public func legibilityCases(
-        themeID: String, colors: ResolvedColors, focus: RGBA? = nil, separator: RGBA? = nil, in appearance: Appearance
+        themeID: String, colors: ResolvedColors, focus: RGBA? = nil, separator: RGBA? = nil, in appearance: Appearance,
+        placement: SurfacePlacement = .frame
     ) -> [LegibilityCase] {
-        let solved = Legibility.fit(colors: colors, surfaces: surfaces(in: appearance))
-        let described = surfaces(in: appearance).scaled(by: solved.hueScale)
+        let frameSolved = Legibility.fit(colors: colors, surfaces: surfaces(in: appearance))
+        let solved = placement == .frame
+            ? frameSolved
+            : Legibility.solve(colors: colors, surfaces: columnSurfaces(in: appearance), hueScale: frameSolved.hueScale)
+        let described = surfaces(in: appearance, placement: placement).scaled(by: solved.hueScale)
         let spec = described.gradient
-        func gradient(at t: Double) -> RGBA {
-            spec.color(at: t, primary: colors.primary, secondary: colors.secondary, over: colors.background)
+        func place(at t: Double) -> RGBA {
+            let bare = spec.color(at: t, primary: colors.primary, secondary: colors.secondary, over: colors.background)
+            return described.backdrop > 0 ? colors.background.opacity(described.backdrop).composited(over: bare) : bare
         }
         let ink = colors.ink
-        let top = stride(from: 0.0, to: described.contentTop, by: 0.02).map(gradient(at:))
-        let content = stride(from: described.contentTop, through: 1.0, by: 0.05).map(gradient(at:))
+        let (top, content) = described.samples(colors)
         let panels = described.neutralFills.flatMap { opacity in content.map { ink.opacity(opacity).composited(over: $0) } }
         func filled(_ opacity: Double) -> [RGBA] {
             (content + panels).map { colors.primary.opacity(opacity).composited(over: $0) }
         }
         let fills = described.fills
         let rows: [(LegibilityCase.SurfaceKind, [RGBA])] = [
-            (.frame, top + content),
+            (placement == .frame ? .frame : .columnFill, top + content),
             (.hoveredRow, filled(fills[0])),
             (.currentRow, filled(fills.count > 1 ? fills[1] : fills[0])),
             (.selectedRow, filled(solved.selected)),
@@ -98,8 +115,8 @@ extension DesignTokens {
         let tinted = described.tintFills.flatMap { opacity in
             everyRow.map { colors.primary.opacity(opacity).composited(over: $0) }
         }
-        let glass = [colors.background] + stride(from: 0.0, through: 1.0, by: 0.05).map(gradient(at:))
-        let switcher = ([colors.background] + stride(from: emphasis.switcherTop, through: 1.0, by: 0.05).map(gradient(at:)))
+        let glass = [colors.background] + stride(from: 0.0, through: 1.0, by: 0.05).map(place(at:))
+        let switcher = ([colors.background] + stride(from: emphasis.switcherTop, through: 1.0, by: 0.05).map(place(at:)))
             .map { colors.primary.opacity(emphasis.glassTint).composited(over: $0) }
 
         let secondaryInk = colors.label.opacity(solved.secondaryAlpha / colors.label.alpha)
@@ -108,8 +125,8 @@ extension DesignTokens {
         func add(_ role: LegibilityCase.Role, _ kind: LegibilityCase.SurfaceKind, _ before: Double, _ after: Double,
                  _ threshold: Double) {
             cases.append(LegibilityCase(
-                themeID: themeID, appearance: appearance, role: role, surface: kind, before: before, after: after,
-                threshold: threshold))
+                themeID: themeID, appearance: appearance, placement: placement, role: role, surface: kind,
+                before: before, after: after, threshold: threshold))
         }
         let text = emphasis.textContrast
         let nonText = emphasis.nonTextContrast
@@ -129,9 +146,11 @@ extension DesignTokens {
         let glassRange = Contrast.luminances(glass)
         add(.tintedGlyph, .glass, Contrast.worst(opaque: colors.primary, onLuminances: glassRange),
             Contrast.worst(opaque: tintInk, onLuminances: glassRange), nonText)
-        let hue = RGBA(red: colors.primary.red, green: colors.primary.green, blue: colors.primary.blue)
-        add(.textOnHue, .solidHue, Contrast.ratio(.white, hue),
-            Contrast.ratio(Contrast.ink(on: hue, minimum: text), hue), text)
+        if placement == .frame {
+            let hue = RGBA(red: colors.primary.red, green: colors.primary.green, blue: colors.primary.blue)
+            add(.textOnHue, .solidHue, Contrast.ratio(.white, hue),
+                Contrast.ratio(Contrast.ink(on: hue, minimum: text), hue), text)
+        }
         if let focus {
             let ring = solved.focusRing(focus, ink: ink, minimum: nonText)
             for (kind, surfaces) in rows {
@@ -156,14 +175,33 @@ extension DesignTokens {
                     Contrast.worst(foreground: secondaryInk, on: around), nonText)
             }
         }
+        if placement == .column {
+            let neighbours = ColorRoles.columnEdgeNeighbours(
+                colors: colors, frame: surfaces(in: appearance), column: columnSurfaces(in: appearance),
+                hueScale: solved.hueScale)
+            let alpha = ColorRoles.columnEdgeAlpha(
+                colors: colors, frame: surfaces(in: appearance), column: columnSurfaces(in: appearance),
+                hueScale: solved.hueScale, minimum: nonText)
+            func worst(_ line: RGBA?, against side: (RGBA, RGBA) -> RGBA) -> Double {
+                neighbours.map { fill, outside in
+                    Contrast.ratio(line.map { $0.composited(over: fill) } ?? fill, side(fill, outside))
+                }.min() ?? 1
+            }
+            let edge = ink.opacity(alpha)
+            add(.columnEdge, .frame, worst(separator, against: { $1 }), worst(edge, against: { $1 }), nonText)
+            add(.columnEdge, .columnFill, worst(separator, against: { fill, _ in fill }),
+                worst(edge, against: { fill, _ in fill }), nonText)
+        }
         return cases
     }
 
     /// The same with the system's colours for `theme` in `appearance`.
-    public func legibilityCases(for theme: Theme, in appearance: Appearance) -> [LegibilityCase] {
+    public func legibilityCases(
+        for theme: Theme, in appearance: Appearance, placement: SurfacePlacement = .frame
+    ) -> [LegibilityCase] {
         legibilityCases(
             themeID: theme.id, colors: ResolvedColors(theme, in: appearance), focus: .keyboardFocus(in: appearance),
-            separator: .separator(in: appearance), in: appearance)
+            separator: .separator(in: appearance), in: appearance, placement: placement)
     }
 
     /// A symbol on each system hue (a tile's colour), white before, the kit's ink after, against 3:1.
@@ -171,7 +209,7 @@ extension DesignTokens {
         Hue.allCases.map { hue in
             let color = RGBA(hue.systemColor, in: appearance)
             return LegibilityCase(
-                themeID: hue.rawValue, appearance: appearance, role: .symbolOnHue, surface: .solidHue,
+                themeID: hue.rawValue, appearance: appearance, placement: .frame, role: .symbolOnHue, surface: .solidHue,
                 before: Contrast.ratio(.white, color),
                 after: Contrast.ratio(Contrast.ink(on: color, minimum: emphasis.nonTextContrast), color),
                 threshold: emphasis.nonTextContrast)

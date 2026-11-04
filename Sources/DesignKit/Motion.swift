@@ -66,6 +66,8 @@ public enum MotionRole: String, Sendable, CaseIterable {
     case rowDeparture
     case indicatorRotation
     case hoverFill
+    /// A Theme changing, a change of space included: the window background, the switcher, the column's edge. There is
+    /// no separate space role; a space's change is the change of its Theme (Oisillon's `spaceChange` has this spec).
     case themeChange
     case pullToOpen
     case contentReveal

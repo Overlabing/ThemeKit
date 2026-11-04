@@ -33,6 +33,10 @@ struct StandardTokensTests {
         #expect(spacing.headerTracking == 0.6)
         #expect(spacing.selectionMarkerLeading == 2)
         #expect(spacing.selectionMarkerVertical == 8)
+        #expect(spacing.columnInset == 12)
+        #expect(spacing.columnInset == spacing.canvasInset)
+        #expect(spacing.columnTop == 24)
+        #expect(spacing.columnTop == spacing.columnInset + spacing.listMargin)
     }
 
     @Test func radii() {
@@ -46,6 +50,8 @@ struct StandardTokensTests {
         #expect(radius.layer == radius.row + tokens.spacing.layerInset)
         #expect(radius.banner == 12)
         #expect(radius.canvas == 12)
+        #expect(radius.column == 12)
+        #expect(radius.column == radius.row + tokens.spacing.listMargin - tokens.spacing.rowInsetHorizontal)
     }
 
     @Test func sizes() {
@@ -91,6 +97,9 @@ struct StandardTokensTests {
         #expect(emphasis.nonTextContrast == 3)
         #expect(emphasis.pressed == 0.6)
         #expect(emphasis.disabled == 0.4)
+        #expect(emphasis.columnLight == 0.5)
+        #expect(emphasis.columnDark == 0.5)
+        #expect(emphasis.column(isDark: true) == 0.5)
     }
 
     @Test func increaseContrastRaisesByOnePointEightCappedAtOne() {
@@ -163,6 +172,17 @@ struct SurfacesTests {
             selection: .init(floor: 0.25, cap: 0.5, visibility: 1.3), tintFills: [0.14, 0.25], neutralFills: [0.06]))
     }
 
+    /// Inside a column every surface is the frame's, under the column's backdrop.
+    @Test(arguments: Appearance.allCases)
+    func theColumnIsTheFrameUnderABackdrop(_ appearance: Appearance) {
+        var expected = DesignTokens.standard.surfaces(in: appearance)
+        #expect(expected.backdrop == 0)
+        expected.backdrop = 0.5
+        #expect(DesignTokens.standard.columnSurfaces(in: appearance) == expected)
+        #expect(DesignTokens.standard.surfaces(in: appearance, placement: .column) == expected)
+        #expect(DesignTokens.standard.surfaces(in: appearance, placement: .frame) == DesignTokens.standard.surfaces(in: appearance))
+    }
+
     @Test func increasedContrastRaisesRowFillsAndTheSelectionFloorOnly() {
         let surfaces = DesignTokens.standard.surfaces(in: .darkIncreasedContrast)
         #expect(surfaces.fills.map { ($0 * 1000).rounded() / 1000 } == [0.18, 0.288])
@@ -214,6 +234,50 @@ struct ColorRolesTests {
         }
     }
 
+    /// Inside a column the roles are solved on the column's surfaces, at the frame's share of the hue, so the
+    /// gradient under the column and the fills in it are drawn alike.
+    @Test(arguments: Palette.standard.themes)
+    func columnRolesAreSolvedOnTheColumnFill(_ theme: Theme) {
+        for appearance in Appearance.allCases {
+            let frame = ColorRoles(theme: theme, tokens: .standard, appearance: appearance)
+            let column = ColorRoles(theme: theme, tokens: .standard, appearance: appearance, placement: .column)
+            let colors = ResolvedColors(theme, in: appearance)
+            #expect(frame.placement == .frame)
+            #expect(column.hueScale == frame.hueScale)
+            #expect(column.legibility == Legibility.solve(
+                colors: colors, surfaces: DesignTokens.standard.columnSurfaces(in: appearance), hueScale: frame.hueScale))
+            #expect(column.hoverOpacity == frame.hoverOpacity)
+            #expect(column.frameStops == frame.frameStops)
+            #expect(column.columnFillOpacity == 0.5)
+            let solved = column.legibility
+            #expect(min(solved.worstLabel, solved.worstSecondary, solved.worstTint) >= 4.5, "\(theme.id) \(appearance)")
+            #expect(Contrast.worst(opaque: column.focusRingRGBA, onLuminances: solved.surfaceLuminances) >= 3)
+            #expect(Contrast.worst(opaque: column.selectionMarkerRGBA, onLuminances: solved.surfaceLuminances) >= 3)
+        }
+    }
+
+    /// The column's edge: the label's ink, translucent, at 3:1 against the gradient beside the column and against the
+    /// column's fill, with or without Reduce Transparency.
+    @Test(arguments: Palette.standard.themes)
+    func theColumnEdgeReachesThreeToOne(_ theme: Theme) {
+        for appearance in Appearance.allCases {
+            let roles = ColorRoles(theme: theme, tokens: .standard, appearance: appearance, placement: .column)
+            let colors = ResolvedColors(theme, in: appearance)
+            let edge = roles.columnEdgeRGBA
+            #expect(edge.alpha > 0.45 && edge.alpha < 0.6, "\(theme.id) \(appearance) \(edge.alpha)")
+            #expect(edge.red == colors.ink.red)
+            let neighbours = ColorRoles.columnEdgeNeighbours(
+                colors: colors, frame: DesignTokens.standard.surfaces(in: appearance),
+                column: DesignTokens.standard.columnSurfaces(in: appearance), hueScale: roles.hueScale)
+            #expect(neighbours.count == 102)
+            for (fill, outside) in neighbours {
+                let line = edge.composited(over: fill)
+                #expect(Contrast.ratio(line, outside) >= 3)
+                #expect(Contrast.ratio(line, fill) >= 3)
+            }
+        }
+    }
+
     @Test func focusRingIsOpaqueAndReachesThreeToOne() {
         for theme in Palette.standard.themes {
             for appearance in Appearance.allCases {
@@ -227,7 +291,7 @@ struct ColorRolesTests {
 }
 
 /// Every text and glyph role on every surface, for every standard Theme and appearance, and a symbol on every system
-/// hue, as recorded (CHANGELOG 0.2.1 and 0.2.2). The system's colours were resolved on macOS 27, so the comparison runs there.
+/// hue, as recorded (CHANGELOG 0.2.1, 0.2.2 and, inside a list column, 0.2.3). The system's colours were resolved on macOS 27, so the comparison runs there.
 @Suite(.enabled(if: ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27))
 struct LegibilityCaseTests {
     static let computed: [String: LegibilityCase] = {
@@ -235,18 +299,23 @@ struct LegibilityCaseTests {
         var cases: [LegibilityCase] = []
         for appearance in Appearance.allCases {
             for theme in Palette.standard.themes {
-                cases += DesignTokens.standard.legibilityCases(for: theme, in: appearance)
+                for placement in SurfacePlacement.allCases {
+                    cases += DesignTokens.standard.legibilityCases(for: theme, in: appearance, placement: placement)
+                }
             }
             cases += DesignTokens.standard.symbolCases(in: appearance)
         }
         for item in cases {
-            all["\(item.themeID) \(item.appearance) \(item.role) \(item.surface)"] = item
+            all["\(item.themeID) \(item.appearance) \(item.placement) \(item.role) \(item.surface)"] = item
         }
         return all
     }()
 
+    /// 818 on the frame (as 0.2.2), 798 in the column: 27 per Theme and appearance, plus the marker (light, dark) or
+    /// the two outlines (Increase Contrast).
     @Test func everyCaseIsRecorded() {
-        #expect(Self.computed.count == 818)
+        #expect(Self.computed.count == 1616)
+        #expect(Self.computed.values.filter { $0.placement == .column }.count == 798)
         #expect(Self.computed.count == RecordedCase.all.count)
         #expect(Set(Self.computed.keys) == Set(RecordedCase.all.map(\.key)))
     }
@@ -264,13 +333,31 @@ struct LegibilityCaseTests {
 struct LegibilityInvariantTests {
     /// With whatever colours the system gives, every text and glyph role reaches its threshold on every surface, in
     /// every appearance.
-    @Test(arguments: Palette.standard.themes)
-    func everyCaseReachesItsThreshold(_ theme: Theme) {
+    @Test(arguments: Palette.standard.themes, SurfacePlacement.allCases)
+    func everyCaseReachesItsThreshold(_ theme: Theme, _ placement: SurfacePlacement) {
         for appearance in Appearance.allCases {
-            for item in DesignTokens.standard.legibilityCases(for: theme, in: appearance) {
+            for item in DesignTokens.standard.legibilityCases(for: theme, in: appearance, placement: placement) {
+                #expect(item.placement == placement)
                 #expect(item.after >= item.threshold, "\(item)")
             }
         }
+    }
+
+    /// Inside a column: the frame's roles on the column's fill instead of the frame, no text or symbol on the opaque
+    /// hue (nothing under it changes), and the column's edge against the gradient and against the fill.
+    @Test(arguments: Appearance.allCases)
+    func theColumnHasItsOwnCases(_ appearance: Appearance) {
+        let cases = DesignTokens.standard.legibilityCases(for: Palette.standard.themes[0], in: appearance, placement: .column)
+        #expect(cases.count == (appearance.isIncreasedContrast ? 29 : 28))
+        #expect(!cases.contains { $0.surface == .frame && $0.role != .columnEdge })
+        #expect(!cases.contains { $0.role == .textOnHue })
+        #expect(cases.filter { $0.surface == .columnFill }.map(\.role)
+            == [.primaryText, .secondaryText, .tintedText, .focusRing, .columnEdge])
+        let edge = cases.filter { $0.role == .columnEdge }
+        #expect(edge.map(\.surface) == [.frame, .columnFill])
+        #expect(edge.allSatisfy { $0.threshold == 3 && $0.after >= 3 && $0.isFixed })
+        let frame = DesignTokens.standard.legibilityCases(for: Palette.standard.themes[0], in: appearance)
+        #expect(!frame.contains { $0.role == .columnEdge || $0.surface == .columnFill })
     }
 
     @Test func aSymbolOnAnySystemHueReachesThreeToOne() {
@@ -284,11 +371,16 @@ struct LegibilityInvariantTests {
     /// The thresholds: 4.5:1 for text, 3:1 for glyphs, focus rings, outlines and the selection marker.
     @Test func thresholds() {
         let cases = DesignTokens.standard.legibilityCases(for: Palette.standard.themes[0], in: .darkIncreasedContrast)
+        let column = DesignTokens.standard.legibilityCases(
+            for: Palette.standard.themes[0], in: .darkIncreasedContrast, placement: .column)
         let text: Set<LegibilityCase.Role> = [.primaryText, .secondaryText, .tintedText, .textOnHue]
-        for item in cases {
+        for item in cases + column {
             #expect(item.threshold == (text.contains(item.role) ? 4.5 : 3), "\(item)")
         }
-        #expect(Set(cases.map(\.role)) == Set(LegibilityCase.Role.allCases).subtracting([.symbolOnHue, .selectionMarker]))
+        #expect(Set(cases.map(\.role))
+            == Set(LegibilityCase.Role.allCases).subtracting([.symbolOnHue, .selectionMarker, .columnEdge]))
+        #expect(Set(column.map(\.role))
+            == Set(LegibilityCase.Role.allCases).subtracting([.symbolOnHue, .selectionMarker, .textOnHue]))
     }
 
     /// The marker stands where the outline does not: outside Increase Contrast, one case per Theme and appearance.
@@ -309,6 +401,22 @@ struct LegibilityInvariantTests {
         let roles = Set(DesignTokens.standard.legibilityCases(for: theme, in: appearance).map(\.role))
         #expect(roles.contains(.selectionOutline))
         #expect(!roles.contains(.selectionMarker))
+    }
+}
+
+/// The switcher's help names the item and the shortcut the app gives it; the kit writes no key of its own.
+struct SwitcherItemTests {
+    let theme = Palette.standard.themes[0]
+
+    @Test func theHelpCarriesTheAppsShortcut() {
+        #expect(SwitcherItem(id: "a", name: "Work", theme: theme, shortcut: "⌃1").help == "Work (⌃1)")
+        #expect(SwitcherItem(id: "a", name: "Work", theme: theme, shortcut: "⌘3").help == "Work (⌘3)")
+    }
+
+    @Test func withoutAShortcutTheHelpIsTheName() {
+        let item = SwitcherItem(id: "a", name: "Work", theme: theme)
+        #expect(item.shortcut == nil)
+        #expect(item.help == "Work")
     }
 }
 
@@ -340,7 +448,7 @@ struct InactiveWindowTests {
 }
 
 /// What the views draw, read back from an offscreen render: the selected row's marker at 3:1 on its own fill, none
-/// under Increase Contrast, and a disabled icon button dimmed.
+/// under Increase Contrast, a disabled icon button dimmed, and the column on its own surface.
 @MainActor
 @Suite(.enabled(if: ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27))
 struct RenderedViewsTests {
@@ -403,6 +511,63 @@ struct RenderedViewsTests {
         let pixels = try selectedRow(Palette.standard.themes[0], scheme, increased: true)
         let middle = pixels.height / 2
         #expect(Contrast.ratio(pixels.color(x: 7, y: middle), pixels.color(x: 10, y: middle)) < 1.05)
+    }
+
+    func layout(_ side: ColumnSide, _ theme: Theme, _ scheme: ColorScheme, reduceTransparency: Bool = false) throws -> Pixels {
+        let view = ColumnLayout(side: side) { Color.clear.frame(height: 10) } detail: { Color.clear }
+            .frame(width: 600, height: 400)
+            .theme(theme)
+            .accessibilityOverrides(reduceTransparency: reduceTransparency)
+            .environment(\.colorScheme, scheme)
+        _ = try render(view)
+        return try render(view)
+    }
+
+    /// Halfway down, the column's edge (1 pt, 12 pt in from the window's side) reaches 3:1 against the gradient
+    /// beside it and against the column's fill, on either side; the fill differs from the gradient. 8-bit pixels may
+    /// take up to 0.05 off a ratio solved to 3.00.
+    @Test(arguments: [Palette.standard.themes[0], Palette.standard.themes[2]], [ColorScheme.light, .dark])
+    func theColumnStandsOnItsOwnSurface(_ theme: Theme, _ scheme: ColorScheme) throws {
+        for side in ColumnSide.allCases {
+            let pixels = try layout(side, theme, scheme)
+            #expect(pixels.width == 600)
+            let y = pixels.height / 2
+            func x(_ fromOuterEdge: Int) -> Int { side == .left ? fromOuterEdge : pixels.width - 1 - fromOuterEdge }
+            let outside = pixels.color(x: x(6), y: y)
+            let edge = pixels.color(x: x(12), y: y)
+            let fill = pixels.color(x: x(40), y: y)
+            #expect(Contrast.ratio(edge, outside) >= 2.95, "\(theme.id) \(scheme) \(side)")
+            #expect(Contrast.ratio(edge, fill) >= 2.95, "\(theme.id) \(scheme) \(side)")
+            #expect(Contrast.ratio(fill, outside) > 1.02, "\(theme.id) \(scheme) \(side)")
+            #expect(Contrast.ratio(pixels.color(x: x(11), y: y), outside) < 1.02, "\(theme.id) \(scheme) \(side)")
+        }
+    }
+
+    /// Under Reduce Transparency the column is the plain window background, opaque: nothing of the gradient shows.
+    @Test(arguments: [ColorScheme.light, .dark])
+    func reduceTransparencyMakesTheColumnOpaque(_ scheme: ColorScheme) throws {
+        let pixels = try layout(.left, Palette.standard.themes[0], scheme, reduceTransparency: true)
+        let background = ResolvedColors(Palette.standard.themes[0], in: scheme == .dark ? .dark : .light).background
+        let fill = pixels.color(x: 40, y: pixels.height / 2)
+        #expect(Contrast.ratio(fill, background) < 1.01, "\(fill) \(background)")
+    }
+
+    /// A row inside the column solves on the column's fill: its marker reaches 3:1 on its own fill there.
+    @Test(arguments: [Palette.standard.themes[0], Palette.standard.themes[2]], [ColorScheme.light, .dark])
+    func theMarkerReachesThreeToOneInTheColumn(_ theme: Theme, _ scheme: ColorScheme) throws {
+        let view = ColumnSurface {
+            ListRow("Title", details: ["Detail"], state: RowState(isSelected: true)) { Tile(.initial("T")) }
+                .frame(width: 320)
+        }
+        .background { WindowBackground() }
+        .theme(theme)
+        .environment(\.colorScheme, scheme)
+        _ = try render(view)
+        let pixels = try render(view)
+        let middle = 24 + (pixels.height - 36) / 2
+        let marker = pixels.color(x: 19, y: middle)
+        let fill = pixels.color(x: 22, y: middle)
+        #expect(Contrast.ratio(marker, fill) >= 2.95, "\(theme.id) \(scheme)")
     }
 
     @Test(arguments: [ColorScheme.light, .dark])

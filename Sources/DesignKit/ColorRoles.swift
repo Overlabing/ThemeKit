@@ -21,6 +21,31 @@ extension DesignTokens {
             tintFills: [emphasis.badgeFill, emphasis.tileFill],
             neutralFills: [emphasis.layer])
     }
+
+    /// The same inside a list column (`ColumnSurface`): every surface sits on the column's own fill, the plain
+    /// background at `Emphasis.column(isDark:)` over the gradient, or on the plain background alone (Reduce
+    /// Transparency).
+    public func columnSurfaces(in appearance: Appearance) -> Surfaces {
+        var described = surfaces(in: appearance)
+        described.backdrop = emphasis.column(isDark: appearance.isDark)
+        return described
+    }
+
+    /// The surfaces of `placement`.
+    public func surfaces(in appearance: Appearance, placement: SurfacePlacement) -> Surfaces {
+        switch placement {
+        case .frame: surfaces(in: appearance)
+        case .column: columnSurfaces(in: appearance)
+        }
+    }
+}
+
+/// Where a view of the kit sits, which decides the surfaces its colours are solved on.
+public enum SurfacePlacement: String, Sendable, CaseIterable, Hashable {
+    /// On the window's gradient.
+    case frame
+    /// Inside a list column's own surface (`ColumnSurface`).
+    case column
 }
 
 /// The colours a view of the kit may use for one Theme, tokens and appearance. Views ask for a role, never for a hue
@@ -30,15 +55,27 @@ public struct ColorRoles: Sendable {
     public let theme: Theme
     public let tokens: DesignTokens
     public let appearance: Appearance
+    public let placement: SurfacePlacement
     public let legibility: Legibility
     private let resolved: ResolvedColors
     private let focus: RGBA
 
-    public init(theme: Theme, tokens: DesignTokens, appearance: Appearance) {
+    /// `placement` `.column` solves the inks, the selection fill, the marker and the focus ring on the column's own
+    /// fill instead of the gradient. The hue keeps the share the frame was solved at (`hueScale`), since the column's
+    /// fill lets the same gradient through.
+    public init(theme: Theme, tokens: DesignTokens, appearance: Appearance, placement: SurfacePlacement = .frame) {
         self.theme = theme
         self.tokens = tokens
         self.appearance = appearance
-        legibility = Legibility.fitted(theme, surfaces: tokens.surfaces(in: appearance), in: appearance)
+        self.placement = placement
+        let frame = Legibility.fitted(theme, surfaces: tokens.surfaces(in: appearance), in: appearance)
+        switch placement {
+        case .frame:
+            legibility = frame
+        case .column:
+            legibility = Legibility.of(
+                theme, surfaces: tokens.columnSurfaces(in: appearance), hueScale: frame.hueScale, in: appearance)
+        }
         resolved = ResolvedColors(theme, in: appearance)
         focus = RGBA.keyboardFocus(in: appearance)
     }
@@ -110,6 +147,46 @@ public struct ColorRoles: Sendable {
         legibility.focusRing(focus, ink: resolved.ink, minimum: emphasis.nonTextContrast)
     }
 
+    /// The column's own fill: the plain background at this opacity over the gradient (1 under Reduce Transparency).
+    public var columnFillOpacity: Double { emphasis.column(isDark: appearance.isDark) }
+
+    /// The edge of the column's surface: the label's ink at the alpha that reaches 3:1 against the gradient around
+    /// the column and against the column's own fill, at every height, with or without Reduce Transparency.
+    public var columnEdge: Color { Color(rgba: columnEdgeRGBA) }
+    public var columnEdgeRGBA: RGBA {
+        resolved.ink.opacity(ColorRoles.columnEdgeAlpha(
+            colors: resolved, frame: tokens.surfaces(in: appearance), column: tokens.columnSurfaces(in: appearance),
+            hueScale: hueScale, minimum: emphasis.nonTextContrast))
+    }
+
+    /// The smallest alpha of the ink (to 1/1000) at which the edge, drawn over the column's fill, reaches `minimum`
+    /// against the bare gradient beside it and against that fill; 1 when even the opaque ink falls short.
+    public static func columnEdgeAlpha(
+        colors: ResolvedColors, frame: Surfaces, column: Surfaces, hueScale: Double, minimum: Double
+    ) -> Double {
+        let pairs = columnEdgeNeighbours(colors: colors, frame: frame, column: column, hueScale: hueScale)
+        return Legibility.solveMinimum(from: 0, to: 1) { alpha in
+            pairs.allSatisfy { fill, outside in
+                let edge = colors.ink.opacity(alpha).composited(over: fill)
+                return Contrast.ratio(edge, fill) >= minimum && Contrast.ratio(edge, outside) >= minimum
+            }
+        }
+    }
+
+    /// Each place along the column's edge: the column's fill there (the edge is drawn over it) and the bare gradient
+    /// just outside, sampled top to bottom; then the plain background (Reduce Transparency) beside every gradient
+    /// sample.
+    public static func columnEdgeNeighbours(
+        colors: ResolvedColors, frame: Surfaces, column: Surfaces, hueScale: Double
+    ) -> [(fill: RGBA, outside: RGBA)] {
+        let spec = frame.scaled(by: hueScale).gradient
+        let outside = stride(from: 0.0, through: 1.0, by: 0.02).map {
+            spec.color(at: $0, primary: colors.primary, secondary: colors.secondary, over: colors.background)
+        }
+        return outside.map { (colors.background.opacity(column.backdrop).composited(over: $0), $0) }
+            + outside.map { (colors.background, $0) }
+    }
+
     /// A band of the Theme's colour (the active profile, say): the primary hue, opaque, and the text on it, white or
     /// black, at 4.5:1 at least.
     public var bandFill: Color { Color(rgba: resolved.primary, alpha: 1) }
@@ -149,6 +226,8 @@ extension Color {
 extension EnvironmentValues {
     /// The tokens every kit component reads.
     @Entry public var designTokens: DesignTokens = .standard
+    /// Where the views below sit: `ColumnSurface` sets `.column`, so their colours are solved on the column's fill.
+    @Entry public var surfacePlacement: SurfacePlacement = .frame
 }
 
 extension View {
@@ -162,6 +241,7 @@ extension View {
 /// its content.
 public struct WithColorRoles<Content: View>: View {
     @Environment(\.designTokens) private var tokens
+    @Environment(\.surfacePlacement) private var placement
     @Environment(\.theme) private var theme
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
@@ -174,6 +254,7 @@ public struct WithColorRoles<Content: View>: View {
     public var body: some View {
         content(ColorRoles(
             theme: theme ?? Palette.standard.themes[0], tokens: tokens,
-            appearance: Appearance(isDark: scheme == .dark, isIncreasedContrast: contrast == .increased)))
+            appearance: Appearance(isDark: scheme == .dark, isIncreasedContrast: contrast == .increased),
+            placement: placement))
     }
 }

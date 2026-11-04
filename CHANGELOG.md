@@ -1,5 +1,171 @@
 # Changelog
 
+## 0.2.3
+
+Column surface. A list column now sits on a surface of its own, so it reads apart from the page beside it, the way a
+mail client's sidebar column does on its gradient. Colours inside it are solved on that surface. Also in this release:
+a token for the gap above the column's first row, and switcher tooltips that show the app's shortcut.
+
+### Added
+
+- **`ColumnSurface(side:)`** (and `.columnSurface(side:)`): the list column's own surface. It is inset from the
+  window's top, bottom and outer edges by `Spacing.columnInset` (12) and rounded by `Radius.column` (12, concentric to
+  the rows' backgrounds 4 pt inside it). Its fill is the plain window background (`.background`) at
+  `Emphasis.columnLight` / `columnDark` (0.5) over the gradient. That makes it darker than the frame in dark and lighter
+  in light, with a trace of the Theme left. It has a 1 pt edge in `ColorRoles.columnEdge`, and its content starts
+  `Spacing.columnTop` (24) under the window's top edge, clipped to the surface. Under Reduce Transparency the fill is
+  opaque `.background` and the edge stays. It is drawn with kit pieces, never `NavigationSplitView`'s sidebar or a
+  system sidebar item, which dim their labels in an inactive window. The width comes from the content, or from the split
+  item hosting it.
+- **Colours solved inside the column.** `SurfacePlacement` (`.frame`, `.column`) and the environment value
+  `surfacePlacement`, which `ColumnSurface` sets on its content. Under `.column`, `WithColorRoles` builds
+  `ColorRoles(theme:tokens:appearance:placement: .column)`. These roles solve the secondary and tinted inks, the
+  selection fill, the selection marker and the focus ring on the column's surfaces (`DesignTokens.columnSurfaces(in:)`),
+  not on the bare gradient. The hue keeps the share the frame was solved at (`hueScale`), so the gradient under the
+  column and the fills in it are drawn alike.
+- **Column edge.** `ColorRoles.columnEdge` / `columnEdgeRGBA` is the label's ink (black in light, white in dark) at the
+  smallest alpha that reaches 3:1, at every height, against the bare gradient beside the column and against the
+  column's fill (and the opaque fill of Reduce Transparency). `ColorRoles.columnEdgeAlpha(…)` and
+  `columnEdgeNeighbours(…)` expose that solve, and `ColorRoles.columnFillOpacity` gives the fill's opacity.
+- `ColorCore`: `Surfaces.backdrop` (default 0) is the plain background's opacity over the gradient. Above 0, the plain
+  background itself is also sampled. `Surfaces.samples(_:)` returns the places text can sit on before any fill.
+  `Legibility.solve(colors:surfaces:hueScale:)` solves at a share fixed by another solve.
+- `ColorPlatform`: `Legibility.of(_:accents:surfaces:hueScale:in:)`, cached.
+- `DesignKit`: tokens `Spacing.columnInset` (12), `Spacing.columnTop` (24), `Radius.column` (12),
+  `Emphasis.columnLight` (0.5), `Emphasis.columnDark` (0.5), `Emphasis.column(isDark:)`. Also
+  `DesignTokens.surfaces(in:placement:)`, `LegibilityCase.placement`, `LegibilityCase.Role.columnEdge`,
+  `LegibilityCase.SurfaceKind.columnFill`, and `legibilityCases(…, placement:)`.
+- `SwitcherItem.shortcut` (optional, default nil) and `SwitcherItem.help`.
+- 798 legibility cases inside the column, every standard Theme in the four appearances (1616 in all). The tests read
+  back from offscreen renders that the column's edge reaches 3:1 against the gradient and against the fill on either
+  side (at least 2.95:1 once rounded to 8-bit pixels), that the fill is opaque under Reduce Transparency, and that a
+  selected row's marker reaches 3:1 inside the column.
+- The gallery renders the browser's main window under Increase Contrast and Reduce Transparency
+  (`browser-main-window-left-contrast-transparency`), and its samples set their switcher items' shortcuts.
+
+### Changed
+
+- **`ColumnLayout`** puts the column on a `ColumnSurface` (`Size.columnIdeal` wide, inset on its outer side). The
+  Theme's gradient stays behind the whole window: it shows around the column and around the page's canvas, and inside
+  the column only through the column's fill. Both sides (`.left`, `.right`) mirror.
+- **`GlassSwitcher` tooltip.** The kit no longer writes "(⌘1)…(⌘9)" after an item's name. The help is the item's name,
+  then `SwitcherItem.shortcut` in parentheses when the app gives one ("Work (⌃1)"). Without one, the help is the name
+  alone.
+- **Motion.** No new role. A change of space is the change of its Theme, so `themeChange` (calm · smooth, nothing under
+  Reduce Motion) is the role to use. Oisillon's `spaceChange` has exactly this spec. `ColumnSurface` animates its edge
+  with it.
+
+### Source-breaking changes
+
+- `LegibilityCase.Role` gains `columnEdge` and `LegibilityCase.SurfaceKind` gains `columnFill`. An exhaustive `switch`
+  over them needs the new cases or a `default`.
+- `SwitcherItem` gains a stored `shortcut`. Its initialiser takes it with a default, so existing calls compile. Two
+  items that differ only by shortcut are no longer equal.
+- The switcher's tooltip changes text (see Changed). Nothing else changes: no existing token value changed, and every
+  frame legibility case of 0.2.2 is recorded unchanged.
+
+### Changed values
+
+No existing token value changed. Five tokens are new. Drawn values change only inside a `ColumnLayout` or a
+`ColumnSurface`:
+
+| What | 0.2.2 | 0.2.3 |
+|---|---|---|
+| Column background | the window's gradient | `.background` at 0.5 over the gradient; opaque `.background` under Reduce Transparency |
+| Column bounds | the window's edges | inset 12 pt from the top, the bottom and the outer side; rounded 12 pt; 1 pt edge in `columnEdge` |
+| Column's first row | at the column's top (apps added their own margin) | 24 pt under the window's top edge (`columnTop`) |
+| Column width in `ColumnLayout` | 360 | 360 for the surface, plus its 12 pt outer inset |
+| Inks, selection fill, marker, focus ring inside the column | solved on the gradient | solved on the column's fill |
+| Switcher tooltip | "Name (⌘N)" for the first nine | "Name (shortcut)" from `SwitcherItem.shortcut`, or "Name" |
+
+Per Theme and appearance: how far the column's fill sets it apart from the gradient ("Column vs gradient", worst to
+best height), the edge's ink alpha, then the solved values on the frame → inside the column: the selection fill (an
+opacity of the hue), the secondary text's alpha, the tint ink's share, the selection marker and the focus ring.
+
+| Theme | Appearance | Column vs gradient | Edge alpha | Selection | Secondary alpha | Tint ink share | Marker | Focus ring |
+|---|---|---|---|---|---|---|---|---|
+| indigo-blue | light | 1.03–1.33 | 0.574 | 0.300 → 0.300 | 0.638 → 0.604 | 0.561 → 0.473 | #4C42BF → #564CDA | #004FBC → #005AD6 |
+| indigo-blue | dark | 1.04–1.41 | 0.534 | 0.250 → 0.250 | 0.752 → 0.649 | 0.810 → 0.673 | #A0AAFF → #8995FF | #45B9FF → #1AA9FF |
+| indigo-blue | light, increased contrast | 1.03–1.33 | 0.574 | 0.540 → 0.540 | 0.703 → 0.665 | 0.689 → 0.620 | #3E369C → #453DAE | #00419A → #0048AB |
+| indigo-blue | dark, increased contrast | 1.04–1.40 | 0.531 | 0.444 → 0.444 | 0.847 → 0.756 | 0.916 → 0.812 | #B2BAFF → #A1AAFF | #6DC8FF → #47BAFF |
+| orange-pink | light | 1.02–1.18 | 0.512 | 0.478 → 0.375 | 0.593 → 0.576 | 0.568 → 0.531 | #9A5518 → #A85D1A | #005FE0 → #0067F4 |
+| orange-pink | dark | 1.04–1.50 | 0.576 | 0.219 → 0.219 | 0.838 → 0.700 | 0.999 → 0.764 | #FFAB5F → #FF9230 | #6AC7FF → #2BAFFF |
+| orange-pink | light, increased contrast | 1.02–1.18 | 0.512 | 0.540 → 0.540 | 0.596 → 0.587 | 0.575 → 0.557 | #985418 → #9E5719 | #005DDC → #0061E6 |
+| orange-pink | dark, increased contrast | 1.03–1.36 | 0.510 | 0.304 → 0.304 | 0.847 → 0.746 | 0.950 → 0.777 | #FFAC62 → #FF9434 | #6DC8FF → #43B8FF |
+| teal-green | light | 1.02–1.17 | 0.512 | 0.500 → 0.381 | 0.589 → 0.575 | 0.570 → 0.539 | #00747C → #007D85 | #0060E3 → #0067F4 |
+| teal-green | dark | 1.04–1.48 | 0.560 | 0.188 → 0.188 | 0.832 → 0.692 | 1.000 → 0.723 | #00D2E0 → #00D2E0 | #66C6FF → #25ADFF |
+| teal-green | light, increased contrast | 1.02–1.17 | 0.512 | 0.540 → 0.540 | 0.591 → 0.585 | 0.573 → 0.560 | #00737A → #00777F | #005FE1 → #0062E9 |
+| teal-green | dark, increased contrast | 1.03–1.34 | 0.499 | 0.265 → 0.265 | 0.846 → 0.741 | 0.959 → 0.752 | #00D2E0 → #00D2E0 | #6BC8FF → #3FB7FF |
+| red-orange | light | 1.03–1.31 | 0.568 | 0.300 → 0.300 | 0.623 → 0.599 | 0.580 → 0.528 | #AB2628 → #BE2A2D | #0053C5 → #005CDA |
+| red-orange | dark | 1.03–1.41 | 0.521 | 0.250 → 0.250 | 0.748 → 0.642 | 0.822 → 0.692 | #FF8C8E → #FF686B | #3EB6FF → #1AA9FF |
+| red-orange | light, increased contrast | 1.03–1.31 | 0.568 | 0.540 → 0.540 | 0.662 → 0.641 | 0.643 → 0.611 | #952123 → #A02326 | #0048AB → #004EB8 |
+| red-orange | dark, increased contrast | 1.03–1.40 | 0.519 | 0.446 → 0.446 | 0.847 → 0.753 | 0.922 → 0.825 | #FFA5A6 → #FF8D8E | #69C7FF → #3FB7FF |
+| purple-pink | light | 1.04–1.33 | 0.575 | 0.300 → 0.300 | 0.635 → 0.604 | 0.585 → 0.517 | #8E229D → #A126B1 | #0050BD → #005AD5 |
+| purple-pink | dark | 1.03–1.39 | 0.511 | 0.250 → 0.250 | 0.724 → 0.629 | 0.790 → 0.673 | #E981F7 → #E35FF5 | #31B2FF → #1AA9FF |
+| purple-pink | light, increased contrast | 1.04–1.33 | 0.575 | 0.540 → 0.540 | 0.686 → 0.656 | 0.670 → 0.624 | #791D85 → #841F92 | #0044A0 → #004AAF |
+| purple-pink | dark, increased contrast | 1.03–1.39 | 0.511 | 0.450 → 0.450 | 0.822 → 0.736 | 0.890 → 0.803 | #ED9BF9 → #E984F7 | #5EC2FF → #36B4FF |
+| mint-cyan | light | 1.02–1.17 | 0.510 | 0.500 → 0.391 | 0.588 → 0.575 | 0.569 → 0.541 | #00766A → #007F72 | #0061E5 → #0067F4 |
+| mint-cyan | dark | 1.04–1.47 | 0.556 | 0.181 → 0.181 | 0.830 → 0.690 | 1.000 → 0.704 | #00DAC3 → #00DAC3 | #65C5FF → #24ADFF |
+| mint-cyan | light, increased contrast | 1.02–1.17 | 0.510 | 0.540 → 0.540 | 0.589 → 0.583 | 0.572 → 0.559 | #007569 → #00796D | #0060E3 → #0063EA |
+| mint-cyan | dark, increased contrast | 1.03–1.34 | 0.497 | 0.257 → 0.257 | 0.847 → 0.741 | 0.961 → 0.740 | #00DAC3 → #00DAC3 | #6CC8FF → #3EB7FF |
+| brown-yellow | light | 1.03–1.24 | 0.539 | 0.317 → 0.300 | 0.604 → 0.584 | 0.531 → 0.478 | #7C5B44 → #88654A | #005AD6 → #0063EB |
+| brown-yellow | dark | 1.04–1.47 | 0.562 | 0.250 → 0.250 | 0.817 → 0.685 | 0.912 → 0.731 | #D2B69F → #C39E80 | #62C4FF → #24ADFF |
+| brown-yellow | light, increased contrast | 1.03–1.24 | 0.539 | 0.540 → 0.540 | 0.634 → 0.617 | 0.596 → 0.561 | #6E513C → #755740 | #0050BE → #0056CB |
+| brown-yellow | dark, increased contrast | 1.04–1.37 | 0.517 | 0.376 → 0.376 | 0.847 → 0.747 | 0.922 → 0.788 | #D5BAA5 → #CAA98F | #6EC8FF → #44B9FF |
+The edge is the label's ink at that alpha over the column's fill: a mid grey, black at 0.50 to 0.58 in light and white at
+0.50 to 0.58 in dark. Texts inside the column need less ink than on the frame, because the fill lies nearer the plain
+background: secondary text is drawn at a lower alpha, and tinted text, the marker and the focus ring closer to their
+raw hue. The selection fill is raised less in light for the light hues (orange, teal, mint, brown), because the
+lighter fill already sets the row apart at 1.3:1.
+
+### What changes in Oisillon's rendering
+
+Oisillon draws its list column in `NavigationSplitView`'s sidebar today. Adopting `ColumnLayout` (or `ColumnSurface` in a
+plain split item) replaces that sidebar's system glass with the kit's surface. It keeps the look Oisillon has now: darker
+than the page in dark, lighter in light, the Space's colour coming through. Three things change:
+
+- the sidebar's labels no longer dim when the window resigns key;
+- the column gains a 3:1 edge and a 12 pt inset from the window's edges;
+- the first row sits 24 pt under the window's top edge. The search field and the status line stay where Oisillon puts
+  them inside the column.
+
+Rows, pills and the switcher inside the column take inks solved on its fill: secondary text is a little quieter and
+tinted text a little nearer the raw hue, and every one still reaches 4.5:1. A selected row's fill is
+unchanged in dark and slightly lighter in light for orange-pink, teal-green, mint-cyan and brown-yellow. The marker
+and the focus ring keep 3:1. The Space bar's tooltip now shows the shortcut Oisillon passes in each item
+(`shortcut: "⌘1"` keeps today's text). Its space-change animation is `themeChange`, the same spec as its `spaceChange`.
+
+### Legibility cases
+
+798 new cases inside the column. For each of the seven Themes in each of the four appearances there are 27 cases:
+
+- primary text on 7 surfaces: the column's fill, the hovered, current and selected rows, the folder panel, glass, and
+  the switcher's selection;
+- secondary text on 6 and tinted text on 6;
+- the tinted glyph on 1;
+- the focus ring on 5;
+- the column's edge on 2: against the gradient and against the column's fill.
+
+On top of those 27, the selection marker adds 1 case in light and dark, and the selection outline adds 2 under
+Increase Contrast. Text or a symbol on the opaque hue is the same in and out of the column, so it stays with the frame's
+cases.
+
+"Before" is what the system's default colour reaches on the column's fill: the system's secondary label, the raw hue,
+the translucent focus colour, the separator as the edge, and no marker. "After" is the kit's. None is under its
+threshold now. Each case is a test (`LegibilityCaseTests`, recorded on macOS 27 in `Tests/DesignKitTests/RecordedCases.swift`;
+regenerate with `DesignKitGallery audit`).
+
+| Role | Cases | Under the threshold with the system's colour | With the kit's (lowest) |
+|---|---|---|---|
+| primary text | 196 | 0 | 0 (5.19:1) |
+| secondary text | 168 | 130 | 0 (4.50:1) |
+| tinted text | 168 | 149 | 0 (4.50:1) |
+| tinted glyph | 28 | 10 | 0 (6.77:1) |
+| focus ring | 140 | 140 | 0 (3.00:1) |
+| selection marker | 14 | 14 | 0 (3.00:1) |
+| selection outline | 28 | 28 | 0 (4.50:1) |
+| column edge | 56 | 56 | 0 (3.00:1) |
+
 ## 0.2.2
 
 A selected row can be found at 3:1 outside Increase Contrast, and a disabled `IconButton` looks disabled.

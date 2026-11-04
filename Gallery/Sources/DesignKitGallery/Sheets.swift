@@ -9,9 +9,9 @@ import SwiftUI
 enum Sample {
     static let themes = [Palette.standard.themes[0], Palette.standard.themes[2]]
     static let switcher = [
-        SwitcherItem(id: "work", name: "Work", symbol: "briefcase", theme: Palette.standard.themes[0]),
-        SwitcherItem(id: "home", name: "Home", symbol: "house", theme: Palette.standard.themes[1]),
-        SwitcherItem(id: "hobby", name: "Hobby", symbol: "sparkles", theme: Palette.standard.themes[2]),
+        SwitcherItem(id: "work", name: "Work", symbol: "briefcase", theme: Palette.standard.themes[0], shortcut: "⌃1"),
+        SwitcherItem(id: "home", name: "Home", symbol: "house", theme: Palette.standard.themes[1], shortcut: "⌃2"),
+        SwitcherItem(id: "hobby", name: "Hobby", symbol: "sparkles", theme: Palette.standard.themes[2], shortcut: "⌃3"),
     ]
 }
 
@@ -44,7 +44,6 @@ struct SampleColumn: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             StatusLine(tile: .tintedSymbol("tray.full"), title: "Work · Inbox", count: 4, isOpen: false)
-                .padding(.top, tokens.spacing.listMargin)
                 .padding(.bottom, tokens.spacing.statusLineToList)
             FolderRow("Projects", count: 2, isOpen: true)
             LayerPanel {

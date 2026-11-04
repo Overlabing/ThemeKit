@@ -39,6 +39,8 @@ them.
 | `glassMerge` | 6 | merge distance of glass shapes in a `GlassEffectContainer` |
 | `bannerVertical`, `bannerHorizontal` | 6, 12 | banner insets |
 | `canvasInset` | 12 | a content canvas inside its column |
+| `columnInset` | 12 | a list column's surface from the window's edges (top, bottom, outer side); equal to `canvasInset`, so column and canvas line up |
+| `columnTop` | 24 | the window's top edge to the column's first row: `columnInset`, then `listMargin` inside the surface |
 | `pillActionGap` | 8 | between icon buttons, and between groups of buttons |
 | `pillFloat` | 12 | a floating pill to the edges of what it floats over |
 | `headerTracking` | 0.6 | letter spacing of small uppercase group headers |
@@ -57,6 +59,7 @@ them.
 | `layer` | 12 | a panel holding rows (`row + layerInset`, concentric) |
 | `banner` | 12 | a banner |
 | `canvas` | 12 | a content canvas |
+| `column` | 12 | a list column's surface (`row` + the 4 pt from its edge to a row's background, concentric) |
 
 ### Sizes (pt)
 
@@ -88,6 +91,7 @@ them.
 | `tileFill` | 0.25 | 0.25 | a tile with no icon (an initial) |
 | `glassTint` | 0.35 | 0.35 | the selected glass capsule |
 | `layer` | 0.06 | 0.06 | a nested panel, in `.primary` |
+| `columnLight`, `columnDark` | 0.5 | 0.5 | a list column's own fill: the plain window background (`.background`, not the hue) over the gradient; 1 under Reduce Transparency |
 | `discreet` | 0.5 | 0.5 | a discreet item |
 | `lightBackgroundLuminance` | 0.4 | 0.4 | above it, a background counts as light |
 | `increasedContrastFactor` | 1.8 | 1.8 | Increase Contrast multiplies the row fills (hover, current, the selection's floor), capped at 1; badge, tile and panel fills and the glass tint stay |
@@ -123,7 +127,7 @@ settles at ×1.47), `snappy` (0.15, ×1.39), `spring` (0.1, ×1.33), `easeOut`, 
 | `rowDeparture` | calm · easeOut | | none |
 | `indicatorRotation` | quick · smooth | | none |
 | `hoverFill` | instant · easeOut | | none |
-| `themeChange` | calm · smooth | | none |
+| `themeChange` | calm · smooth | | none (also a change of space: there is no separate space role) |
 | `pullToOpen` | calm · spring | stagger 0.04 per group | fade |
 | `contentReveal` | calm · smooth | | none |
 | `scrollFollow` | deliberate · smooth | | none |
@@ -139,7 +143,8 @@ immediate.
 | View | What it is |
 |---|---|
 | `WindowBackground` | `.background`, then the Theme's vertical gradient, behind the whole window |
-| `ColumnLayout(side:)` | a list column beside a detail in a `ContentCanvas`; `.left` (default) or `.right`, mirrored |
+| `ColumnLayout(side:)` | a list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
+| `ColumnSurface(side:)`, `.columnSurface(side:)` | a list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`). Kit pieces, never a system sidebar |
 | `ContentCanvas` | content inset 12 pt, rounded 12 pt, 1 pt separator line |
 | `Tile` | a rounded square: a symbol on a colour (white, or black where white stays under 3:1), a tinted symbol, or an initial on the tile fill; four sizes |
 | `ListRow` | tile, title and detail lines, trailing accessory; hover, current, selection fills; the selection's marker bar (outside Increase Contrast); focus ring; `RowPlacement` free or inside a panel |
@@ -149,7 +154,7 @@ immediate.
 | `StatusLine` | the one-line state at the top of a column, with its chevron |
 | `FieldPill` | a glass capsule with a circle in the Theme's colour, a title (or a placeholder in the secondary ink) and an accessory |
 | `IconButton`, `IconButtonRow` | symbol buttons in at least the minimum target, labelled for VoiceOver; dimmed to `Emphasis.disabled` when disabled |
-| `ThemeGlyph`, `GlassSwitcher` | the glass bar of themed items (spaces) at the bottom of a column; absent with one item. A glyph is its flat hue with a white or black symbol or initial |
+| `ThemeGlyph`, `GlassSwitcher` | the glass bar of themed items (spaces) at the bottom of a column; absent with one item. A glyph is its flat hue with a white or black symbol or initial. An item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`, "⌃1" say); the kit writes no key |
 | `Banner` | a discreet message on glass with its actions |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label |
 | `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control |
@@ -158,7 +163,14 @@ immediate.
 ## Accessibility
 
 - **Reduce Transparency**: every glass surface becomes an opaque `.background` fill with a 1 pt `.separator` line; the
-  selected switcher item becomes a solid tinted capsule.
+  selected switcher item becomes a solid tinted capsule; a list column's surface becomes the opaque `.background` (its
+  edge stays).
+- **Column surface**: inside a `ColumnSurface` every text, the selection fill, the marker, the focus ring and the
+  tinted text are solved on the column's fill (the plain background over the gradient, or alone under Reduce
+  Transparency) instead of the bare gradient (`ColorRoles(placement: .column)`, set by the surface through
+  `surfacePlacement`). The hue keeps the frame's `hueScale`, so the gradient under the column and the fills in it are
+  drawn alike. The fill differs from the gradient by 1.02 to 1.50:1; its 1 pt edge, the label's ink at 0.50 to 0.58
+  alpha, reaches 3:1 against the gradient beside it and against the fill, which is what sets the column apart.
 - **Increase Contrast**: the row fills (hover, current, the selection's floor) are multiplied by 1.8 (capped at 1);
   badge, tile and panel fills and the glass tint stay, since raising a fill under a text lowers its contrast. The
   selected and current rows get a 1 pt line in the secondary ink (`ColorRoles.outline`, 3:1 at least), nested panels a
@@ -176,11 +188,13 @@ immediate.
   for every standard Theme in the four appearances. Secondary and tinted text use the inks `ColorRoles` gets from the
   solver (`Legibility.fit`); a symbol or an initial on a solid colour is white, or black where white falls short; the
   focus ring is the system's focus colour made opaque and mixed toward the ink. `DesignTokens.legibilityCases(for:in:)`
-  and `symbolCases(in:)` list each role on each surface with the system default's contrast and the kit's; CHANGELOG.md
-  records the 804 cases of 0.2.1 and the 14 selection marker cases added in 0.2.2 (818). Glass is measured as anything between the window background (its Reduce
-  Transparency fill) and the gradient; the switcher's capsule over the bottom of the column (`switcherTop`).
+  and `symbolCases(in:)` list each role on each surface with the system default's contrast and the kit's;
+  `legibilityCases(for:in:placement: .column)` does the same inside a list column, with the column's edge. CHANGELOG.md
+  records the 804 cases of 0.2.1, the 14 selection marker cases added in 0.2.2 (818 on the frame) and the 798 column
+  cases of 0.2.3 (1616). Glass is measured as anything between the window background (its Reduce Transparency fill) and
+  what is under it; the switcher's capsule over the bottom of the column (`switcherTop`).
 - **Inactive window**: the kit's inks are explicit and read no window state, so a column keeps its contrast when the
-  window resigns key. Host it in a plain split item: a system sidebar (`NSSplitViewItem(sidebarWithViewController:)`,
+  window resigns key. Draw it with `ColumnSurface` in a plain split item: a system sidebar (`NSSplitViewItem(sidebarWithViewController:)`,
   a source list) dims its own labels in an inactive window.
 - **Disabled controls** carry no contrast requirement (WCAG 1.4.3, 1.4.11); the kit draws no disabled text. A disabled
   plain button (`PressedOpacityStyle`, so `IconButton`) draws its label at `Emphasis.disabled` so that it looks disabled.

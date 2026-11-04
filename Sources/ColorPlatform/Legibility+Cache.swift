@@ -19,14 +19,27 @@ extension Legibility {
         cached(theme, accents: accents, surfaces: surfaces, appearance: appearance, fitting: true)
     }
 
+    /// `solve(colors:surfaces:hueScale:)` with the system colours, cached the same way: surfaces drawn over a gradient
+    /// whose share another solve fixed (a list column).
+    public static func of(
+        _ theme: Theme, accents: [Hue] = [], surfaces: Surfaces, hueScale: Double, in appearance: Appearance
+    ) -> Legibility {
+        cached(theme, accents: accents, surfaces: surfaces, appearance: appearance, fitting: false, hueScale: hueScale)
+    }
+
     private static func cached(
-        _ theme: Theme, accents: [Hue], surfaces: Surfaces, appearance: Appearance, fitting: Bool
+        _ theme: Theme, accents: [Hue], surfaces: Surfaces, appearance: Appearance, fitting: Bool,
+        hueScale: Double = 1
     ) -> Legibility {
         cache.withLock { cache in
-            let key = CacheKey(theme: theme, accents: accents, surfaces: surfaces, appearance: appearance, fitting: fitting)
+            let key = CacheKey(
+                theme: theme, accents: accents, surfaces: surfaces, appearance: appearance, fitting: fitting,
+                hueScale: hueScale)
             if let known = cache[key] { return known }
             let colors = ResolvedColors(theme, accents: accents, in: appearance)
-            let solved = fitting ? fit(colors: colors, surfaces: surfaces) : solve(colors: colors, surfaces: surfaces)
+            let solved = fitting
+                ? fit(colors: colors, surfaces: surfaces)
+                : solve(colors: colors, surfaces: surfaces, hueScale: hueScale)
             cache[key] = solved
             return solved
         }
@@ -38,6 +51,7 @@ extension Legibility {
         let surfaces: Surfaces
         let appearance: Appearance
         let fitting: Bool
+        let hueScale: Double
     }
 
     private static let cache = Mutex<[CacheKey: Legibility]>([:])

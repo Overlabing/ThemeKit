@@ -30,8 +30,9 @@ public enum ColumnSide: String, Sendable, CaseIterable {
     case right
 }
 
-/// A list column beside a detail, on the window background. The column takes `Size.columnIdeal`; the detail sits in
-/// a content canvas. `.right` mirrors the layout without mirroring what is inside the column.
+/// A list column beside a detail, on the window background. The column sits on its own surface (`ColumnSurface`),
+/// `Size.columnIdeal` wide; the detail sits in a content canvas, on the gradient. `.right` mirrors the layout without
+/// mirroring what is inside the column.
 public struct ColumnLayout<Column: View, Detail: View>: View {
     @Environment(\.designTokens) private var tokens
     private let side: ColumnSide
@@ -45,15 +46,68 @@ public struct ColumnLayout<Column: View, Detail: View>: View {
     }
 
     public var body: some View {
-        let columnView = column
-            .frame(width: tokens.size.columnIdeal)
-            .frame(maxHeight: .infinity, alignment: .top)
+        let columnView = ColumnSurface(side: side) {
+            column.frame(width: tokens.size.columnIdeal)
+        }
         HStack(spacing: 0) {
             if side == .left { columnView }
             ContentCanvas { detail }
             if side == .right { columnView }
         }
         .background { WindowBackground().ignoresSafeArea() }
+    }
+}
+
+/// A list column's own surface, so the column reads apart from the page beside it: inset from the window's edges by
+/// `Spacing.columnInset` (top, bottom, the outer side; the canvas beside it keeps its own inset), rounded
+/// (`Radius.column`), filled with the plain window background at `Emphasis.column(isDark:)` over the gradient (darker
+/// than the frame in dark, lighter in light, a trace of the Theme left), and edged in `ColorRoles.columnEdge` (3:1
+/// against the gradient and the fill). Opaque under Reduce Transparency. The content starts `Spacing.columnTop` under
+/// the window's top edge and is clipped to the surface; the views in it solve their colours on the column's fill
+/// (`SurfacePlacement.column`). Drawn with the kit's pieces, never a system sidebar, whose labels dim in an inactive
+/// window. Give it its width through the content (or the split item hosting it).
+public struct ColumnSurface<Content: View>: View {
+    @Environment(\.designTokens) private var tokens
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let side: ColumnSide
+    private let content: Content
+
+    public init(side: ColumnSide = .left, @ViewBuilder content: () -> Content) {
+        self.side = side
+        self.content = content()
+    }
+
+    public var body: some View {
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.column, style: .continuous)
+        let inset = tokens.spacing.columnInset
+        let animation = MotionRole.themeChange.animation(reduceMotion: reduceMotion)
+        WithColorRoles { roles in
+            content
+                .padding(.top, tokens.spacing.columnTop - inset)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .environment(\.surfacePlacement, .column)
+                .background {
+                    shape.fill(.background.opacity(reduceTransparency ? 1 : roles.columnFillOpacity))
+                        .accessibilityHidden(true)
+                }
+                .clipShape(shape)
+                .overlay {
+                    shape.strokeBorder(roles.columnEdge, lineWidth: tokens.size.stroke)
+                        .animation(animation, value: roles.theme)
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
+                }
+                .padding(.vertical, inset)
+                .padding(side == .left ? .leading : .trailing, inset)
+        }
+    }
+}
+
+extension View {
+    /// Sets the view on a list column's own surface (`ColumnSurface`), on `side` of the window.
+    public func columnSurface(side: ColumnSide = .left) -> some View {
+        ColumnSurface(side: side) { self }
     }
 }
 
@@ -616,18 +670,25 @@ public struct SwitcherItem: Identifiable, Sendable, Equatable {
     public let name: String
     public let symbol: String?
     public let theme: Theme
+    /// The key that selects the item, as the app binds it ("⌃1", say), shown in its help after the name; none when nil.
+    public let shortcut: String?
 
-    public init(id: String, name: String, symbol: String? = nil, theme: Theme) {
+    public init(id: String, name: String, symbol: String? = nil, theme: Theme, shortcut: String? = nil) {
         self.id = id
         self.name = name
         self.symbol = symbol
         self.theme = theme
+        self.shortcut = shortcut
     }
+
+    /// The item's help: its name, then its shortcut in parentheses when it has one.
+    public var help: String { shortcut.map { "\(name) (\($0))" } ?? name }
 }
 
 /// A glass bar of items at the bottom of a column (spaces): each item is its glyph; the selected one stretches into a
 /// capsule tinted with its Theme and shows its name. The shapes merge and morph in one `GlassEffectContainer`
-/// (`themeChange`; no morph under Reduce Motion). Absent with a single item.
+/// (`themeChange`, the role of a change of space too; no morph under Reduce Motion). Absent with a single item. An
+/// item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`).
 public struct GlassSwitcher: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -667,8 +728,8 @@ public struct GlassSwitcher: View {
 
     private var bar: some View {
         HStack(spacing: tokens.spacing.switcherItemGap) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                itemView(item, index: index, isSelected: item.id == selection)
+            ForEach(items) { item in
+                itemView(item, isSelected: item.id == selection)
             }
         }
         .padding(tokens.spacing.switcherPadding)
@@ -676,7 +737,7 @@ public struct GlassSwitcher: View {
     }
 
     @ViewBuilder
-    private func itemView(_ item: SwitcherItem, index: Int, isSelected: Bool) -> some View {
+    private func itemView(_ item: SwitcherItem, isSelected: Bool) -> some View {
         let tint = item.theme.primary.color
         let button = Button { select(item.id) } label: {
             HStack(spacing: tokens.spacing.pillTileToText) {
@@ -690,7 +751,7 @@ public struct GlassSwitcher: View {
             .contentShape(.capsule)
         }
         .buttonStyle(PressedOpacityStyle())
-        .help(index < 9 ? "\(item.name) (⌘\(index + 1))" : item.name)
+        .help(item.help)
         .accessibilityLabel(item.name)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         if usesGlass {

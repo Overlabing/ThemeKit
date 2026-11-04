@@ -74,7 +74,8 @@ fills at their opacity times that share.
 ## Design kit
 
 `DesignKit` turns a Theme into a window: one set of tokens (`DesignTokens.standard`), named motions (`MotionRole`),
-colours from the legibility solver (`ColorRoles`), and the small views a themed list column is made of.
+colours from the legibility solver (`ColorRoles`), and the small views a themed list column is made of. `ColumnLayout`
+sets the column on its own surface (`ColumnSurface`), beside the detail on the Theme's gradient.
 
 ```swift
 import ColorCore
@@ -90,7 +91,7 @@ struct Root: View {
                 StatusLine(tile: .tintedSymbol("tray.full"), title: "All · Inbox", count: 4, isOpen: false)
                 ListRow("Selected", state: RowState(isSelected: true)) { Tile(.initial("S")) }
                 Spacer()
-                GlassSwitcher(items, selection: current, label: "Spaces") { current = $0 }
+                GlassSwitcher(items, selection: current, label: "Spaces") { current = $0 }  // items carry their shortcut
             }
         } detail: {
             DetailView()
