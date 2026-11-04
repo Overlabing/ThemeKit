@@ -119,19 +119,23 @@ func run(output: URL) {
     }
 }
 
-/// Prints every case where the system's default colour falls under the threshold on a kit surface, per preset, as
-/// table rows: preset, Theme, appearance, role, surface, before, after, threshold.
+/// Prints every legibility case of the standard tokens, one tab-separated row each: Theme (or hue), appearance, role,
+/// surface, the system default's ratio, the kit's ratio, the threshold.
 func audit() {
-    for (preset, tokens) in [("standard", DesignTokens.standard)] {
-        for theme in Palette.standard.themes {
-            for appearance in Appearance.allCases {
-                for item in tokens.legibilityCases(for: theme, in: appearance) where item.before < item.threshold {
-                    print([preset, item.themeID, "\(appearance)", item.role.rawValue, item.surface.rawValue,
-                           String(format: "%.2f", item.before), String(format: "%.2f", item.after),
-                           String(format: "%.1f", item.threshold)].joined(separator: "\t"))
-                }
-            }
+    let tokens = DesignTokens.standard
+    var cases: [LegibilityCase] = []
+    for theme in Palette.standard.themes {
+        for appearance in Appearance.allCases {
+            cases += tokens.legibilityCases(for: theme, in: appearance)
         }
+    }
+    for appearance in Appearance.allCases {
+        cases += tokens.symbolCases(in: appearance)
+    }
+    for item in cases {
+        print([item.themeID, "\(item.appearance)", item.role.rawValue, item.surface.rawValue,
+               "\(item.before)", "\(item.after)",
+               String(format: "%.1f", item.threshold)].joined(separator: "\t"))
     }
 }
 

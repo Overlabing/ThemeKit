@@ -34,6 +34,13 @@ public enum Contrast {
         return (max(l, nearest) + 0.05) / (min(l, nearest) + 0.05)
     }
 
+    /// The ink for a text or a glyph on the opaque `color`: white when white reaches `minimum` there, otherwise black
+    /// when black contrasts more. On one opaque colour the better of the two is never under 4.58:1.
+    public static func ink(on color: RGBA, minimum: Double) -> RGBA {
+        let white = ratio(.white, color)
+        return white >= minimum || white >= ratio(.black, color) ? .white : .black
+    }
+
     /// The luminance range of opaque surfaces.
     public static func luminances(_ surfaces: [RGBA]) -> ClosedRange<Double> {
         let values = surfaces.map(\.relativeLuminance)

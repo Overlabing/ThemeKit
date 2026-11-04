@@ -67,6 +67,18 @@ extension RGBA {
     }
 }
 
+extension RGBA {
+    /// The keyboard focus indicator's colour in `appearance` (the user's accent colour, translucent).
+    public static func keyboardFocus(in appearance: Appearance) -> RGBA {
+        RGBA(.keyboardFocusIndicatorColor, in: appearance)
+    }
+
+    /// The separator's colour in `appearance`.
+    public static func separator(in appearance: Appearance) -> RGBA {
+        RGBA(.separatorColor, in: appearance)
+    }
+}
+
 extension NativeColor {
     /// A colour the system resolves per appearance.
     public static func dynamic(_ resolve: @escaping @Sendable (Appearance) -> NativeColor) -> NativeColor {

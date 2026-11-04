@@ -51,12 +51,11 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
     @Environment(\.glassRendering) private var glassRendering
 
     func body(content: Content) -> some View {
-        let increased = contrast == .increased
         switch surface {
         case .layer:
             content
                 .background {
-                    shape.fill(Color.primary.opacity(tokens.emphasis.contrasted(tokens.emphasis.layer, increased)))
+                    shape.fill(Color.primary.opacity(tokens.emphasis.layer))
                 }
                 .overlay { outline }
         case .glass(let opacity):
@@ -94,8 +93,9 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
 }
 
 extension View {
-    /// A keyboard focus ring around `shape` while `isVisible`, outside it by `Spacing.focusRingOffset`, in the
-    /// system's focus colour. For custom controls whose own focus effect is disabled.
+    /// A keyboard focus ring around `shape` while `isVisible`, outside it by `Spacing.focusRingOffset`, in
+    /// `ColorRoles.focusRing`: the system's focus colour, opaque, at 3:1 at least on the Theme's surfaces. For custom
+    /// controls whose own focus effect is disabled.
     public func focusRing(_ isVisible: Bool, in shape: some InsettableShape) -> some View {
         modifier(FocusRing(isVisible: isVisible, shape: shape))
     }
@@ -109,19 +109,13 @@ private struct FocusRing<S: InsettableShape>: ViewModifier {
     func body(content: Content) -> some View {
         content.overlay {
             if isVisible {
-                shape.inset(by: -(tokens.spacing.focusRingOffset + tokens.size.focusRing))
-                    .strokeBorder(Self.focusColor, lineWidth: tokens.size.focusRing)
-                    .accessibilityHidden(true)
-                    .allowsHitTesting(false)
+                WithColorRoles { roles in
+                    shape.inset(by: -(tokens.spacing.focusRingOffset + tokens.size.focusRing))
+                        .strokeBorder(roles.focusRing, lineWidth: tokens.size.focusRing)
+                }
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
             }
         }
-    }
-
-    private static var focusColor: Color {
-        #if os(macOS)
-        Color(nsColor: .keyboardFocusIndicatorColor)
-        #else
-        .accentColor
-        #endif
     }
 }

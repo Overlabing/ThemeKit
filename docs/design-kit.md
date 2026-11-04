@@ -13,7 +13,8 @@ them.
   (`.designTokens(_:)`, `@Environment(\.designTokens)`); an app that needs a different value adjusts a copy rather
   than defining a second design.
 - **Colours come from roles.** Views ask `ColorRoles` (through `WithColorRoles`) for a fill or an ink; they never pick
-  a hue and an opacity themselves. Text colours are solved, not the system's secondary label.
+  a hue and an opacity themselves. Text colours are solved, not the system's secondary label. No text or glyph is
+  drawn in the raw hue.
 - **Motion comes from roles.** A view asks `MotionRole.x.animation(reduceMotion:)` or `.transition(_:reduceMotion:)`;
   it never writes a duration or a curve. A new motion becomes a role first.
 - **Glass on controls only**: pills, the switcher, banners, floating controls. Never behind a scrolling list.
@@ -87,9 +88,16 @@ them.
 | `layer` | 0.06 | 0.06 | a nested panel, in `.primary` |
 | `discreet` | 0.5 | 0.5 | a discreet item |
 | `lightBackgroundLuminance` | 0.4 | 0.4 | above it, a background counts as light |
-| `increasedContrastFactor` | 1.8 | 1.8 | Increase Contrast multiplies tinted fills, capped at 1 |
+| `increasedContrastFactor` | 1.8 | 1.8 | Increase Contrast multiplies the row fills (hover, current, the selection's floor), capped at 1; badge, tile and panel fills and the glass tint stay |
 | `contentTop` | 0.1 | 0.1 | where row content starts, as a share of the window height (solver) |
+| `switcherTop` | 0.85 | 0.85 | where the switcher's zone starts, as a share of the window height (solver) |
 | `textContrast` | 4.5 | 4.5 | the contrast every text reaches |
+| `nonTextContrast` | 3 | 3 | the contrast every glyph, focus ring and outline reaches |
+
+Every opacity of the Theme's hue above (gradient, hover, current, selection, badge, tile) is drawn times
+`ColorRoles.hueScale`: 1, or less where a bright hue would leave a text under 4.5:1 (orange-pink, teal-green and
+mint-cyan in dark, most Themes in dark with Increase Contrast; CHANGELOG 0.2.1 lists the values). All of them shrink by
+the same share, so their order and the gradient's shape stay.
 
 ### Type
 
@@ -129,35 +137,43 @@ immediate.
 | `WindowBackground` | `.background`, then the Theme's vertical gradient, behind the whole window |
 | `ColumnLayout(side:)` | a list column beside a detail in a `ContentCanvas`; `.left` (default) or `.right`, mirrored |
 | `ContentCanvas` | content inset 12 pt, rounded 12 pt, 1 pt separator line |
-| `Tile` | a rounded square: a symbol on a colour, a tinted symbol, or an initial on the tile fill; four sizes |
+| `Tile` | a rounded square: a symbol on a colour (white, or black where white stays under 3:1), a tinted symbol, or an initial on the tile fill; four sizes |
 | `ListRow` | tile, title and detail lines, trailing accessory; hover, current, selection fills; focus ring; `RowPlacement` free or inside a panel |
 | `FolderRow` + `LayerPanel` | a folder as a row with a count and a turning chevron; its children on a continuous panel, first level not indented |
 | `SectionHeader` | a section title, or a small uppercase group header |
 | `ColumnSeparator` | a hairline on the column margin, between groups that have no header |
 | `StatusLine` | the one-line state at the top of a column, with its chevron |
-| `FieldPill` | a glass capsule with a circular tile, a title and an accessory |
+| `FieldPill` | a glass capsule with a circle in the Theme's colour, a title (or a placeholder in the secondary ink) and an accessory |
 | `IconButton`, `IconButtonRow` | symbol buttons in at least the minimum target, labelled for VoiceOver |
-| `ThemeGlyph`, `GlassSwitcher` | the glass bar of themed items (spaces) at the bottom of a column; absent with one item |
+| `ThemeGlyph`, `GlassSwitcher` | the glass bar of themed items (spaces) at the bottom of a column; absent with one item. A glyph is its flat hue with a white or black symbol or initial |
 | `Banner` | a discreet message on glass with its actions |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label |
-| `.focusRing(_:in:)` | the system focus colour around a custom control |
+| `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control |
 | `.surface(_:in:)` | glass or a layer fill, with the accessibility fallbacks below |
 
 ## Accessibility
 
 - **Reduce Transparency**: every glass surface becomes an opaque `.background` fill with a 1 pt `.separator` line; the
   selected switcher item becomes a solid tinted capsule.
-- **Increase Contrast**: tinted fills are multiplied by 1.8 (capped at 1); the selected and current rows and nested
-  panels get a 1 pt `.separator` line; glass and canvases get a `.secondary` line. Text inks are solved again with the
-  system's increased-contrast colours.
+- **Increase Contrast**: the row fills (hover, current, the selection's floor) are multiplied by 1.8 (capped at 1);
+  badge, tile and panel fills and the glass tint stay, since raising a fill under a text lowers its contrast. The
+  selected and current rows get a 1 pt line in the secondary ink (`ColorRoles.outline`, 3:1 at least), nested panels a
+  `.separator` line, glass and canvases a `.secondary` line. Text inks are solved again for the raised fills.
 - **Reduce Motion**: each role becomes the shared fade or nothing (table above); the switcher stops morphing.
 - **VoiceOver**: rows read their title and details as one element with the button trait, and say "selected"; folders
   say expanded or collapsed; icon buttons read their title; the switcher is a named group; skeletons read one label;
   decorative tiles, glyphs and lines are hidden.
-- **Legibility**: secondary text and tinted text use the inks `ColorRoles` gets from the solver, at 4.5:1 on every
-  surface the kit draws text on wherever the hues allow it. `DesignTokens.legibilityCases(for:in:)` lists each text
-  role on each surface with the system default's contrast and the solved ink's; CHANGELOG.md records them for 0.2.0,
-  including the dark cases where a bright hue under a strong fill keeps white text under 4.5:1.
+- **Legibility**: every text reaches 4.5:1 and every glyph, focus ring and selection outline 3:1, on every surface,
+  for every standard Theme in the four appearances. Secondary and tinted text use the inks `ColorRoles` gets from the
+  solver (`Legibility.fit`); a symbol or an initial on a solid colour is white, or black where white falls short; the
+  focus ring is the system's focus colour made opaque and mixed toward the ink. `DesignTokens.legibilityCases(for:in:)`
+  and `symbolCases(in:)` list each role on each surface with the system default's contrast and the kit's; CHANGELOG.md
+  records the 804 cases of 0.2.1. Glass is measured as anything between the window background (its Reduce
+  Transparency fill) and the gradient; the switcher's capsule over the bottom of the column (`switcherTop`).
+- **Inactive window**: the kit's inks are explicit and read no window state, so a column keeps its contrast when the
+  window resigns key. Host it in a plain split item: a system sidebar (`NSSplitViewItem(sidebarWithViewController:)`,
+  a source list) dims its own labels in an inactive window.
+- **Disabled controls** carry no contrast requirement (WCAG 1.4.3, 1.4.11); the kit draws no disabled text.
 
 ## Rendering without a window
 

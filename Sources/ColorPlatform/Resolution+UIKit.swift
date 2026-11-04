@@ -54,6 +54,18 @@ extension RGBA {
     }
 }
 
+extension RGBA {
+    /// The colour a focus effect is drawn in, in `appearance`: the tint colour.
+    public static func keyboardFocus(in appearance: Appearance) -> RGBA {
+        RGBA(.tintColor, in: appearance)
+    }
+
+    /// The separator's colour in `appearance`.
+    public static func separator(in appearance: Appearance) -> RGBA {
+        RGBA(.separator, in: appearance)
+    }
+}
+
 extension NativeColor {
     /// A colour the system resolves per appearance.
     public static func dynamic(_ resolve: @escaping @Sendable (Appearance) -> NativeColor) -> NativeColor {

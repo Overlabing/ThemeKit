@@ -104,7 +104,7 @@ extension DesignTokens {
         public var selectedDark: Double = 0.25
         public var selectionCap: Double = 0.5
         public var selectionVisibility: Double = 1.3
-        /// A small tinted badge's fill.
+        /// A small tinted badge's fill. Like every opacity of the hue here, drawn times `ColorRoles.hueScale`.
         public var badgeFill: Double = 0.14
         /// A tile's fill when it has no icon (an initial).
         public var tileFill: Double = 0.25
@@ -117,12 +117,18 @@ extension DesignTokens {
         /// Relative luminance above which a background counts as light (a floating control takes the light
         /// appearance on it).
         public var lightBackgroundLuminance: Double = 0.4
-        /// Increase Contrast multiplies tinted fills by this, capped at 1.
+        /// Increase Contrast multiplies the row fills (hover, current, the selection's floor) by this, capped at 1. The
+        /// badge, tile and panel fills and the glass tint stay: raising a fill under a text lowers its contrast.
         public var increasedContrastFactor: Double = 1.8
         /// The contrast every text reaches.
         public var textContrast: Double = 4.5
+        /// The contrast every glyph, focus ring and outline reaches.
+        public var nonTextContrast: Double = 3
         /// Where row content starts, as a share of the window height: above it, text sits on the bare gradient.
         public var contentTop: Double = 0.1
+        /// Where the switcher's zone starts, as a share of the window height: the selected capsule sits on the glass
+        /// over the gradient from there down (solver).
+        public var switcherTop: Double = 0.85
         /// A pressed plain control's opacity.
         public var pressed: Double = 0.6
 

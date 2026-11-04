@@ -15,15 +15,31 @@ public struct Surfaces: Sendable, Hashable {
     public var selection: Selection
     /// Opacities of the fills a tinted text sits on (a count badge, an initial tile), drawn over every other surface.
     public var tintFills: [Double]
+    /// Opacities of neutral fills laid on the content under the hue fills (a panel grouping rows), in the label's ink:
+    /// black in light, white in dark, taken opaque so that a system label colour drawn more opaque is covered too.
+    public var neutralFills: [Double]
 
     public init(
-        gradient: GradientSpec, contentTop: Double, fills: [Double], selection: Selection, tintFills: [Double]
+        gradient: GradientSpec, contentTop: Double, fills: [Double], selection: Selection, tintFills: [Double],
+        neutralFills: [Double] = []
     ) {
         self.gradient = gradient
         self.contentTop = contentTop
         self.fills = fills
         self.selection = selection
         self.tintFills = tintFills
+        self.neutralFills = neutralFills
+    }
+
+    /// The same surfaces with every opacity of the hues times `factor`: the gradient's stops, the fills, the
+    /// selection's floor and cap, the tint fills. The neutral fills and the selection's visibility stay.
+    public func scaled(by factor: Double) -> Surfaces {
+        Surfaces(
+            gradient: GradientSpec(
+                top: gradient.top * factor, middle: gradient.middle * factor, bottom: gradient.bottom * factor),
+            contentTop: contentTop, fills: fills.map { $0 * factor },
+            selection: Selection(floor: selection.floor * factor, cap: selection.cap * factor, visibility: selection.visibility),
+            tintFills: tintFills.map { $0 * factor }, neutralFills: neutralFills)
     }
 
     /// How the selection fill is solved: from `floor` up to `cap`, the smallest opacity at which the selected item
@@ -73,8 +89,9 @@ public struct ResolvedColors: Sendable, Equatable {
 /// from the resolved colours rather than written down: the system hues differ between light, dark and Increase
 /// Contrast, and may move with the system.
 ///
-/// The surfaces a text sits on: the gradient sampled from top to bottom, and from `Surfaces.contentTop` down the fills
-/// on it (fixed ones, then the selection), plus, for a tinted text, its own `Surfaces.tintFills`.
+/// The surfaces a text sits on: the gradient sampled from top to bottom, and from `Surfaces.contentTop` down the
+/// neutral fills on it, then the hue fills on both (fixed ones, then the selection), plus, for a tinted text, its own
+/// `Surfaces.tintFills`.
 public struct Legibility: Sendable, Equatable {
     /// Opacity of the selection fill: the floor, raised until the item stands out from the gradient under it by the
     /// requested visibility, capped.
@@ -98,6 +115,12 @@ public struct Legibility: Sendable, Equatable {
     /// background (how much the gradient shows).
     public let selectionShows: Double
     public let gradientShows: Double
+    /// The share of every hue opacity of the surfaces the values above were solved on: 1 from `solve`, less from
+    /// `fit` when the full opacities leave a text under 4.5:1. Draw the gradient and the fills at their opacity times
+    /// this share (`selected` already is).
+    public let hueScale: Double
+    /// The luminance range of the surfaces a text sits on (tint fills aside), for solving another ink on them.
+    public let surfaceLuminances: ClosedRange<Double>
 
     @available(*, deprecated, renamed: "solve(colors:surfaces:)")
     public static func solve(_ colors: ResolvedColors, surfaces description: Surfaces) -> Legibility {
@@ -105,6 +128,36 @@ public struct Legibility: Sendable, Equatable {
     }
 
     public static func solve(colors: ResolvedColors, surfaces description: Surfaces) -> Legibility {
+        solve(colors: colors, surfaces: description, hueScale: 1)
+    }
+
+    /// Like `solve`, at full opacity when every text reaches 4.5:1 there, otherwise on `surfaces.scaled(by:)` the
+    /// largest share (to 1/1000) at which every text does: a bright hue in dark leaves white text no room under a
+    /// strong fill, and only a lighter hand on the hue helps. All opacities shrink together, so the order of the fills
+    /// and the gradient's character stay. The share is `hueScale`.
+    public static func fit(colors: ResolvedColors, surfaces description: Surfaces) -> Legibility {
+        func passes(_ solved: Legibility) -> Bool {
+            min(solved.worstLabel, solved.worstSecondary, solved.worstTint, solved.worstAccent) >= Contrast.text
+        }
+        let full = solve(colors: colors, surfaces: description)
+        if passes(full) { return full }
+        var (lo, hi) = (0.0, 1.0)
+        while hi - lo > 0.001 {
+            let mid = (lo + hi) / 2
+            if passes(solve(colors: colors, surfaces: description.scaled(by: mid))) { lo = mid } else { hi = mid }
+        }
+        return solve(colors: colors, surfaces: description.scaled(by: lo), hueScale: lo)
+    }
+
+    /// The share of `ink` to mix into the opaque `color` so that it reaches `minimum` on every surface solved (tint
+    /// fills aside): a focus ring, an outline. 1 when even the ink falls short.
+    public func mix(of color: RGBA, toward ink: RGBA, reaching minimum: Double) -> Double {
+        Legibility.solveMinimum(from: 0, to: 1) {
+            Contrast.worst(opaque: color.mixed(with: ink, by: $0), onLuminances: surfaceLuminances) >= minimum
+        }
+    }
+
+    private static func solve(colors: ResolvedColors, surfaces description: Surfaces, hueScale: Double) -> Legibility {
         let spec = description.gradient
         func gradient(at t: Double) -> RGBA {
             spec.color(at: t, primary: colors.primary, secondary: colors.secondary, over: colors.background)
@@ -112,20 +165,25 @@ public struct Legibility: Sendable, Equatable {
         let top = stride(from: 0.0, to: description.contentTop, by: 0.02).map(gradient(at:))
         let content = stride(from: description.contentTop, through: 1.0, by: 0.05).map(gradient(at:))
 
+        let ink = colors.ink
+        let panels = description.neutralFills.flatMap { opacity in
+            content.map { ink.opacity(opacity).composited(over: $0) }
+        }
+        let base = content + panels
+
         let selection = description.selection
         let selected = solveMinimum(from: selection.floor, to: selection.cap) { opacity in
             content.map { Contrast.ratio(colors.primary.opacity(opacity).composited(over: $0), $0) }.min() ?? 1
                 >= selection.visibility
         }
         let fills = (description.fills + [selected]).flatMap { opacity in
-            content.map { colors.primary.opacity(opacity).composited(over: $0) }
+            base.map { colors.primary.opacity(opacity).composited(over: $0) }
         }
-        let surfaces = top + content + fills
+        let surfaces = top + base + fills
         let tinted = surfaces + description.tintFills.flatMap { opacity in
             surfaces.map { colors.primary.opacity(opacity).composited(over: $0) }
         }
 
-        let ink = colors.ink
         let surfaceRange = Contrast.luminances(surfaces)
         let tintedRange = Contrast.luminances(tinted)
         let secondaryAlpha = solveMinimum(from: colors.secondaryLabel.alpha, to: colors.label.alpha) {
@@ -152,7 +210,8 @@ public struct Legibility: Sendable, Equatable {
             worstRawTint: Contrast.worst(opaque: colors.primary, onLuminances: tintedRange),
             selectionShows: zip(content, content.map { colors.primary.opacity(selected).composited(over: $0) })
                 .map { Contrast.ratio($0, $1) }.min() ?? 1,
-            gradientShows: Contrast.ratio(gradient(at: 0), colors.background))
+            gradientShows: Contrast.ratio(gradient(at: 0), colors.background),
+            hueScale: hueScale, surfaceLuminances: surfaceRange)
     }
 
     /// The smallest value in `low…high` that satisfies a monotone `condition`, to 1/1000; `high` when none does (the

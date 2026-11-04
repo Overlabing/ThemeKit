@@ -99,3 +99,96 @@ struct LegibilityTests {
         #expect(a != b)
     }
 }
+
+struct FitTests {
+    private func worstText(_ solved: Legibility) -> Double {
+        min(solved.worstLabel, solved.worstSecondary, solved.worstTint, solved.worstAccent)
+    }
+
+    /// Where every text already reaches 4.5:1 at full opacity, fitting solves exactly as `solve`.
+    @Test(arguments: Golden.all.filter { !$0.appearance.isDark })
+    func fitKeepsFullOpacitiesWhereEveryTextPasses(_ golden: Golden) {
+        let surfaces = Surfaces.listColumn(in: golden.appearance)
+        let fitted = Legibility.fit(colors: golden.colors, surfaces: surfaces)
+        #expect(fitted == Legibility.solve(colors: golden.colors, surfaces: surfaces))
+        #expect(fitted.hueScale == 1)
+    }
+
+    /// In every appearance the fitted surfaces bring every text to 4.5:1, at the largest share (to 1/1000) that does.
+    @Test(arguments: Golden.all)
+    func fitReachesAAAtTheLargestShare(_ golden: Golden) {
+        let surfaces = Surfaces.listColumn(in: golden.appearance)
+        let fitted = Legibility.fit(colors: golden.colors, surfaces: surfaces)
+        #expect(worstText(fitted) >= Contrast.text)
+        #expect(fitted == Legibility.fit(colors: golden.colors, surfaces: surfaces))
+        if fitted.hueScale < 1 {
+            let more = Legibility.solve(colors: golden.colors, surfaces: surfaces.scaled(by: fitted.hueScale + 0.001))
+            #expect(worstText(more) < Contrast.text)
+        }
+    }
+
+    /// The dark cases 0.2.0 left under 4.5:1 are the ones fitting draws lighter.
+    @Test func brightHuesInDarkAreDrawnLighter() throws {
+        let mint = try #require(Golden.all.first { $0.theme == "mint-cyan" && $0.appearance == .dark })
+        let fitted = Legibility.fit(colors: mint.colors, surfaces: .listColumn(in: .dark))
+        #expect(fitted.hueScale < 1)
+        #expect(fitted.hueScale > 0.5)
+        let indigo = try #require(Golden.all.first { $0.theme == "indigo-blue" && $0.appearance == .dark })
+        #expect(Legibility.fit(colors: indigo.colors, surfaces: .listColumn(in: .dark)).hueScale == 1)
+    }
+
+    @Test func scalingMultipliesTheHueOpacitiesOnly() {
+        let surfaces = Surfaces(
+            gradient: GradientSpec(top: 0.4, middle: 0.2, bottom: 0.1), contentTop: 0.1, fills: [0.1, 0.2],
+            selection: .init(floor: 0.3, cap: 0.5, visibility: 1.3), tintFills: [0.2], neutralFills: [0.06])
+        #expect(surfaces.scaled(by: 0.5) == Surfaces(
+            gradient: GradientSpec(top: 0.2, middle: 0.1, bottom: 0.05), contentTop: 0.1, fills: [0.05, 0.1],
+            selection: .init(floor: 0.15, cap: 0.25, visibility: 1.3), tintFills: [0.1], neutralFills: [0.06]))
+        #expect(surfaces.scaled(by: 1) == surfaces)
+    }
+
+    /// A neutral panel under the fills is a surface too: in light it darkens them, so secondary text needs more ink.
+    @Test func neutralFillsAreSurfaces() throws {
+        let golden = try #require(Golden.all.first)
+        var surfaces = Surfaces.listColumn(in: .light)
+        let without = Legibility.solve(colors: golden.colors, surfaces: surfaces)
+        surfaces.neutralFills = [0.06]
+        let with = Legibility.solve(colors: golden.colors, surfaces: surfaces)
+        #expect(with.secondaryAlpha > without.secondaryAlpha)
+        #expect(with.worstLabel < without.worstLabel)
+        #expect(with.selected == without.selected)
+        #expect(with.worstSecondary >= Contrast.text)
+    }
+
+    @Test func aColourMixedTowardTheInkReachesTheMinimumOnEverySurface() throws {
+        let golden = try #require(Golden.all.first { $0.theme == "mint-cyan" && $0.appearance == .dark })
+        let solved = Legibility.fit(colors: golden.colors, surfaces: .listColumn(in: .dark))
+        let focus = RGBA(red: 0.102, green: 0.663, blue: 1)
+        let share = solved.mix(of: focus, toward: golden.colors.ink, reaching: Contrast.nonText)
+        #expect(share > 0)
+        #expect(Contrast.worst(opaque: focus.mixed(with: golden.colors.ink, by: share), onLuminances: solved.surfaceLuminances) >= 3)
+        #expect(Contrast.worst(opaque: focus.mixed(with: golden.colors.ink, by: share - 0.002), onLuminances: solved.surfaceLuminances) < 3)
+    }
+}
+
+struct InkTests {
+    @Test func whiteWhereItReachesTheMinimumBlackOtherwise() {
+        #expect(Contrast.ink(on: .white, minimum: 4.5) == .black)
+        #expect(Contrast.ink(on: .black, minimum: 4.5) == .white)
+        let indigo = RGBA(red: 0.380, green: 0.333, blue: 0.961)
+        #expect(Contrast.ink(on: indigo, minimum: 4.5) == .white)
+        let orange = RGBA(red: 1, green: 0.553, blue: 0.157)
+        #expect(Contrast.ink(on: orange, minimum: 3) == .black)
+        let red = RGBA(red: 1, green: 0.220, blue: 0.235)
+        #expect(Contrast.ink(on: red, minimum: 3) == .white)
+        #expect(Contrast.ink(on: red, minimum: 4.5) == .black)
+    }
+
+    /// On any opaque colour one of the two inks reaches 4.58:1.
+    @Test func oneOfTheTwoAlwaysReachesText() {
+        for value in stride(from: 0.0, through: 1.0, by: 0.01) {
+            let gray = RGBA(red: value, green: value, blue: value)
+            #expect(Contrast.ratio(Contrast.ink(on: gray, minimum: 4.5), gray) >= 4.5)
+        }
+    }
+}
