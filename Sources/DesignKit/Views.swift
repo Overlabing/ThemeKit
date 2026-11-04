@@ -109,7 +109,7 @@ public enum TileSize: Sendable {
 
 /// What a tile shows.
 public enum TileContent: Sendable, Equatable {
-    /// A symbol, white on a solid colour.
+    /// A symbol on a solid colour: white, or black where white stays under 3:1 on that colour.
     case symbol(String, Color)
     /// A symbol in the Theme's tint, on the tile fill.
     case tintedSymbol(String)
@@ -120,6 +120,7 @@ public enum TileContent: Sendable, Equatable {
 /// A rounded square at the leading edge of a row.
 public struct Tile: View {
     @Environment(\.designTokens) private var tokens
+    @Environment(\.self) private var environment
     private let content: TileContent
     private let size: TileSize
 
@@ -135,7 +136,10 @@ public struct Tile: View {
             Group {
                 switch content {
                 case .symbol(let name, let color):
-                    shape.fill(color).overlay { Image(systemName: name).foregroundStyle(.white) }
+                    shape.fill(color).overlay {
+                        Image(systemName: name).foregroundStyle(
+                            ColorRoles.ink(on: color, in: environment, minimum: tokens.emphasis.nonTextContrast))
+                    }
                 case .tintedSymbol(let name):
                     shape.fill(roles.tileFill).overlay { Image(systemName: name).foregroundStyle(roles.tintText) }
                 case .initial(let letter):
@@ -175,7 +179,8 @@ public enum RowPlacement: Sendable, Equatable {
 
 /// A row of a list column: a tile, a column of text (title, then optional detail lines), a trailing accessory. Its
 /// background (hover, current, selection in the Theme's colour) fills the row minus half the row gap above and below
-/// and stays inside the column's margin, so two backgrounds never touch. Selected: VoiceOver says so.
+/// and stays inside the column's margin, so two backgrounds never touch. Under Increase Contrast a selected or current
+/// row is outlined in `ColorRoles.outline`. Selected: VoiceOver says so.
 public struct ListRow<Leading: View, Trailing: View>: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.colorSchemeContrast) private var contrast
@@ -224,7 +229,7 @@ public struct ListRow<Leading: View, Trailing: View>: View {
             .background { shape.fill(fill(roles)).padding(.leading, indent) }
             .overlay {
                 if contrast == .increased && (state.isSelected || state.isCurrent) {
-                    shape.strokeBorder(.separator, lineWidth: tokens.size.stroke).padding(.leading, indent)
+                    shape.strokeBorder(roles.outline, lineWidth: tokens.size.stroke).padding(.leading, indent)
                 }
             }
             .focusRing(state.isFocused, in: shape)
@@ -319,7 +324,7 @@ public struct LayerPanel<Content: View>: View {
         VStack(spacing: 0) { content }
             .padding(.vertical, tokens.spacing.layerInset - tokens.spacing.rowGap / 2)
             .background {
-                shape.fill(Color.primary.opacity(tokens.emphasis.contrasted(tokens.emphasis.layer, contrast == .increased)))
+                shape.fill(Color.primary.opacity(tokens.emphasis.layer))
                     .overlay { if contrast == .increased { shape.strokeBorder(.separator, lineWidth: tokens.size.stroke) } }
             }
             .padding(.horizontal, tokens.spacing.listMargin - tokens.spacing.rowInsetHorizontal)
@@ -505,8 +510,9 @@ public struct IconButtonRow<Leading: View, Trailing: View>: View {
     }
 }
 
-/// A glass capsule with a circular tile in the Theme's gradient, a title and a trailing accessory: a field or a
-/// chooser at the top of a column. The tile is concentric to the capsule. Text is never centred.
+/// A glass capsule with a circular tile in the Theme's colour, a title and a trailing accessory: a field or a chooser at
+/// the top of a column. The tile is concentric to the capsule; its symbol is white, or black where white stays under
+/// 3:1. The placeholder is in the secondary ink. Text is never centred.
 public struct FieldPill<Trailing: View>: View {
     @Environment(\.designTokens) private var tokens
     private let systemImage: String
@@ -527,9 +533,9 @@ public struct FieldPill<Trailing: View>: View {
             HStack(spacing: tokens.spacing.pillTileToText) {
                 Image(systemName: systemImage)
                     .font(tokens.type.initial.font)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(roles.primaryGlyph)
                     .frame(width: tile, height: tile)
-                    .background(roles.tint.gradient, in: .circle)
+                    .background(roles.tint, in: .circle)
                     .accessibilityHidden(true)
                 Text(title.isEmpty ? placeholder : title)
                     .role(tokens.type.pillTitle)
@@ -551,10 +557,13 @@ public struct FieldPill<Trailing: View>: View {
     }
 }
 
-/// The circle that stands for a Theme-coloured item (a space): the primary hue's gradient, a symbol or an initial.
+/// The circle that stands for a Theme-coloured item (a space): the primary hue, opaque, with a symbol (white, or black
+/// where white stays under 3:1) or an initial (white, or black where white stays under 4.5:1).
 public struct ThemeGlyph: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.theme) private var environmentTheme
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
     private let symbol: String?
     private let name: String
     private let theme: Theme?
@@ -566,7 +575,9 @@ public struct ThemeGlyph: View {
     }
 
     public var body: some View {
-        let hue = (theme ?? environmentTheme ?? Palette.standard.themes[0]).primary.color
+        let hue = (theme ?? environmentTheme ?? Palette.standard.themes[0]).primary
+        let appearance = Appearance(isDark: scheme == .dark, isIncreasedContrast: contrast == .increased)
+        let minimum = symbol == nil ? tokens.emphasis.textContrast : tokens.emphasis.nonTextContrast
         Group {
             if let symbol {
                 Image(systemName: symbol)
@@ -575,9 +586,9 @@ public struct ThemeGlyph: View {
             }
         }
         .font(tokens.type.glyphCircle.font)
-        .foregroundStyle(.white)
+        .foregroundStyle(ColorRoles.ink(on: hue, in: appearance, minimum: minimum))
         .frame(width: tokens.size.glyphCircle, height: tokens.size.glyphCircle)
-        .background(hue.gradient, in: .circle)
+        .background(hue.color, in: .circle)
         .accessibilityHidden(true)
     }
 }
@@ -604,7 +615,6 @@ public struct GlassSwitcher: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.glassRendering) private var glassRendering
     @Namespace private var namespace
     private let items: [SwitcherItem]
@@ -673,7 +683,7 @@ public struct GlassSwitcher: View {
         } else {
             button.background {
                 if isSelected {
-                    Capsule().fill(tint.opacity(tokens.emphasis.contrasted(tokens.emphasis.glassTint, contrast == .increased)))
+                    Capsule().fill(tint.opacity(tokens.emphasis.glassTint))
                 }
             }
         }
@@ -696,7 +706,7 @@ public struct Banner<Actions: View>: View {
     public var body: some View {
         WithColorRoles { roles in
             HStack(spacing: tokens.spacing.pillActionGap) {
-                Image(systemName: systemImage).foregroundStyle(roles.tint).accessibilityHidden(true)
+                Image(systemName: systemImage).foregroundStyle(roles.tintText).accessibilityHidden(true)
                 Text(message).role(tokens.type.banner).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
                 actions

@@ -21,7 +21,7 @@ only.
 ## Install
 
 ```swift
-.package(url: "https://github.com/Overlabing/ThemeKit", exact: "0.2.0")
+.package(url: "https://github.com/Overlabing/ThemeKit", exact: "0.2.1")
 ```
 
 ## Use
@@ -65,6 +65,11 @@ legibility.worstTint        // lowest ratio reached
 
 `Legibility.solve(colors:surfaces:)` in `ColorCore` takes already-resolved `ResolvedColors`, so it runs and tests without a
 window.
+
+Some hues leave text no room at full opacity: white on a bright mint under a strong fill stays under 4.5:1 whatever the
+ink. `Legibility.fit(colors:surfaces:)` (cached: `Legibility.fitted(…)`) then solves on all your hue opacities scaled
+down together, by the largest share at which every text passes, and returns it as `hueScale`: draw your gradient and
+fills at their opacity times that share.
 
 ## Design kit
 
