@@ -69,6 +69,9 @@ public enum MotionRole: String, Sendable, CaseIterable {
     /// A Theme changing, a change of space included: the window background, the switcher, the column's edge. There is
     /// no separate space role; a space's change is the change of its Theme (Oisillon's `spaceChange` has this spec).
     case themeChange
+    /// The Space rail changing Profile: the old Profile's glyphs fold into its dots while the new one's open, one
+    /// glyph after the other.
+    case profileSwap
     case pullToOpen
     case contentReveal
     case scrollFollow
@@ -108,6 +111,7 @@ public enum MotionRole: String, Sendable, CaseIterable {
         case .indicatorRotation: Spec(duration: .quick, curve: .smooth, reduced: .none)
         case .hoverFill: Spec(duration: .instant, curve: .easeOut, reduced: .none)
         case .themeChange: Spec(duration: .calm, curve: .smooth, reduced: .none)
+        case .profileSwap: Spec(duration: .calm, curve: .smooth, stagger: 0.04, reduced: .fade)
         case .pullToOpen: Spec(duration: .calm, curve: .spring, stagger: 0.04, reduced: .fade)
         case .contentReveal: Spec(duration: .calm, curve: .smooth, reduced: .none)
         case .scrollFollow: Spec(duration: .deliberate, curve: .smooth, reduced: .none)

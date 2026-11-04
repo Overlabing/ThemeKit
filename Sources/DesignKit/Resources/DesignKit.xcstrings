@@ -1,18 +1,246 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%lld Spaces" : {
+      "comment" : "Detail of a folded Profile in the Space rail's caption: how many Spaces it has.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Space"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Spaces"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld espace"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld espaces"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Add" : {
+      "comment" : "VoiceOver label and help of the Space rail's + button, which opens the app's commands.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter"
+          }
+        }
+      }
+    },
+    "All Spaces, %lld more" : {
+      "comment" : "VoiceOver label and help of the Space rail's overflow item, which opens the panel of every Space.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "All Spaces, %lld more"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "All Spaces, %lld more"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tous les espaces, %lld de plus"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tous les espaces, %lld de plus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Collapsed" : {
       "comment" : "VoiceOver value of a folder row whose children are hidden.",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Collapsed" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Replié" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapsed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replié"
+          }
+        }
       }
     },
     "Expanded" : {
       "comment" : "VoiceOver value of a folder row whose children are shown.",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Expanded" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Déplié" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expanded"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplié"
+          }
+        }
+      }
+    },
+    "Profile %@, %lld Spaces" : {
+      "comment" : "VoiceOver label of a folded Profile in the Space rail: its name and how many Spaces it has.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Profile %1$@, %2$lld Space"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Profile %1$@, %2$lld Spaces"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Profil %1$@, %2$lld espace"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Profil %1$@, %2$lld espaces"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Space %@, %lld of %lld" : {
+      "comment" : "VoiceOver label of a Space in the Space rail: its name, its position, how many Spaces the Profile has.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Space %1$@, %2$lld of %3$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace %1$@, %2$lld sur %3$lld"
+          }
+        }
+      }
+    },
+    "Spaces" : {
+      "comment" : "VoiceOver name of the Space rail without Profiles.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spaces"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espaces"
+          }
+        }
+      }
+    },
+    "Spaces and Profiles" : {
+      "comment" : "VoiceOver name of the Space rail when it shows Profiles.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spaces and Profiles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espaces et profils"
+          }
+        }
+      }
+    },
+    "opens %@" : {
+      "comment" : "Detail of a folded Profile in the Space rail's caption, and its VoiceOver hint: the Space a click lands on.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "opens %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ouvre %@"
+          }
+        }
       }
     }
   },

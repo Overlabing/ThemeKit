@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.2.4 (unreleased)
+
+Space rail. A Space selector both apps share replaces the glass switcher: one quiet row at the bottom of a list column,
+Profiles folded into dots after a hairline, a `+` for the app's commands, and a named panel when the row does not fit.
+
+### Added
+
+- **`SpaceRail`**: the active Profile's Spaces as glyphs, the selected one in its Theme's hue with a marker bar under it
+  (`ColorRoles.selectionMarker`). After a hairline, each other Profile is folded into dots in its Spaces' hues, one
+  target that switches to it. A trailing `+` opens the app's commands. Hovering or focusing an item shows a caption
+  above the row: the name, a detail and the shortcut, with its height always kept. `SpaceRail(spaces:…)` draws an app
+  with no Profiles: the Spaces alone, no divider. The app supplies every name, shortcut and command title; the kit writes
+  no key. See docs/design-kit.md, "Space rail".
+- **Overflow**: when the row does not fit, the active Profile's last Spaces (never the selected one) give way to a
+  trailing "+n", then the folded Profiles too. "+n" opens **`SpaceRailPanel`** in a popover: every Profile under a
+  header, every Space with its glyph and shortcut, then the commands. In the ideal column (360) 8 Spaces fit beside a
+  folded Profile, and 8 + 8 fits. At `columnMin` (300) the last two of 8 Spaces fold into "+2".
+- **Keyboard and VoiceOver**: the row is one focus stop. ← and → move across its items, and Return or Space activates.
+  The panels are one focus stop each (↑ ↓, Return, Escape). VoiceOver reads "Space Research, 2 of 3" (plus
+  "selected"), "Profile Personal, 3 Spaces" (hint "opens Home"), "All Spaces, 2 more" and "Add", in a group named
+  "Spaces and Profiles" ("Spaces" without Profiles). English and French in the kit's string catalog.
+- **`SpaceRailModel`**, the rail's logic as a value: `layout(width:hasCommands:)`, `action(for:)`, `caption(for:)`,
+  `accessibilityLabel(for:)`, and `SpaceRailLayout.key(movingFrom:by:)`. Also `SpaceRailSpace`, `SpaceRailGlyph`
+  (`.emoji`, `.symbol`, `.initial`), `SpaceRailProfile` (`landingSpace`: its last Space, or its first),
+  `SpaceRailCommand`, `SpaceRailItem`, `SpaceRailAction`, `SpaceRailCaption`, `SpaceRailLayout`.
+- `SpaceRailPreviewState` and `.spaceRailPreviewState(_:)` force a hover or a focus for previews and offscreen renders.
+- **Colours**: `ColorRoles.railDot(_:)` / `railDotRGBA(_:)` draw a Space's hue, opaque, mixed with ink until it reaches
+  3:1 on every surface solved where it sits. The raw hue falls to 1.16:1 (yellow on a light column). `ColorRoles.railDivider`
+  is the column edge's ink, 3.98 to 5.10:1 on the column's fill, where the separator gives 1.24 to 1.34:1.
+- **Tokens**: `Spacing.railMarkerGap` (2), `railGroupGap` (4), `railDotGap` (4), `railCaption` (4), `railFoldPadding`
+  (4); `Size.railHeight` (`minTarget` + 8: 36 on macOS), `railMarker` (12), `railDivider` (16), `railCount` (16),
+  `railDotsMax` (4, a count).
+- **Motion**: `MotionRole.profileSwap` (calm · smooth, stagger 0.04 per glyph; the shared fade under Reduce Motion). A
+  Profile's glyphs fold while the new Profile's open. A change of Space slides the marker with `themeChange` (immediate
+  under Reduce Motion).
+- **Legibility**: `DesignTokens.railCases(for:in:)` gives 168 cases inside the column, 6 per standard Theme and
+  appearance, all recorded in the tests. A quiet glyph reaches 4.90 to 8.06:1 on the column's fill and its hover disc
+  (threshold 4.5; the system secondary label gives 3.55). The marker reaches 4.18 to 7.43:1. A folded Profile's dots, in
+  every system hue with the worst counted, reach 3.91 to 6.38:1. The divider reaches 3.98 to 5.10:1. The threshold for
+  these is 3. The caption's texts are the column's primary and secondary text, already recorded in 0.2.3. An offscreen
+  render reads back the marker, a yellow dot and the divider at 3:1 against the column's fill.
+- The gallery renders the rail: `DesignKitGallery rail <folder>` (windows in two palettes, light and dark, left and
+  right, 3 and 8 Spaces, with and without Profiles; a sheet of every state per palette and appearance). Its samples now
+  use the rail.
+
+### Deprecated
+
+- **`GlassSwitcher`**: use `SpaceRail`. It still compiles in 0.2.4 and goes in 0.3, with `SwitcherItem`, the
+  `switcherItemWidth`, `switcherItemHeight`, `switcherItemGap` and `switcherPadding` tokens, and its legibility case
+  (`switcherSelection`).
+
+### Source-breaking changes
+
+- `LegibilityCase.Role` gains `railGlyph`, `railMarker`, `railDot` and `railDivider`, and `MotionRole` gains
+  `profileSwap`. An exhaustive `switch` over them needs the new cases or a `default`.
+- No existing token value changed, and every legibility case of 0.2.3 is recorded unchanged (1616).
+
 ## 0.2.3
 
 Column surface. A list column now sits on a surface of its own, so it reads apart from the page beside it, the way a

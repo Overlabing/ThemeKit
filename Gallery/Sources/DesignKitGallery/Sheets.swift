@@ -8,11 +8,6 @@ import SwiftUI
 
 enum Sample {
     static let themes = [Palette.standard.themes[0], Palette.standard.themes[2]]
-    static let switcher = [
-        SwitcherItem(id: "work", name: "Work", symbol: "briefcase", theme: Palette.standard.themes[0], shortcut: "⌃1"),
-        SwitcherItem(id: "home", name: "Home", symbol: "house", theme: Palette.standard.themes[1], shortcut: "⌃2"),
-        SwitcherItem(id: "hobby", name: "Hobby", symbol: "sparkles", theme: Palette.standard.themes[2], shortcut: "⌃3"),
-    ]
 }
 
 /// A neutral page standing for content.
@@ -64,7 +59,7 @@ struct SampleColumn: View {
             ColumnSeparator()
             ListRow("Plain item", details: ["A detail line"]) { Tile(.tintedSymbol("doc.text")) }
             Spacer(minLength: 0)
-            GlassSwitcher(Sample.switcher, selection: "work", label: "Spaces") { _ in }
+            RailSample.standard.rail
         }
     }
 }
@@ -130,7 +125,7 @@ struct ComponentSheet: View {
                     Button("Retry") {}.controlSize(.small)
                 }
                 .padding(.horizontal, tokens.spacing.listMargin)
-                GlassSwitcher(Sample.switcher, selection: "home", label: "Spaces") { _ in }
+                RailSample.standard.rail
             }
             .frame(width: tokens.size.columnIdeal)
         }
