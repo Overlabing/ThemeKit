@@ -17,7 +17,7 @@ them.
   drawn in the raw hue.
 - **Motion comes from roles.** A view asks `MotionRole.x.animation(reduceMotion:)` or `.transition(_:reduceMotion:)`;
   it never writes a duration or a curve. A new motion becomes a role first.
-- **Glass on controls only**: pills, the switcher, banners, floating controls. Never behind a scrolling list.
+- **Glass on controls only**: pills, banners, floating controls. Never behind a scrolling list.
 - **SwiftUI and system components first.** The kit adds a view only where no system one fits; alerts, confirmation
   dialogs, forms and settings stay system views.
 
@@ -30,7 +30,7 @@ them.
 | scale `xxs`…`xl` | 2, 4, 8, 12, 16, 24 | the scale |
 | `rowGap` | 4 | between the backgrounds of two adjacent rows; they never touch |
 | `rowInsetVertical`, `rowInsetHorizontal` | 4, 8 | a row's background around its content |
-| `listMargin` | 12 | side margin of a column; rows, pills, banners, the switcher align on it |
+| `listMargin` | 12 | side margin of a column; rows, pills, banners and the Space rail's glyphs align on it |
 | `layerInset` | 4 | a row's background inside a nested panel |
 | `layerIndent` | 12 | indent of the second nesting level (none for the first) |
 | `sectionHeaderBottom` | 6 | under a section header, before the first row |
@@ -45,7 +45,13 @@ them.
 | `pillFloat` | 12 | a floating pill to the edges of what it floats over |
 | `headerTracking` | 0.6 | letter spacing of small uppercase group headers |
 | `pillLeading`, `pillTrailing`, `pillVertical`, `pillTileToText` | 5, 14, 5, 8 | a field pill around its 32 pt circle |
-| `switcherItemGap`, `switcherPadding`, `switcherBottom` | 2, 4, 8 | the switcher |
+| `switcherItemGap`, `switcherPadding` | 2, 4 | the glass switcher (deprecated) |
+| `switcherBottom` | 8 | the Space rail's (and the glass switcher's) margin to the column's bottom edge |
+| `railMarkerGap` | 2 | the Space rail: a glyph to its marker |
+| `railGroupGap` | 4 | the Space rail: either side of the divider |
+| `railDotGap` | 4 | the Space rail: between a folded Profile's dots, and before its count |
+| `railCaption` | 4 | the Space rail: its caption to its row |
+| `railFoldPadding` | 4 | the Space rail: inside a folded Profile's target, either side |
 | `statusLineToList` | 10 | status line (or what sits in its place) to the list |
 | `focusRingOffset` | 2 | a focus ring outside its shape |
 | `selectionMarkerLeading`, `selectionMarkerVertical` | 2, 8 | the selected row's marker: from the leading edge of the row's background, and from its top and bottom |
@@ -75,7 +81,13 @@ them.
 | `toolbarButton` | 28 | a toolbar icon button |
 | `swatch`, `swatchRing` | 14, 1.5 | a palette swatch |
 | `pill` | 42 | a field pill |
-| `glyphCircle`, `switcherItemWidth`, `switcherItemHeight` | 24, 52, 40 | the switcher |
+| `glyphCircle` | 24 | a Space's glyph circle (the Space rail, `ThemeGlyph`) |
+| `switcherItemWidth`, `switcherItemHeight` | 52, 40 | the glass switcher (deprecated) |
+| `railHeight` | 36 (macOS), 52 (iOS) | the Space rail's row: `minTarget` plus `Spacing.s` for the marker |
+| `railMarker` | 12 | length of the selected Space's marker (thickness `selectionMarker`) |
+| `railDivider` | 16 | height of the hairline before the folded Profiles |
+| `railCount` | 16 | width kept for a folded Profile's "+n" |
+| `railDotsMax` | 4 (a count) | dots a folded Profile shows before its "+n" |
 | `columnMin`, `columnIdeal`, `columnMax` | 300, 360, 480 | a list column |
 | `disclosureDegrees` | 90 | an open folder's chevron |
 
@@ -128,6 +140,7 @@ settles at ×1.47), `snappy` (0.15, ×1.39), `spring` (0.1, ×1.33), `easeOut`, 
 | `indicatorRotation` | quick · smooth | | none |
 | `hoverFill` | instant · easeOut | | none |
 | `themeChange` | calm · smooth | | none (also a change of space: there is no separate space role) |
+| `profileSwap` | calm · smooth | stagger 0.04 per glyph | fade |
 | `pullToOpen` | calm · spring | stagger 0.04 per group | fade |
 | `contentReveal` | calm · smooth | | none |
 | `scrollFollow` | deliberate · smooth | | none |
@@ -154,16 +167,73 @@ immediate.
 | `StatusLine` | the one-line state at the top of a column, with its chevron |
 | `FieldPill` | a glass capsule with a circle in the Theme's colour, a title (or a placeholder in the secondary ink) and an accessory |
 | `IconButton`, `IconButtonRow` | symbol buttons in at least the minimum target, labelled for VoiceOver; dimmed to `Emphasis.disabled` when disabled |
-| `ThemeGlyph`, `GlassSwitcher` | the glass bar of themed items (spaces) at the bottom of a column; absent with one item. A glyph is its flat hue with a white or black symbol or initial. An item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`, "⌃1" say); the kit writes no key |
+| `SpaceRail`, `SpaceRailPanel` | the Space selector at the bottom of a column (see "Space rail" below) |
+| `ThemeGlyph` | a themed item's glyph: its flat hue with a white or black symbol or initial |
+| `GlassSwitcher` | **deprecated in 0.2.4, removed in 0.3**: use `SpaceRail`. The glass bar of themed items at the bottom of a column; an item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`) |
 | `Banner` | a discreet message on glass with its actions |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label |
 | `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control |
 | `.surface(_:in:)` | glass or a layer fill, with the accessibility fallbacks below |
 
+## Space rail
+
+One quiet row at the bottom of a list column: the active Profile's Spaces as glyphs, the selected one in its Theme's
+hue with a marker bar under it; a hairline; each other Profile folded into dots; a trailing `+` for the app's commands.
+The app supplies every word and key: names, shortcuts ("⌃1", "⌘1"), command titles. The kit says only "Space",
+"Profile" and "Add" (in its string catalog).
+
+```swift
+SpaceRail(
+    profiles: [SpaceRailProfile],          // in their order; or SpaceRail(spaces:selection:…) with no Profiles
+    selection: String?,                    // the selected Space's id; the active Profile is the one holding it
+    commands: [[SpaceRailCommand]] = [],   // the + menu's sections ("New Space in Work…", "New Profile…" | "Edit…")
+    label: String? = nil,                  // VoiceOver name; default "Spaces and Profiles" / "Spaces"
+    selectSpace: (String) -> Void,         // a Space's id, from the row or the panel (maybe another Profile's)
+    selectProfile: (String) -> Void,       // a folded Profile's id: land on its last Space
+    perform: (String) -> Void = { _ in })  // a command's id
+
+SpaceRailSpace(id:name:glyph:theme:shortcut:)      // glyph: .emoji("🚀"), .symbol("books.vertical"), .initial
+SpaceRailProfile(id:name:emoji:spaces:lastSpaceID:shortcut:)
+SpaceRailCommand(id:title:systemImage:)
+```
+
+`SpaceRailModel` is the rail's logic as a value, testable without a window: `layout(width:hasCommands:)` says which
+items show at a width, `action(for:)` what activating one asks for, `caption(for:)` and `accessibilityLabel(for:)` what
+the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an arrow moves the focus.
+
+- **Selected Space**: its hue in a `glyphCircle` circle, the symbol or initial in white or black (`ThemeGlyph`'s rule),
+  and a `railMarker` × `selectionMarker` bar in `ColorRoles.selectionMarker` `railMarkerGap` under it, so it is never
+  shown by colour alone. Under Increase Contrast the circle is also outlined in `ColorRoles.outline`.
+- **Other Spaces of the active Profile**: quiet. The symbol or initial alone in `ColorRoles.secondaryText`; an emoji
+  keeps its colours. A hover fill disc on hover.
+- **Folded Profiles**, after a `railDivider` hairline in `ColorRoles.railDivider`: one target per Profile, its first
+  `railDotsMax` Spaces as `dot` dots in `ColorRoles.railDot(_:)` (each Space's own hue, mixed with ink to 3:1), then
+  "+n". A click asks the app to switch Profile; the caption says "🏡 Personal · 3 Spaces · opens Home · ⌃⌥⌘→".
+- **Caption**: one line above the row for the hovered or focused item: the name (`switcherLabel`), a detail and the
+  shortcut (`count`, secondary ink). Its height is always kept, so nothing moves; a long name truncates at the tail.
+- **Overflow**: when the items do not fit (`layout(width:)`: a 28 pt target per Space, the divider, each folded
+  Profile, the `+`), the active Profile's last Spaces (never the selected one) give way to a trailing "+n". When not one
+  Space fits beside the folded Profiles, those go too. "+n" opens `SpaceRailPanel` in a popover: every Profile under a
+  header, every Space as a row with its glyph and shortcut, then the commands. 8 Spaces and a folded Profile of 3 fit
+  the ideal column (360, 301 pt of 340); at `columnMin` (300) the last two Spaces fold into "+2". 8 + 8 fits at 360.
+- **No Profiles**: `SpaceRail(spaces:…)`. The row is the Spaces alone: no divider, nothing folded, no panel headers.
+- **Keyboard**: the row is one focus stop. ← and → move the focus ring across its items (mirrored right to left),
+  Return or Space activates. The `+` and the "+n" open their panel, itself one focus stop: ↑ and ↓ move, Return or Space
+  picks, Escape closes. The app keeps its own shortcuts (⌃1…9, say) working from anywhere.
+- **VoiceOver**: the row is a named group. A Space reads "Space Research, 2 of 3", plus "selected" on the selected one;
+  a folded Profile "Profile Personal, 3 Spaces", hint "opens Home"; the overflow "All Spaces, 2 more"; the `+` "Add".
+  Dots, the divider, the marker and the caption are hidden.
+- **Motion**: changing Space slides the marker and recolours the glyph (`themeChange`; immediate under Reduce Motion).
+  Changing Profile folds the old group's glyphs while the new group's open, one after the other (`profileSwap`, stagger
+  0.04; the shared fade under Reduce Motion). The caption fades in (`overlayFade`).
+- **Reduce Transparency**: the rail draws no glass; it sits on the column's surface, which turns opaque.
+- **Previews and renders**: `.spaceRailPreviewState(SpaceRailPreviewState(hovered:focused:))` forces a hover and a
+  focus (`ImageRenderer` has neither); `SpaceRailPanel(model:commands:…)` draws the panel outside its popover.
+
 ## Accessibility
 
 - **Reduce Transparency**: every glass surface becomes an opaque `.background` fill with a 1 pt `.separator` line; the
-  selected switcher item becomes a solid tinted capsule; a list column's surface becomes the opaque `.background` (its
+  (deprecated) glass switcher's selected item becomes a solid tinted capsule; a list column's surface becomes the opaque `.background` (its
   edge stays).
 - **Column surface**: inside a `ColumnSurface` every text, the selection fill, the marker, the focus ring and the
   tinted text are solved on the column's fill (the plain background over the gradient, or alone under Reduce
@@ -180,9 +250,10 @@ immediate.
   surface a row sits on, the selection's fill included. The fill alone differs from the gradient by about 1.3:1, which
   is not enough to find the row (WCAG 1.4.11); the semibold title is not either. Increase Contrast draws the outline
   instead, so the bar is not drawn there.
-- **Reduce Motion**: each role becomes the shared fade or nothing (table above); the switcher stops morphing.
+- **Reduce Motion**: each role becomes the shared fade or nothing (table above); the Space rail's marker jumps, its
+  Profile change fades.
 - **VoiceOver**: rows read their title and details as one element with the button trait, and say "selected"; folders
-  say expanded or collapsed; icon buttons read their title; the switcher is a named group; skeletons read one label;
+  say expanded or collapsed; icon buttons read their title; the Space rail is a named group (see above); skeletons read one label;
   decorative tiles, glyphs and lines are hidden.
 - **Legibility**: every text reaches 4.5:1 and every glyph, focus ring, selection outline and selection marker 3:1, on every surface,
   for every standard Theme in the four appearances. Secondary and tinted text use the inks `ColorRoles` gets from the
@@ -191,7 +262,9 @@ immediate.
   and `symbolCases(in:)` list each role on each surface with the system default's contrast and the kit's;
   `legibilityCases(for:in:placement: .column)` does the same inside a list column, with the column's edge. CHANGELOG.md
   records the 804 cases of 0.2.1, the 14 selection marker cases added in 0.2.2 (818 on the frame) and the 798 column
-  cases of 0.2.3 (1616). Glass is measured as anything between the window background (its Reduce Transparency fill) and
+  cases of 0.2.3 (1616). `railCases(for:in:)` lists the Space rail's marks on the column's fill (168 in 0.2.4): a quiet
+  glyph at 4.5:1 on the fill and its hover disc, the marker, a folded Profile's dots (every system hue, the worst
+  counted) and the divider at 3:1. Glass is measured as anything between the window background (its Reduce Transparency fill) and
   what is under it; the switcher's capsule over the bottom of the column (`switcherTop`).
 - **Inactive window**: the kit's inks are explicit and read no window state, so a column keeps its contrast when the
   window resigns key. Draw it with `ColumnSurface` in a plain split item: a system sidebar (`NSSplitViewItem(sidebarWithViewController:)`,

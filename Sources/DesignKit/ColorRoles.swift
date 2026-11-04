@@ -187,6 +187,21 @@ public struct ColorRoles: Sendable {
             + outside.map { (colors.background, $0) }
     }
 
+    /// A dot standing for one Space of a folded Profile in the Space rail. The dot is drawn in `hue` (that Space's
+    /// Theme), opaque, mixed with ink until it reaches 3:1 on every surface solved here. The raw hue alone falls
+    /// short: yellow on a light column is about 1.5:1.
+    public func railDot(_ hue: Hue) -> Color { Color(rgba: railDotRGBA(hue)) }
+    public func railDotRGBA(_ hue: Hue) -> RGBA {
+        let raw = RGBA(hue.systemColor, in: appearance)
+        let opaque = RGBA(red: raw.red, green: raw.green, blue: raw.blue)
+        return opaque.mixed(with: resolved.ink, by: legibility.mix(
+            of: opaque, toward: resolved.ink, reaching: emphasis.nonTextContrast))
+    }
+
+    /// The hairline between the Space rail's groups. It uses the column edge's ink, so it reaches 3:1 on the column's
+    /// fill. The system separator stays near 1.3:1 there.
+    public var railDivider: Color { columnEdge }
+
     /// A band of the Theme's colour (the active profile, say): the primary hue, opaque, and the text on it, white or
     /// black, at 4.5:1 at least.
     public var bandFill: Color { Color(rgba: resolved.primary, alpha: 1) }

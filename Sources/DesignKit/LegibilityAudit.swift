@@ -30,6 +30,18 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
         /// The edge of a list column's surface: `ColorRoles.columnEdge` instead of the separator, against the gradient
         /// outside the column (surface `frame`) and against the column's fill inside (surface `columnFill`).
         case columnEdge
+        /// A quiet Space of the Space rail: its symbol or initial in `ColorRoles.secondaryText`, on the column's fill
+        /// and on its hover disc. Held to the text threshold, since an initial is a letter.
+        case railGlyph
+        /// The marker under the rail's selected Space: `ColorRoles.selectionMarker` instead of nothing (`before` is
+        /// the raw hue the glyph's circle is drawn in), on the column's fill.
+        case railMarker
+        /// A folded Profile's dots: every system hue through `ColorRoles.railDot` instead of the raw hue, the worst
+        /// hue counted, on the column's fill and on the folded Profile's hover fill.
+        case railDot
+        /// The hairline between the rail's groups: `ColorRoles.railDivider` instead of the separator, on the column's
+        /// fill.
+        case railDivider
     }
 
     public enum SurfaceKind: String, Sendable, CaseIterable {
@@ -202,6 +214,66 @@ extension DesignTokens {
         legibilityCases(
             themeID: theme.id, colors: ResolvedColors(theme, in: appearance), focus: .keyboardFocus(in: appearance),
             separator: .separator(in: appearance), in: appearance, placement: placement)
+    }
+
+    /// The Space rail's marks inside a list column, for one Theme in one appearance: a quiet glyph (on the column's
+    /// fill and on its hover disc), the selected Space's marker, a folded Profile's dots (`dotHues`, the worst counted,
+    /// on the fill and on the hover fill) and the divider. The rail's caption is plain and secondary text on the
+    /// column's fill, which `legibilityCases(…, placement: .column)` already holds; a selected glyph's symbol or
+    /// initial on its hue is `textOnHue` / `symbolCases`.
+    public func railCases(
+        themeID: String, colors: ResolvedColors, dotHues: [RGBA], separator: RGBA?, in appearance: Appearance
+    ) -> [LegibilityCase] {
+        let frameSolved = Legibility.fit(colors: colors, surfaces: surfaces(in: appearance))
+        let solved = Legibility.solve(
+            colors: colors, surfaces: columnSurfaces(in: appearance), hueScale: frameSolved.hueScale)
+        let described = columnSurfaces(in: appearance).scaled(by: solved.hueScale)
+        let (top, content) = described.samples(colors)
+        let fill = top + content
+        let hovered = fill.map { colors.primary.opacity(described.fills[0]).composited(over: $0) }
+        let ink = colors.ink
+        let secondaryInk = colors.label.opacity(solved.secondaryAlpha / colors.label.alpha)
+        let nonText = emphasis.nonTextContrast
+        func opaque(_ color: RGBA) -> RGBA { RGBA(red: color.red, green: color.green, blue: color.blue) }
+        func solvedMark(_ hue: RGBA) -> RGBA {
+            opaque(hue).mixed(with: ink, by: solved.mix(of: opaque(hue), toward: ink, reaching: nonText))
+        }
+        func worst(_ marks: [RGBA], on surfaces: [RGBA]) -> Double {
+            let range = Contrast.luminances(surfaces)
+            return marks.map { Contrast.worst(opaque: $0, onLuminances: range) }.min() ?? 21
+        }
+        var cases: [LegibilityCase] = []
+        func add(_ role: LegibilityCase.Role, _ kind: LegibilityCase.SurfaceKind, _ before: Double, _ after: Double,
+                 _ threshold: Double) {
+            cases.append(LegibilityCase(
+                themeID: themeID, appearance: appearance, placement: .column, role: role, surface: kind,
+                before: before, after: after, threshold: threshold))
+        }
+        for (kind, surfaces) in [(LegibilityCase.SurfaceKind.columnFill, fill), (.hoveredRow, hovered)] {
+            add(.railGlyph, kind, Contrast.worst(foreground: colors.secondaryLabel, on: surfaces),
+                Contrast.worst(foreground: secondaryInk, on: surfaces), emphasis.textContrast)
+        }
+        add(.railMarker, .columnFill, worst([opaque(colors.primary)], on: fill), worst([solvedMark(colors.primary)], on: fill),
+            nonText)
+        for (kind, surfaces) in [(LegibilityCase.SurfaceKind.columnFill, fill), (.hoveredRow, hovered)] {
+            add(.railDot, kind, worst(dotHues.map(opaque), on: surfaces), worst(dotHues.map(solvedMark), on: surfaces),
+                nonText)
+        }
+        let edge = ink.opacity(ColorRoles.columnEdgeAlpha(
+            colors: colors, frame: surfaces(in: appearance), column: columnSurfaces(in: appearance),
+            hueScale: solved.hueScale, minimum: nonText))
+        add(.railDivider, .columnFill,
+            fill.map { place in Contrast.ratio(separator.map { $0.composited(over: place) } ?? place, place) }.min() ?? 1,
+            fill.map { place in Contrast.ratio(edge.composited(over: place), place) }.min() ?? 1, nonText)
+        return cases
+    }
+
+    /// The same with the system's colours for `theme` in `appearance`, every system hue as a dot.
+    public func railCases(for theme: Theme, in appearance: Appearance) -> [LegibilityCase] {
+        railCases(
+            themeID: theme.id, colors: ResolvedColors(theme, in: appearance),
+            dotHues: Hue.allCases.map { RGBA($0.systemColor, in: appearance) }, separator: .separator(in: appearance),
+            in: appearance)
     }
 
     /// A symbol on each system hue (a tile's colour), white before, the kit's ink after, against 3:1.

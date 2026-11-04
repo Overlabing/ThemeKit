@@ -130,6 +130,7 @@ struct MotionTests {
             (.indicatorRotation, .quick, .smooth, 0, 0, .none),
             (.hoverFill, .instant, .easeOut, 0, 0, .none),
             (.themeChange, .calm, .smooth, 0, 0, .none),
+            (.profileSwap, .calm, .smooth, 0, 0.04, .fade),
             (.pullToOpen, .calm, .spring, 0, 0.04, .fade),
             (.contentReveal, .calm, .smooth, 0, 0, .none),
             (.scrollFollow, .deliberate, .smooth, 0, 0, .none),
@@ -377,10 +378,11 @@ struct LegibilityInvariantTests {
         for item in cases + column {
             #expect(item.threshold == (text.contains(item.role) ? 4.5 : 3), "\(item)")
         }
+        let rail: Set<LegibilityCase.Role> = [.railGlyph, .railMarker, .railDot, .railDivider]
         #expect(Set(cases.map(\.role))
-            == Set(LegibilityCase.Role.allCases).subtracting([.symbolOnHue, .selectionMarker, .columnEdge]))
+            == Set(LegibilityCase.Role.allCases).subtracting(rail).subtracting([.symbolOnHue, .selectionMarker, .columnEdge]))
         #expect(Set(column.map(\.role))
-            == Set(LegibilityCase.Role.allCases).subtracting([.symbolOnHue, .selectionMarker, .textOnHue]))
+            == Set(LegibilityCase.Role.allCases).subtracting(rail).subtracting([.symbolOnHue, .selectionMarker, .textOnHue]))
     }
 
     /// The marker stands where the outline does not: outside Increase Contrast, one case per Theme and appearance.

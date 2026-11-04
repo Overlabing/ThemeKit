@@ -689,6 +689,7 @@ public struct SwitcherItem: Identifiable, Sendable, Equatable {
 /// capsule tinted with its Theme and shows its name. The shapes merge and morph in one `GlassEffectContainer`
 /// (`themeChange`, the role of a change of space too; no morph under Reduce Motion). Absent with a single item. An
 /// item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`).
+@available(*, deprecated, message: "Use SpaceRail. GlassSwitcher is removed in 0.3.")
 public struct GlassSwitcher: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency

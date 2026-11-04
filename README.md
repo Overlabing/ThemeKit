@@ -91,7 +91,7 @@ struct Root: View {
                 StatusLine(tile: .tintedSymbol("tray.full"), title: "All · Inbox", count: 4, isOpen: false)
                 ListRow("Selected", state: RowState(isSelected: true)) { Tile(.initial("S")) }
                 Spacer()
-                GlassSwitcher(items, selection: current, label: "Spaces") { current = $0 }  // items carry their shortcut
+                SpaceRail(spaces: spaces, selection: current) { current = $0 }  // spaces carry their shortcut
             }
         } detail: {
             DetailView()

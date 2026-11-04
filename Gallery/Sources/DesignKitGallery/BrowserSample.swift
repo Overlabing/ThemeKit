@@ -8,6 +8,7 @@ import SwiftUI
 struct BrowserSample: View {
     @Environment(\.designTokens) private var tokens
     let side: ColumnSide
+    var rail = RailSample.standard
 
     var body: some View {
         ColumnLayout(side: side) { column } detail: { PlaceholderPage(title: "A page") }
@@ -46,7 +47,7 @@ struct BrowserSample: View {
             }
             ListRow("Weather in Lyon", details: ["weather.example"]) { Tile(.initial("W")) }
             Spacer(minLength: 0)
-            GlassSwitcher(Sample.switcher, selection: "work", label: "Spaces") { _ in }
+            rail.rail
         }
     }
 }

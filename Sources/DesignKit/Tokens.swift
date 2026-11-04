@@ -82,6 +82,13 @@ extension DesignTokens {
         /// The selected row's marker: from the leading edge of the row's background, and from its top and bottom.
         public var selectionMarkerLeading: CGFloat = xxs
         public var selectionMarkerVertical: CGFloat = s
+        /// The Space rail: from a glyph to its marker, either side of the divider before a folded Profile, between the
+        /// dots of a folded Profile, from the hover caption to the row, and inside a folded Profile's target.
+        public var railMarkerGap: CGFloat = xxs
+        public var railGroupGap: CGFloat = xs
+        public var railDotGap: CGFloat = xs
+        public var railCaption: CGFloat = xs
+        public var railFoldPadding: CGFloat = xs
 
         public init() {}
     }
@@ -195,7 +202,8 @@ extension DesignTokens {
         public var swatchRing: CGFloat = 1.5
         /// A field pill: 42 pt high with its 32 pt circular tile.
         public var pill: CGFloat = 42
-        /// The switcher: an item's glyph circle, an unselected item's width, every item's minimum height.
+        /// The switcher and the Space rail: an item's glyph circle. The glass switcher (deprecated): an unselected
+        /// item's width, every item's minimum height.
         public var glyphCircle: CGFloat = 24
         public var switcherItemWidth: CGFloat = 52
         public var switcherItemHeight: CGFloat = 40
@@ -203,6 +211,14 @@ extension DesignTokens {
         public var columnMin: CGFloat = 300
         public var columnIdeal: CGFloat = 360
         public var columnMax: CGFloat = 480
+        /// The Space rail: its row (a target, plus room for the marker under it), the active Space's marker length (its
+        /// thickness is `selectionMarker`), the divider's height, the width kept for a folded Profile's "+n" count, and
+        /// how many dots a folded Profile shows before that count.
+        public var railHeight: CGFloat = Self.platformMinTarget + Spacing.s
+        public var railMarker: CGFloat = Spacing.m
+        public var railDivider: CGFloat = Spacing.l
+        public var railCount: CGFloat = Spacing.l
+        public var railDotsMax: Int = 4
 
         public init() {}
 
