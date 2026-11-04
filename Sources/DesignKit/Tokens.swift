@@ -1,0 +1,234 @@
+import ColorCore
+import SwiftUI
+
+/// Every layout, shape, emphasis and type value a view of the kit uses, as one value carried by the environment
+/// (`designTokens`). Views never write a raw number: a new value becomes a token first. `standard` is the only preset;
+/// an app adjusts a copy of it rather than inventing its own.
+public struct DesignTokens: Sendable, Equatable {
+    public var spacing = Spacing()
+    public var radius = Radius()
+    public var emphasis = Emphasis()
+    public var size = Size()
+    public var type = TypeScale()
+    public var gradient = WindowGradient()
+
+    public init() {}
+
+    /// The kit's tokens.
+    public static let standard = DesignTokens()
+}
+
+extension DesignTokens {
+    /// The spacing scale (2, 4, 8, 12, 16, 24), and the semantic values picked from it.
+    public struct Spacing: Sendable, Equatable {
+        public static let xxs: CGFloat = 2
+        public static let xs: CGFloat = 4
+        public static let s: CGFloat = 8
+        public static let m: CGFloat = 12
+        public static let l: CGFloat = 16
+        public static let xl: CGFloat = 24
+        public static let scale: [CGFloat] = [xxs, xs, s, m, l, xl]
+
+        /// Vertical gap between the backgrounds (hover, selection) of two adjacent rows: they never touch.
+        public var rowGap: CGFloat = xs
+        /// Inset of a row's background around its content.
+        public var rowInsetVertical: CGFloat = xs
+        public var rowInsetHorizontal: CGFloat = s
+        /// Side margin of a list column: rows, pills, banners and the switcher align on it.
+        public var listMargin: CGFloat = m
+        /// Inset of a row's background inside a nested panel, and the indent of a second nesting level (none for the
+        /// first).
+        public var layerInset: CGFloat = xs
+        public var layerIndent: CGFloat = m
+        /// Under a section header, before the first row's background.
+        public var sectionHeaderBottom: CGFloat = 6
+        /// Tile to text in a row, and in a compact row (28 pt tile).
+        public var tileToText: CGFloat = 10
+        public var compactTileToText: CGFloat = s
+        /// Between the text lines of a row, and the row's own vertical padding.
+        public var textLines: CGFloat = xxs
+        /// Merge distance of adjacent glass shapes in one `GlassEffectContainer`.
+        public var glassMerge: CGFloat = 6
+        /// Banner insets, in its shape.
+        public var bannerVertical: CGFloat = 6
+        public var bannerHorizontal: CGFloat = m
+        /// Inset of a content canvas inside its column, and the canvas's inner margin.
+        public var canvasInset: CGFloat = m
+        /// Between two icon buttons in a pill, and between two groups of buttons.
+        public var pillActionGap: CGFloat = s
+        /// Between a floating pill and the edges of what it floats over.
+        public var pillFloat: CGFloat = m
+        /// Letter spacing of small uppercase group headers.
+        public var headerTracking: CGFloat = 0.6
+        /// A field pill around its 32 pt circular tile: leading, trailing, vertical, and tile to title.
+        public var pillLeading: CGFloat = 5
+        public var pillTrailing: CGFloat = 14
+        public var pillVertical: CGFloat = 5
+        public var pillTileToText: CGFloat = s
+        /// The switcher: between items, its inner padding, and its margin to the column's bottom edge.
+        public var switcherItemGap: CGFloat = xxs
+        public var switcherPadding: CGFloat = xs
+        public var switcherBottom: CGFloat = s
+        /// From the status line (or the controls in its place) to the list.
+        public var statusLineToList: CGFloat = 10
+        /// Gap between a focus ring and the shape it surrounds.
+        public var focusRingOffset: CGFloat = xxs
+
+        public init() {}
+    }
+
+    /// Corner radii, always `.continuous`. Nested shapes stay concentric: outer = inner + the inset between them.
+    public struct Radius: Sendable, Equatable {
+        /// Tiles, by side: 8 for 32 pt, 7 for 28 pt, 6 for 22 pt, 5 for 20 pt.
+        public var tile: CGFloat = 8
+        public var compactTile: CGFloat = 7
+        public var smallTile: CGFloat = 6
+        public var statusTile: CGFloat = 5
+        public var row: CGFloat = 8
+        /// A panel holding rows: `row + Spacing.layerInset`, so it stays concentric.
+        public var layer: CGFloat = 12
+        public var banner: CGFloat = 12
+        public var canvas: CGFloat = 12
+
+        public init() {}
+    }
+
+    /// Opacities, of the Theme's primary hue unless named otherwise.
+    public struct Emphasis: Sendable, Equatable {
+        public var hover: Double = 0.10
+        /// A secondary selection: the current item inside an open group.
+        public var current: Double = 0.16
+        /// The selected row: a floor per appearance, raised by the legibility solver until the row differs from the
+        /// gradient under it by `selectionVisibility` (a contrast ratio), capped at `selectionCap`.
+        public var selectedLight: Double = 0.30
+        public var selectedDark: Double = 0.25
+        public var selectionCap: Double = 0.5
+        public var selectionVisibility: Double = 1.3
+        /// A small tinted badge's fill.
+        public var badgeFill: Double = 0.14
+        /// A tile's fill when it has no icon (an initial).
+        public var tileFill: Double = 0.25
+        /// Tint of the selected glass capsule.
+        public var glassTint: Double = 0.35
+        /// A nested panel's background, in `.primary` (not the hue).
+        public var layer: Double = 0.06
+        /// A discreet item: its tile, glyph and fill at this share.
+        public var discreet: Double = 0.5
+        /// Relative luminance above which a background counts as light (a floating control takes the light
+        /// appearance on it).
+        public var lightBackgroundLuminance: Double = 0.4
+        /// Increase Contrast multiplies tinted fills by this, capped at 1.
+        public var increasedContrastFactor: Double = 1.8
+        /// The contrast every text reaches.
+        public var textContrast: Double = 4.5
+        /// Where row content starts, as a share of the window height: above it, text sits on the bare gradient.
+        public var contentTop: Double = 0.1
+        /// A pressed plain control's opacity.
+        public var pressed: Double = 0.6
+
+        public init() {}
+
+        public func contrasted(_ opacity: Double, _ increased: Bool) -> Double {
+            increased ? min(1, opacity * increasedContrastFactor) : opacity
+        }
+    }
+
+    /// Fixed dimensions, in points.
+    public struct Size: Sendable, Equatable {
+        /// Smallest hit target: 28 pt for a pointer, 44 pt for a finger.
+        public var minTarget: CGFloat = Self.platformMinTarget
+        /// Stroke under Increase Contrast or Reduce Transparency, and around a canvas.
+        public var stroke: CGFloat = 1
+        public var hairline: CGFloat = 0.5
+        public var focusRing: CGFloat = 2
+        /// Row tiles: standard 32 pt, compact 28 pt, small 22 pt, status 20 pt.
+        public var tile: CGFloat = 32
+        public var compactTile: CGFloat = 28
+        public var smallTile: CGFloat = 22
+        public var statusTile: CGFloat = 20
+        /// A compact row (40 pt), and the status line (38 pt).
+        public var compactRow: CGFloat = 40
+        public var statusLine: CGFloat = 38
+        /// An unread or status dot.
+        public var dot: CGFloat = 8
+        /// A floating pill: its height, an icon button in it, its symbols, and the divider between button groups.
+        public var floatingPill: CGFloat = 56
+        public var pillButton: CGFloat = 36
+        public var pillSymbol: CGFloat = 20
+        public var pillDivider: CGFloat = 22
+        /// The turn of an open folder's chevron, in degrees.
+        public var disclosureDegrees: Double = 90
+        /// A toolbar's icon button.
+        public var toolbarButton: CGFloat = 28
+        /// A palette swatch and its ring.
+        public var swatch: CGFloat = 14
+        public var swatchRing: CGFloat = 1.5
+        /// A field pill: 42 pt high with its 32 pt circular tile.
+        public var pill: CGFloat = 42
+        /// The switcher: an item's glyph circle, an unselected item's width, every item's minimum height.
+        public var glyphCircle: CGFloat = 24
+        public var switcherItemWidth: CGFloat = 52
+        public var switcherItemHeight: CGFloat = 40
+        /// A list column: minimum, ideal and maximum widths.
+        public var columnMin: CGFloat = 300
+        public var columnIdeal: CGFloat = 360
+        public var columnMax: CGFloat = 480
+
+        public init() {}
+
+        public static var platformMinTarget: CGFloat {
+            #if os(iOS)
+            44
+            #else
+            28
+            #endif
+        }
+    }
+
+    /// Type roles on the system font: a text style and a weight, never a point size, so the system's sizes and
+    /// Dynamic Type apply.
+    public struct TypeScale: Sendable, Equatable {
+        public var rowTitle = TextRole(.body)
+        public var rowTitleEmphasized = TextRole(.body, .semibold)
+        public var rowDetail = TextRole(.caption)
+        /// Small uppercase group headers, letter-spaced (`Spacing.headerTracking`).
+        public var groupHeader = TextRole(.caption, .semibold, uppercased: true)
+        public var sectionHeader = TextRole(.subheadline, .semibold)
+        public var count = TextRole(.caption)
+        public var pillTitle = TextRole(.body, .semibold)
+        public var initial = TextRole(.callout, .bold)
+        public var glyphCircle = TextRole(.caption, .bold)
+        public var switcherLabel = TextRole(.callout, .semibold)
+        public var banner = TextRole(.callout)
+        public var accessory = TextRole(.caption, .semibold)
+
+        public init() {}
+    }
+
+    /// The window gradient's opacities per appearance: top (primary hue), middle (secondary), bottom (primary).
+    public struct WindowGradient: Sendable, Equatable {
+        public var light: GradientSpec = .light
+        public var dark: GradientSpec = .dark
+
+        public init() {}
+
+        public func spec(isDark: Bool) -> GradientSpec { isDark ? dark : light }
+    }
+}
+
+/// A text style and weight, with optional tracking and upper case.
+public struct TextRole: Sendable, Equatable {
+    public var style: Font.TextStyle
+    public var weight: Font.Weight
+    public var tracking: CGFloat
+    public var uppercased: Bool
+
+    public init(_ style: Font.TextStyle, _ weight: Font.Weight = .regular, tracking: CGFloat = 0, uppercased: Bool = false) {
+        self.style = style
+        self.weight = weight
+        self.tracking = tracking
+        self.uppercased = uppercased
+    }
+
+    public var font: Font { .system(style, weight: weight) }
+}

@@ -11,7 +11,7 @@ extension Legibility {
         cache.withLock { cache in
             let key = CacheKey(theme: theme, accents: accents, surfaces: surfaces, appearance: appearance)
             if let known = cache[key] { return known }
-            let solved = solve(ResolvedColors(theme, accents: accents, in: appearance), surfaces: surfaces)
+            let solved = solve(colors: ResolvedColors(theme, accents: accents, in: appearance), surfaces: surfaces)
             cache[key] = solved
             return solved
         }

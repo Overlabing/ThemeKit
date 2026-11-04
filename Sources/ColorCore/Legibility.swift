@@ -99,7 +99,12 @@ public struct Legibility: Sendable, Equatable {
     public let selectionShows: Double
     public let gradientShows: Double
 
+    @available(*, deprecated, renamed: "solve(colors:surfaces:)")
     public static func solve(_ colors: ResolvedColors, surfaces description: Surfaces) -> Legibility {
+        solve(colors: colors, surfaces: description)
+    }
+
+    public static func solve(colors: ResolvedColors, surfaces description: Surfaces) -> Legibility {
         let spec = description.gradient
         func gradient(at t: Double) -> RGBA {
             spec.color(at: t, primary: colors.primary, secondary: colors.secondary, over: colors.background)
