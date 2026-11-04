@@ -31,6 +31,8 @@ struct StandardTokensTests {
         #expect(spacing.pillActionGap == 8)
         #expect(spacing.pillFloat == 12)
         #expect(spacing.headerTracking == 0.6)
+        #expect(spacing.selectionMarkerLeading == 2)
+        #expect(spacing.selectionMarkerVertical == 8)
     }
 
     @Test func radii() {
@@ -63,6 +65,7 @@ struct StandardTokensTests {
         #expect(size.pillDivider == 22)
         #expect(size.toolbarButton == 28)
         #expect(size.swatch == 14)
+        #expect(size.selectionMarker == 3)
     }
 
     @Test func emphasis() {
@@ -86,6 +89,8 @@ struct StandardTokensTests {
         #expect(emphasis.switcherTop == 0.85)
         #expect(emphasis.textContrast == 4.5)
         #expect(emphasis.nonTextContrast == 3)
+        #expect(emphasis.pressed == 0.6)
+        #expect(emphasis.disabled == 0.4)
     }
 
     @Test func increaseContrastRaisesByOnePointEightCappedAtOne() {
@@ -222,7 +227,7 @@ struct ColorRolesTests {
 }
 
 /// Every text and glyph role on every surface, for every standard Theme and appearance, and a symbol on every system
-/// hue, as recorded (CHANGELOG 0.2.1). The system's colours were resolved on macOS 27, so the comparison runs there.
+/// hue, as recorded (CHANGELOG 0.2.1 and 0.2.2). The system's colours were resolved on macOS 27, so the comparison runs there.
 @Suite(.enabled(if: ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27))
 struct LegibilityCaseTests {
     static let computed: [String: LegibilityCase] = {
@@ -241,7 +246,7 @@ struct LegibilityCaseTests {
     }()
 
     @Test func everyCaseIsRecorded() {
-        #expect(Self.computed.count == 804)
+        #expect(Self.computed.count == 818)
         #expect(Self.computed.count == RecordedCase.all.count)
         #expect(Set(Self.computed.keys) == Set(RecordedCase.all.map(\.key)))
     }
@@ -276,14 +281,34 @@ struct LegibilityInvariantTests {
         }
     }
 
-    /// The thresholds: 4.5:1 for text, 3:1 for glyphs, focus rings and outlines.
+    /// The thresholds: 4.5:1 for text, 3:1 for glyphs, focus rings, outlines and the selection marker.
     @Test func thresholds() {
         let cases = DesignTokens.standard.legibilityCases(for: Palette.standard.themes[0], in: .darkIncreasedContrast)
         let text: Set<LegibilityCase.Role> = [.primaryText, .secondaryText, .tintedText, .textOnHue]
         for item in cases {
             #expect(item.threshold == (text.contains(item.role) ? 4.5 : 3), "\(item)")
         }
-        #expect(Set(cases.map(\.role)) == Set(LegibilityCase.Role.allCases).subtracting([.symbolOnHue]))
+        #expect(Set(cases.map(\.role)) == Set(LegibilityCase.Role.allCases).subtracting([.symbolOnHue, .selectionMarker]))
+    }
+
+    /// The marker stands where the outline does not: outside Increase Contrast, one case per Theme and appearance.
+    @Test(arguments: Palette.standard.themes, [Appearance.light, .dark])
+    func theMarkerHasOneCaseOutsideIncreaseContrast(_ theme: Theme, _ appearance: Appearance) throws {
+        let cases = DesignTokens.standard.legibilityCases(for: theme, in: appearance).filter { $0.role == .selectionMarker }
+        let marker = try #require(cases.first)
+        #expect(cases.count == 1)
+        #expect(marker.surface == .selectedRow)
+        #expect(marker.threshold == 3)
+        #expect(marker.before < 1.4)
+        #expect(marker.after >= 3)
+        #expect(marker.isFixed)
+    }
+
+    @Test(arguments: Palette.standard.themes, [Appearance.lightIncreasedContrast, .darkIncreasedContrast])
+    func increaseContrastKeepsItsOutlineAndHasNoMarker(_ theme: Theme, _ appearance: Appearance) {
+        let roles = Set(DesignTokens.standard.legibilityCases(for: theme, in: appearance).map(\.role))
+        #expect(roles.contains(.selectionOutline))
+        #expect(!roles.contains(.selectionMarker))
     }
 }
 
@@ -311,5 +336,88 @@ struct InactiveWindowTests {
         }
         _ = try pixels(.key)  // The first render in a process differs from the next ones: warm up.
         #expect(try pixels(.key) == pixels(.inactive))
+    }
+}
+
+/// What the views draw, read back from an offscreen render: the selected row's marker at 3:1 on its own fill, none
+/// under Increase Contrast, and a disabled icon button dimmed.
+@MainActor
+@Suite(.enabled(if: ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27))
+struct RenderedViewsTests {
+    struct Pixels {
+        let width: Int
+        let height: Int
+        let data: [UInt8]
+
+        func color(x: Int, y: Int) -> RGBA {
+            let offset = (y * width + x) * 4
+            return RGBA(
+                red: Double(data[offset]) / 255, green: Double(data[offset + 1]) / 255, blue: Double(data[offset + 2]) / 255)
+        }
+
+        var alphaSum: Int { stride(from: 3, to: data.count, by: 4).reduce(0) { $0 + Int(data[$1]) } }
+    }
+
+    func render(_ view: some View) throws -> Pixels {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 1
+        let image = try #require(renderer.cgImage)
+        var data = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        let drawn = data.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8,
+                bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+            return true
+        }
+        #expect(drawn)
+        return Pixels(width: image.width, height: image.height, data: data)
+    }
+
+    func selectedRow(_ theme: Theme, _ scheme: ColorScheme, increased: Bool) throws -> Pixels {
+        let row = ListRow("Title", details: ["Detail"], state: RowState(isSelected: true)) { Tile(.initial("T")) }
+            .frame(width: 320)
+            .background { WindowBackground() }
+            .theme(theme)
+            .accessibilityOverrides(increaseContrast: increased)
+            .environment(\.colorScheme, scheme)
+        _ = try render(row)  // The first render in a process differs from the next ones: warm up.
+        return try render(row)
+    }
+
+    /// The row's background starts at 4 pt (the list margin less the row's inset); the bar is 2 pt in and 3 pt wide;
+    /// the tile starts 8 pt into the background. 8-bit pixels bring the ratio of a marker solved to 3.00 down by up to
+    /// 0.05: the exact 3:1 is the recorded cases' (`LegibilityCaseTests`).
+    @Test(arguments: Palette.standard.themes, [ColorScheme.light, .dark])
+    func theMarkerReachesThreeToOneOnTheSelectedFill(_ theme: Theme, _ scheme: ColorScheme) throws {
+        let pixels = try selectedRow(theme, scheme, increased: false)
+        let middle = pixels.height / 2
+        let marker = pixels.color(x: 7, y: middle)
+        let fill = pixels.color(x: 10, y: middle)
+        #expect(Contrast.ratio(marker, fill) >= 2.95, "\(theme.id) \(scheme)")
+    }
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func increaseContrastDrawsNoMarker(_ scheme: ColorScheme) throws {
+        let pixels = try selectedRow(Palette.standard.themes[0], scheme, increased: true)
+        let middle = pixels.height / 2
+        #expect(Contrast.ratio(pixels.color(x: 7, y: middle), pixels.color(x: 10, y: middle)) < 1.05)
+    }
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func aDisabledIconButtonIsDimmed(_ scheme: ColorScheme) throws {
+        func button(enabled: Bool) -> some View {
+            IconButton("Back", systemImage: "arrow.left") {}
+                .disabled(!enabled)
+                .theme(Palette.standard.themes[0])
+                .environment(\.colorScheme, scheme)
+        }
+        _ = try render(button(enabled: true))
+        let enabled = try render(button(enabled: true)).alphaSum
+        let disabled = try render(button(enabled: false)).alphaSum
+        #expect(enabled > 0)
+        let share = Double(disabled) / Double(enabled)
+        #expect(share < 0.5 && share > 0.3, "disabled ink is \(share) of the enabled ink")
     }
 }

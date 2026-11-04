@@ -23,6 +23,9 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
         /// The outline of a selected or current row under Increase Contrast: `ColorRoles.outline` instead of the
         /// separator.
         case selectionOutline
+        /// The bar at the leading edge of a selected row outside Increase Contrast: `ColorRoles.selectionMarker`. The
+        /// system default is no marker, so `before` is how far the fill alone sets the row apart from what is under it.
+        case selectionMarker
     }
 
     public enum SurfaceKind: String, Sendable, CaseIterable {
@@ -135,6 +138,16 @@ extension DesignTokens {
                 add(.focusRing, kind, Contrast.worst(foreground: focus, on: surfaces),
                     Contrast.worst(opaque: ring, onLuminances: Contrast.luminances(surfaces)), nonText)
             }
+        }
+        if !appearance.isIncreasedContrast {
+            let marker = colors.primary.mixed(
+                with: ink, by: solved.mix(of: colors.primary, toward: ink, reaching: nonText))
+            let selected = filled(solved.selected)
+            let base = content + panels
+            let fillAlone = zip(base, base.map { colors.primary.opacity(solved.selected).composited(over: $0) })
+                .map { Contrast.ratio($0, $1) }.min() ?? 1
+            add(.selectionMarker, .selectedRow, fillAlone,
+                Contrast.worst(opaque: marker, onLuminances: Contrast.luminances(selected)), nonText)
         }
         if let separator, appearance.isIncreasedContrast {
             for (kind, surfaces) in rows where kind == .selectedRow || kind == .currentRow {

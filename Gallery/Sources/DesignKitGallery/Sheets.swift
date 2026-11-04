@@ -116,7 +116,7 @@ struct ComponentSheet: View {
                     IconButton("Toggle Column", systemImage: "sidebar.left") {}
                 } trailing: {
                     IconButton("Back", systemImage: "arrow.left") {}
-                    IconButton("Forward", systemImage: "arrow.right") {}
+                    IconButton("Forward", systemImage: "arrow.right") {}.disabled(true)
                 }
                 HStack(spacing: DesignTokens.Spacing.s) {
                     Tile(.symbol("envelope.fill", .blue))

@@ -73,6 +73,9 @@ extension DesignTokens {
         public var statusLineToList: CGFloat = 10
         /// Gap between a focus ring and the shape it surrounds.
         public var focusRingOffset: CGFloat = xxs
+        /// The selected row's marker: from the leading edge of the row's background, and from its top and bottom.
+        public var selectionMarkerLeading: CGFloat = xxs
+        public var selectionMarkerVertical: CGFloat = s
 
         public init() {}
     }
@@ -131,6 +134,8 @@ extension DesignTokens {
         public var switcherTop: Double = 0.85
         /// A pressed plain control's opacity.
         public var pressed: Double = 0.6
+        /// A disabled plain control's opacity. Disabled controls carry no contrast requirement (WCAG 1.4.3, 1.4.11).
+        public var disabled: Double = 0.4
 
         public init() {}
 
@@ -147,6 +152,8 @@ extension DesignTokens {
         public var stroke: CGFloat = 1
         public var hairline: CGFloat = 0.5
         public var focusRing: CGFloat = 2
+        /// The selected row's marker bar: its width.
+        public var selectionMarker: CGFloat = 3
         /// Row tiles: standard 32 pt, compact 28 pt, small 22 pt, status 20 pt.
         public var tile: CGFloat = 32
         public var compactTile: CGFloat = 28

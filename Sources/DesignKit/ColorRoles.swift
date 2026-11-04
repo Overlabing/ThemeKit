@@ -93,6 +93,16 @@ public struct ColorRoles: Sendable {
     /// and on the frame around it (the system separator stays near 1.2:1 there).
     public var outline: Color { secondaryText }
 
+    /// The marker of the selected row outside Increase Contrast (a bar at its leading edge): the primary hue mixed with
+    /// ink until it reaches 3:1 on every surface a row sits on, the selection's fill included. The fill alone differs
+    /// from the gradient by about 1.3:1. Increase Contrast draws `outline` instead.
+    public var selectionMarker: Color { Color(rgba: selectionMarkerRGBA) }
+    public var selectionMarkerRGBA: RGBA {
+        resolved.primary.mixed(
+            with: resolved.ink,
+            by: legibility.mix(of: resolved.primary, toward: resolved.ink, reaching: emphasis.nonTextContrast))
+    }
+
     /// The keyboard focus ring: the system's focus colour made opaque and mixed with ink until it reaches 3:1 on every
     /// surface a row sits on (drawn translucent, it falls to 1.5:1 on a bright frame).
     public var focusRing: Color { Color(rgba: focusRingRGBA) }

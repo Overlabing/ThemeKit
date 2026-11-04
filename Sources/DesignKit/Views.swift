@@ -180,7 +180,8 @@ public enum RowPlacement: Sendable, Equatable {
 /// A row of a list column: a tile, a column of text (title, then optional detail lines), a trailing accessory. Its
 /// background (hover, current, selection in the Theme's colour) fills the row minus half the row gap above and below
 /// and stays inside the column's margin, so two backgrounds never touch. Under Increase Contrast a selected or current
-/// row is outlined in `ColorRoles.outline`. Selected: VoiceOver says so.
+/// row is outlined in `ColorRoles.outline`; otherwise a selected row carries a bar at its leading edge
+/// (`ColorRoles.selectionMarker`, 3:1), since its fill alone shows at about 1.3:1. Selected: VoiceOver says so.
 public struct ListRow<Leading: View, Trailing: View>: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.colorSchemeContrast) private var contrast
@@ -230,6 +231,16 @@ public struct ListRow<Leading: View, Trailing: View>: View {
             .overlay {
                 if contrast == .increased && (state.isSelected || state.isCurrent) {
                     shape.strokeBorder(roles.outline, lineWidth: tokens.size.stroke).padding(.leading, indent)
+                }
+            }
+            .overlay(alignment: .leading) {
+                if contrast != .increased && state.isSelected {
+                    Capsule(style: .continuous)
+                        .fill(roles.selectionMarker)
+                        .frame(width: tokens.size.selectionMarker)
+                        .padding(.vertical, spacing.selectionMarkerVertical)
+                        .padding(.leading, indent + spacing.selectionMarkerLeading)
+                        .accessibilityHidden(true)
                 }
             }
             .focusRing(state.isFocused, in: shape)
@@ -448,14 +459,20 @@ public struct SkeletonRows: View {
 
 // MARK: Controls
 
-/// A plain button style whose label dims while pressed.
+/// A plain button style whose label dims while pressed, and more while disabled (`Emphasis.disabled`).
 public struct PressedOpacityStyle: ButtonStyle {
     @Environment(\.designTokens) private var tokens
+    @Environment(\.isEnabled) private var isEnabled
 
     public init() {}
 
     public func makeBody(configuration: Configuration) -> some View {
-        configuration.label.opacity(configuration.isPressed ? tokens.emphasis.pressed : 1)
+        configuration.label.opacity(opacity(isPressed: configuration.isPressed))
+    }
+
+    private func opacity(isPressed: Bool) -> Double {
+        if !isEnabled { return tokens.emphasis.disabled }
+        return isPressed ? tokens.emphasis.pressed : 1
     }
 }
 

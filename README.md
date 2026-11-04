@@ -21,7 +21,7 @@ only.
 ## Install
 
 ```swift
-.package(url: "https://github.com/Overlabing/ThemeKit", exact: "0.2.1")
+.package(url: "https://github.com/Overlabing/ThemeKit", exact: "0.2.2")
 ```
 
 ## Use

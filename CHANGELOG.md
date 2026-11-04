@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.2.2
+
+A selected row can be found at 3:1 outside Increase Contrast, and a disabled `IconButton` looks disabled.
+
+### Fixed
+
+- **Selection marker.** 0.2.1 told a selected row apart by its fill (about 1.2 to 1.35:1 against the gradient under it)
+  and a semibold title, which is under the 3:1 WCAG 1.4.11 asks of a state indicator. A selected `ListRow` (a
+  `FolderRow` too) now draws a 3 pt capsule at the leading edge of its background, 2 pt in from the edge and 8 pt from
+  the top and bottom, in `ColorRoles.selectionMarker`: the Theme's primary hue mixed with ink by the share that reaches
+  3:1 on every surface a row sits on (the same solving as the focus ring), so it keeps the Theme's colour and stays
+  quiet. Under Increase Contrast nothing changes: the selected row keeps its outline (`ColorRoles.outline`, 4.5:1) and
+  draws no bar. The current, hovered and plain rows are unchanged.
+- **Disabled `IconButton`.** Its plain button style (`PressedOpacityStyle`) kept full ink when disabled. It now draws
+  the label at the new token `Emphasis.disabled` (0.4), measured offscreen at 0.4 of the enabled ink. Disabled controls
+  have no contrast requirement (WCAG 1.4.3, 1.4.11); the dimming is what says "disabled". Any other button using
+  `PressedOpacityStyle` (the `GlassSwitcher` items) dims the same way when disabled.
+
+### Added
+
+- `DesignKit`: `ColorRoles.selectionMarker`, `selectionMarkerRGBA`; tokens `Spacing.selectionMarkerLeading` (2),
+  `Spacing.selectionMarkerVertical` (8), `Size.selectionMarker` (3), `Emphasis.disabled` (0.4);
+  `LegibilityCase.Role.selectionMarker`.
+- 14 legibility cases, `selectionMarker` on `selectedRow`, one per standard Theme in light and dark (Increase Contrast
+  has the outline cases instead): 818 cases in all (804 + 14). `before` is how far the fill alone sets the row apart
+  from what is under it (1.21 to 1.35:1), `after` the marker's contrast on the selected row's surfaces (3.00 to
+  3.22:1). Tests also read the marker back from an offscreen render (at least 2.95:1 once rounded to 8-bit pixels; none
+  under Increase Contrast), and the dimming of a disabled `IconButton`.
+- The gallery's component sheet shows a disabled `IconButton`.
+
+### Source-breaking changes
+
+- `LegibilityCase.Role` gains `selectionMarker`. An exhaustive `switch` over it needs the new case or a `default`.
+  Nothing else changes: no token value changed, no signature changed.
+
+### Changed values
+
+No token value changed; four tokens are new. The values drawn change as follows (0.2.1 → 0.2.2):
+
+| What | 0.2.1 | 0.2.2 |
+|---|---|---|
+| Selected row, light and dark | fill only | fill and a 3 pt bar, 2 pt from its leading edge, 8 pt from its top and bottom |
+| Selected row, Increase Contrast | fill and outline | unchanged |
+| Disabled `IconButton` label (and any `PressedOpacityStyle` button) | full ink | ink at 0.4 |
+
+The marker's colour (the primary hue mixed with ink), per Theme:
+
+| Theme | Light | Dark |
+|---|---|---|
+| indigo-blue | #4C42BF | #A0AAFF |
+| orange-pink | #9A5518 | #FFAB5F |
+| teal-green | #00747C | #00D2E0 |
+| red-orange | #AB2628 | #FF8C8E |
+| purple-pink | #8E229D | #E981F7 |
+| mint-cyan | #00766A | #00DAC3 |
+| brown-yellow | #7C5B44 | #D2B69F |
+
+### What changes in Oisillon's rendering
+
+Nothing in Increase Contrast. Outside it, every selected row (the message list, a selected folder, a selected row in a
+panel) gains the bar at its leading edge; the row's size, its content's position and the fills do not move (the bar
+sits in the 8 pt between the background's edge and the tile). A disabled icon button, toolbar's back or forward say,
+now reads at 0.4 opacity where it read at full ink. If the app draws its own marker, selection outline or disabled
+dimming on these views, it can drop it.
+
 ## 0.2.1
 
 Legibility fixes. Every text the kit draws reaches 4.5:1 and every glyph, focus ring and selection outline 3:1, on every
