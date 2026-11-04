@@ -59,6 +59,8 @@ public struct ColorRoles: Sendable {
     public let legibility: Legibility
     private let resolved: ResolvedColors
     private let focus: RGBA
+    /// `tokens.accents` resolved against `theme`.
+    private let accentHues: [Hue]
 
     /// `placement` `.column` solves the inks, the selection fill, the marker and the focus ring on the column's own
     /// fill instead of the gradient. The hue keeps the share the frame was solved at (`hueScale`), since the column's
@@ -68,17 +70,19 @@ public struct ColorRoles: Sendable {
         self.tokens = tokens
         self.appearance = appearance
         self.placement = placement
+        let accentHues = tokens.accentHues(in: theme)
+        self.accentHues = accentHues
         let frame = Legibility.fitted(
-            theme, accents: tokens.accents, surfaces: tokens.surfaces(in: appearance), in: appearance)
+            theme, accents: accentHues, surfaces: tokens.surfaces(in: appearance), in: appearance)
         switch placement {
         case .frame:
             legibility = frame
         case .column:
             legibility = Legibility.of(
-                theme, accents: tokens.accents, surfaces: tokens.columnSurfaces(in: appearance),
+                theme, accents: accentHues, surfaces: tokens.columnSurfaces(in: appearance),
                 hueScale: frame.hueScale, in: appearance)
         }
-        resolved = ResolvedColors(theme, accents: tokens.accents, in: appearance)
+        resolved = ResolvedColors(theme, accents: accentHues, in: appearance)
         focus = RGBA.keyboardFocus(in: appearance)
     }
 
@@ -128,10 +132,11 @@ public struct ColorRoles: Sendable {
     public var tintText: Color { Color(rgba: tintTextRGBA) }
     public var tintTextRGBA: RGBA { resolved.primary.mixed(with: resolved.ink, by: legibility.tintMix) }
 
-    /// The hue `DesignTokens.accents` gives index `index`; an index past the end wraps, a negative one counts from the
-    /// end. Draw a dot or a tile in it; draw text in `accentInk(at:)`. With no accents the Theme's own hue.
+    /// The hue `DesignTokens.accents` gives index `index`, resolved against the Theme (`.primary` is its primary hue);
+    /// an index past the end wraps, a negative one counts from the end. Draw a dot or a tile in it; draw text in
+    /// `accentInk(at:)`. With no accents the Theme's own hue.
     public func accentHue(at index: Int) -> Hue {
-        let hues = tokens.accents
+        let hues = accentHues
         return hues.isEmpty ? theme.primary : hues[((index % hues.count) + hues.count) % hues.count]
     }
 
@@ -140,7 +145,7 @@ public struct ColorRoles: Sendable {
     /// raw hue falls as low as 1.0:1 on them (the worst accent).
     public func accentInk(at index: Int) -> Color { Color(rgba: accentInkRGBA(at: index)) }
     public func accentInkRGBA(at index: Int) -> RGBA {
-        let hues = tokens.accents
+        let hues = accentHues
         guard !hues.isEmpty else { return tintTextRGBA }
         let slot = ((index % hues.count) + hues.count) % hues.count
         return resolved.accents[slot].mixed(with: resolved.ink, by: legibility.accentMix[slot])

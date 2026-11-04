@@ -2,6 +2,20 @@ import ColorCore
 import Testing
 
 struct PaletteTests {
+    /// `.primary` and `.secondary` follow the Theme they are resolved in; `.hue` is fixed. A duplicate keeps its slot.
+    @Test func anAccentResolvesAgainstTheTheme() throws {
+        for theme in Palette.standard.themes {
+            #expect(Accent.primary.hue(in: theme) == theme.primary)
+            #expect(Accent.secondary.hue(in: theme) == theme.secondary)
+            #expect(Accent.hue(.mint).hue(in: theme) == .mint)
+        }
+        let list: [Accent] = [.primary, .secondary, .hue(.mint), .hue(.yellow)]
+        #expect(list.hues(in: Palette.standard.themes[0]) == [.indigo, .blue, .mint, .yellow])
+        #expect(list.hues(in: Palette.standard.themes[1]) == [.orange, .pink, .mint, .yellow])
+        let mintCyan = try #require(Palette.standard.theme(id: "mint-cyan"))
+        #expect(list.hues(in: mintCyan) == [.mint, .cyan, .mint, .yellow])
+    }
+
     @Test func themeIDsAreUniqueAndIndigoLeads() {
         let ids = Palette.standard.themes.map(\.id)
         #expect(Set(ids).count == ids.count)

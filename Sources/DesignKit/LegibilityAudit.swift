@@ -43,7 +43,8 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
         /// fill.
         case railDivider
         /// Text in an accent hue by index (`ColorRoles.accentInk(at:)`, an account's name): the hue mixed with ink
-        /// instead of the raw hue, the worst of `DesignTokens.accents` counted, held to the text threshold.
+        /// instead of the raw hue, the worst of `DesignTokens.accents` (resolved against the Theme) counted, held to the
+        /// text threshold.
         case accentText
     }
 
@@ -322,13 +323,15 @@ extension DesignTokens {
         }
     }
 
-    /// The same with the system's colours for `theme` in `appearance`, every hue of `accents` as an accent.
+    /// The same with the system's colours for `theme` in `appearance`, every accent of `accents` resolved against
+    /// `theme` (`accentHues(in:)`).
     public func accentCases(
         for theme: Theme, in appearance: Appearance, placement: SurfacePlacement = .frame
     ) -> [LegibilityCase] {
         accentCases(
             themeID: theme.id, colors: ResolvedColors(theme, in: appearance),
-            accentHues: accents.map { RGBA($0.systemColor, in: appearance) }, in: appearance, placement: placement)
+            accentHues: accentHues(in: theme).map { RGBA($0.systemColor, in: appearance) }, in: appearance,
+            placement: placement)
     }
 
     /// A symbol on each system hue (a tile's colour), white before, the kit's ink after, against 3:1.

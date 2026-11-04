@@ -12,13 +12,18 @@ public struct DesignTokens: Sendable, Equatable {
     public var type = TypeScale()
     public var gradient = WindowGradient()
     /// The hues that colour things by index (an account, say), in order: `ColorRoles.accentInk(at:)` solves a text ink
-    /// for each at 4.5:1 on every surface. An index past the end wraps.
-    public var accents: [Hue] = Hue.allCases
+    /// for each at 4.5:1 on every surface. An index past the end wraps. `.primary` and `.secondary` follow the Theme
+    /// (`accentHues(in:)`), so `[.primary, .secondary, .hue(.mint)]` puts the Theme's own hues first; a hue listed twice
+    /// keeps both slots. The default is the twelve system hues, `Hue.allCases`, in that order.
+    public var accents: [Accent] = Hue.allCases.map(Accent.hue)
 
     public init() {}
 
     /// The kit's tokens.
     public static let standard = DesignTokens()
+
+    /// `accents` resolved against `theme`: the hues `ColorRoles` and the legibility audit solve and draw for it.
+    public func accentHues(in theme: Theme) -> [Hue] { accents.hues(in: theme) }
 }
 
 extension DesignTokens {

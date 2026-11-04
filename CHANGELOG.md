@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.2.5
+
+Theme-relative accent order (issue #17). `DesignTokens.accents` can name the Theme's own hues, so a client can say "the
+Theme's primary and secondary first, then fixed hues", an order that changes with the Theme. Oisillon colours accounts with
+`[.primary, .secondary, .hue(.mint), .hue(.yellow)]`, which a fixed `[Hue]` could not express.
+
+### Added
+
+- **`Accent`** (ColorCore): `.primary`, `.secondary` or `.hue(Hue)`. `Accent.hue(in:)` resolves it against a Theme, and
+  `[Accent].hues(in:)` resolves a list in order.
+- **`DesignTokens.accentHues(in:)`**: `accents` resolved against a Theme, the hues `ColorRoles` and the legibility audit
+  solve and draw for it.
+- **Resolved per Theme everywhere the list is used**: `ColorRoles` resolves `accents` against its Theme before it reaches
+  `ResolvedColors` and the legibility cache, and `accentCases(for:in:placement:)` does the same in the audit. The cache
+  keys on the resolved hues, so one Theme's accents never reach another. `accentHue(at:)` still returns a `Hue`, the
+  resolved one.
+- **Duplicates keep their slots**: when a Theme's primary is also a later `.hue`, both slots keep their place (mint-cyan
+  gives mint, cyan, mint, yellow), because the index is the account's.
+- **Legibility**: the audit (`DesignKitGallery audit`) also covers every standard Theme with the accent list
+  `[.primary, .secondary, .hue(.mint), .hue(.yellow)]`: 280 cases, 10 per Theme and appearance on the gradient and inside a
+  list column, the worst of the four accents counted. All 280 reach 4.5:1: the inks reach 4.50 to 9.58:1, where the raw hues
+  reach 1.00 to 7.43:1 (262 of them under 4.5:1). Each case is a test, recorded on macOS 27 in
+  `Tests/DesignKitTests/RecordedThemeAccentCases.swift`. In the audit's output, their Theme id ends in
+  `[primary,secondary,mint,yellow]`.
+
+### Source-breaking changes
+
+- `DesignTokens.accents` is `[Accent]` instead of `[Hue]`. Migration: wrap each hue in `.hue(x)`, so
+  `tokens.accents = [.red, .green]` becomes `tokens.accents = [.hue(.red), .hue(.green)]`. Code that read the list as hues
+  calls `tokens.accentHues(in: theme)` instead.
+- The default is `Hue.allCases.map(Accent.hue)`: the twelve hues in the same order, so `accentHue(at:)` and
+  `accentInk(at:)` return what 0.2.4 drew in every Theme. The 2064 legibility cases of 0.2.4 are unchanged (2344 in all
+  with the new 280).
+- `ColorPlatform` is unchanged: `ResolvedColors(_:accents:in:)` and `Legibility.of`/`fitted(_:accents:…)` still take the
+  resolved `[Hue]`.
+
+### What changes visibly for Oisillon
+
+- Nothing, until it sets `accents` to its Theme-relative list and adopts `accentInk(at:)` (#8).
+
 ## 0.2.4
 
 Space rail, and the requests Oisillon made when it adopted the kit (issues #4 to #11). A Space selector both apps share

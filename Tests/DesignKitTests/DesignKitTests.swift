@@ -204,7 +204,7 @@ struct ColorRolesTests {
             let roles = ColorRoles(theme: theme, tokens: .standard, appearance: appearance)
             let described = DesignTokens.standard.surfaces(in: appearance).scaled(by: roles.hueScale)
             let solved = Legibility.fit(
-                colors: ResolvedColors(theme, accents: DesignTokens.standard.accents, in: appearance),
+                colors: ResolvedColors(theme, accents: DesignTokens.standard.accentHues(in: theme), in: appearance),
                 surfaces: DesignTokens.standard.surfaces(in: appearance))
             #expect(roles.legibility == solved)
             #expect(roles.hoverOpacity == described.fills[0])
@@ -244,7 +244,7 @@ struct ColorRolesTests {
         for appearance in Appearance.allCases {
             let frame = ColorRoles(theme: theme, tokens: .standard, appearance: appearance)
             let column = ColorRoles(theme: theme, tokens: .standard, appearance: appearance, placement: .column)
-            let colors = ResolvedColors(theme, accents: DesignTokens.standard.accents, in: appearance)
+            let colors = ResolvedColors(theme, accents: DesignTokens.standard.accentHues(in: theme), in: appearance)
             #expect(frame.placement == .frame)
             #expect(column.hueScale == frame.hueScale)
             #expect(column.legibility == Legibility.solve(
