@@ -6,7 +6,7 @@ import SwiftUI
 
 // Renders the gallery offscreen with ImageRenderer: no window, nothing on screen. ImageRenderer does not draw Liquid
 // Glass reliably (shapes vanish), so glass surfaces are drawn with `.material`; the live look needs a window on screen.
-// `DesignKitGallery <output directory>`.
+// `DesignKitGallery <output directory> [Theme id…]`: the sample Themes, or the ones named.
 
 enum Kind: String, CaseIterable {
     case components
@@ -95,9 +95,9 @@ func overview(_ rows: [[URL]], to url: URL) throws {
 }
 
 @MainActor
-func run(output: URL) {
+func run(output: URL, themes: [Theme]) {
     do {
-        for theme in Sample.themes {
+        for theme in themes {
             for isDark in [false, true] {
                 for kind in Kind.allCases {
                     let shot = Shot(kind: kind, theme: theme, isDark: isDark)
@@ -107,7 +107,7 @@ func run(output: URL) {
             }
         }
         for kind in Kind.allCases {
-            let rows = Sample.themes.map { theme in
+            let rows = themes.map { theme in
                 [false, true].map { output.appending(path: Shot(kind: kind, theme: theme, isDark: $0).file) }
             }
             try overview(rows, to: output.appending(path: "overview-\(kind.rawValue).png"))
@@ -143,8 +143,18 @@ if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "audit" {
     audit()
     exit(0)
 }
-guard CommandLine.arguments.count == 2 else {
-    print("usage: DesignKitGallery <output directory> | audit")
+guard CommandLine.arguments.count >= 2 else {
+    print("usage: DesignKitGallery <output directory> [Theme id…] | audit")
     exit(2)
 }
-MainActor.assumeIsolated { run(output: URL(filePath: CommandLine.arguments[1], directoryHint: .isDirectory)) }
+let named = CommandLine.arguments.dropFirst(2).map { id in
+    guard let theme = Palette.standard.theme(id: id) else {
+        print("FAILED: no standard Theme \(id)")
+        exit(2)
+    }
+    return theme
+}
+MainActor.assumeIsolated {
+    run(output: URL(filePath: CommandLine.arguments[1], directoryHint: .isDirectory),
+        themes: named.isEmpty ? Sample.themes : named)
+}
