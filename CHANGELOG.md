@@ -1,9 +1,12 @@
 # Changelog
 
-## 0.2.4 (unreleased)
+## 0.2.4
 
-Space rail. A Space selector both apps share replaces the glass switcher: one quiet row at the bottom of a list column,
-Profiles folded into dots after a hairline, a `+` for the app's commands, and a named panel when the row does not fit.
+Space rail, and the requests Oisillon made when it adopted the kit (issues #4 to #11). A Space selector both apps share
+replaces the glass switcher: one quiet row at the bottom of a list column, Profiles folded into dots after a hairline, a
+`+` for the app's commands, and a named panel when the row does not fit. The rest is what Oisillon was rebuilding on its
+own: motion without its delay, rows that are `List` cells, a glyph size, accent text inks, a banner and a status line with
+more states, label-only buttons and a segmented pill.
 
 ### Added
 
@@ -13,6 +16,8 @@ Profiles folded into dots after a hairline, a `+` for the app's commands, and a 
   above the row: the name, a detail and the shortcut, with its height always kept. `SpaceRail(spaces:…)` draws an app
   with no Profiles: the Spaces alone, no divider. The app supplies every name, shortcut and command title; the kit writes
   no key. See docs/design-kit.md, "Space rail".
+- **Panels scroll**: `SpaceRailPanel` (the `+` and the "+n") is as tall as its rows up to `Size.railPanelMaxHeight`
+  (480), then scrolls; ↑ and ↓ bring the focused row into view. 8 + 8 Spaces scrolls instead of growing past the screen.
 - **Overflow**: when the row does not fit, the active Profile's last Spaces (never the selected one) give way to a
   trailing "+n", then the folded Profiles too. "+n" opens **`SpaceRailPanel`** in a popover: every Profile under a
   header, every Space with its glyph and shortcut, then the commands. In the ideal column (360) 8 Spaces fit beside a
@@ -45,6 +50,65 @@ Profiles folded into dots after a hairline, a `+` for the app's commands, and a 
   right, 3 and 8 Spaces, with and without Profiles; a sheet of every state per palette and appearance). Its samples now
   use the rail.
 
+- **Motion without its delay (#4)**: `MotionRole.animationWithoutDelay(reduceMotion:)` is the role's animation without
+  its delay (content leaving, a skeleton that is already showing), `MotionRole.Spec.settlingSecondsWithoutDelay` the
+  settling time without it (`settlingSeconds` is that plus `delay`), and `Spec.animation(includingDelay:)` builds either.
+  A CSS export reads `duration`, `delay` and `settlingSecondsWithoutDelay` separately.
+- **`ListRowBackground` and `ListRowContent` (#6)**: a `ListRow`'s background (hover, current, selection fill; the bar, or
+  the outline under Increase Contrast; the focus ring) as a view for `listRowBackground`, and its content without the
+  background. `View.listRowCell(state:placement:)` makes a view a cell: the background, no separator, and the insets that
+  put both where they sit in a stack of `ListRow`s. A macOS `List` keeps a margin round a cell's content even with zero
+  insets (`Spacing.listCellMargin`, 8 on macOS, 0 on iOS, measured); the modifier cancels it with a negative inset.
+  `ListRow` is now `ListRowContent` over `ListRowBackground`, drawn as before.
+- **Fill modifiers (#6)**: `View.tileFill(_:)` draws the kit's tile fill behind a client view (a square of the `TileSize`,
+  the tile's radius) and `View.badgeFill()` its badge fill (a capsule, `Spacing.badgeHorizontal` and `badgeVertical`
+  round the view); both set the view in `ColorRoles.tintText`, 4.5:1 on those fills.
+- **`ThemeGlyph(size:)` (#7)**: `GlyphSize` `.standard` (`Size.glyphCircle`, 24) or `.small` (`Size.glyphCircleSmall`, 16, with
+  `TypeScale.glyphCircleSmall`).
+- **Accent text inks (#8)**: `ColorRoles.accentInk(at:)` / `accentInkRGBA(at:)` and `accentHue(at:)`, by index into
+  `DesignTokens.accents` (the twelve system hues in `Hue.allCases` order; an app may set its own list; an index wraps).
+  Each ink is the hue mixed with ink until it reaches 4.5:1 on every surface the roles solve, the column's fill included
+  (the raw hues fall to 1.0:1 on them). `DesignTokens.accentCases(for:in:placement:)` and `LegibilityCase.Role.accentText`:
+  280 new cases (10 per Theme and appearance: the bare surface, hovered, current and selected rows and the panel, on the
+  gradient and in the column, the worst of the twelve counted), all recorded. The 1616 of 0.2.3 are unchanged, and so is
+  every other ink (the hue's share and the other solved values are what they were).
+- **`Banner` (#9)**: `Banner(systemImage:title:message:action:onClose:)` with the kit's own buttons: a title over the
+  message (`TypeScale.bannerTitle`, the message in the secondary ink), an action (`BannerAction`) and a close button named
+  "Close" (English and French in the string catalog), each optional. `Banner(systemImage:title:message:actions:)` takes a
+  title with the client's own actions; the original initialiser is unchanged.
+- **`StatusLine` (#9)**: `fillsWhenOpen` fills the line in the current-row fill while it is open (outlined under Increase
+  Contrast), and `StatusLine(title:count:isOpen:fillsWhenOpen:state:tile:)` takes any view as its tile, drawn in a
+  `Size.statusTile` square. Both default to what 0.2.3 drew.
+- **`IconButton` label only (#10)**: `IconButton(_:action:)` shows its title (`TypeScale.buttonLabel`, `Spacing.buttonLabelHorizontal`
+  either side, never narrower or lower than the target).
+- **`SegmentedPill` (#10)**: a glass capsule of segments (`SegmentedPillItem`, a title and an optional symbol), one selected,
+  `Size.segmentedPill` (36 on macOS) high, each segment a target of at least `minTarget`. The selected segment is filled with
+  the selection fill, semibold, with a marker bar under its title (`ColorRoles.selectionMarker`, 3:1), an outline under
+  Increase Contrast instead; the others are in the secondary ink.
+- **Focus and disabled states (#10)**: `IconButton`, a banner's buttons and `SegmentedPill` draw the kit's focus ring on keyboard
+  focus (`ColorRoles.focusRing`, 3:1; the system's own effect is off) and dim to `Emphasis.disabled` when disabled.
+  `.controlFocusPreview()` forces the ring on every control below for previews and renders.
+- **`accessibilityOverrides(fullMotion:)` (#11)**: lifts a Reduce Motion the system has on, as `reduceMotion` forces it. When both are
+  set Reduce Motion wins. Increase Contrast now also reaches the kit's views inside a `List`'s cells: AppKit hands a cell the
+  system's own value and loses the SwiftUI override, so the kit's views read the override from an environment value of their
+  own too.
+- **Tokens**: `Spacing.badgeHorizontal` (8), `badgeVertical` (2), `buttonLabelHorizontal` (8), `segmentGap` (2), `segmentPadding` (4),
+  `segmentHorizontal` (12), `segmentContent` (4), `segmentMarkerGap` (2), `bannerLines` (2), `listCellMargin`; `Size.glyphCircleSmall`
+  (16), `railPanelMaxHeight` (480), `segmentedPill` (`minTarget` + 8), `segmentMarker` (12); `TypeScale.glyphCircleSmall`, `bannerTitle`,
+  `buttonLabel`, `segment`, `segmentSelected`; `DesignTokens.accents`.
+- The gallery renders the additions: `DesignKitGallery client <folder>` (the controls in light and dark, with and without Increase
+  Contrast and Reduce Transparency; a real `List` of rows; a tall panel). `rail` and `client` draw what scrolls or lists in a
+  window that is never shown, since `ImageRenderer` draws neither a scroll view nor a `List`.
+
+### Changed
+
+- **Settling factors (#5)**: `MotionCurve.settlingFactor` was rounded down, which left 0.102 % of travel for `snappy` (1.39) and
+  `spring` (1.33), above the documented 0.1 %. They are now the measured 1.3933 and 1.3332 rounded up to the hundredth: `snappy` 1.40,
+  `spring` 1.34 (`smooth` stays 1.47, 1.4695 measured). A test checks, on `Spring(duration:bounce:)` for every duration, that the
+  residual travel at `duration × factor` is at most 0.1 % and that the factor is not larger than the next hundredth.
+  `settlingSeconds` of a `snappy` role grows by 0.01 × its duration, a `spring` role's by the same.
+- **`ListRow`'s focus ring** is drawn with its background (behind the content instead of over it); nothing overlaps it.
+
 ### Deprecated
 
 - **`GlassSwitcher`**: use `SpaceRail`. It still compiles in 0.2.4 and goes in 0.3, with `SwitcherItem`, the
@@ -55,7 +119,29 @@ Profiles folded into dots after a hairline, a `+` for the app's commands, and a 
 
 - `LegibilityCase.Role` gains `railGlyph`, `railMarker`, `railDot` and `railDivider`, and `MotionRole` gains
   `profileSwap`. An exhaustive `switch` over them needs the new cases or a `default`.
-- No existing token value changed, and every legibility case of 0.2.3 is recorded unchanged (1616).
+- `StatusLine` is generic over its tile (`StatusLine<Leading>`): a use of the bare type name without its argument, as a stored
+  property's type, needs `StatusLine<Tile>`. Calls are unchanged.
+- `LegibilityCase.Role` also gains `accentText`: a `switch` needs the case too.
+- `IconButton` shows the kit's focus ring and no longer the system's.
+- No existing token value changed, and every legibility case of 0.2.3 is recorded unchanged (1616): 2064 in all, with the rail's
+  168 and the accents' 280.
+
+### What changes visibly for Oisillon
+
+- `snappy` and `spring` settling times are about 0.7 % longer (the settling factor); an animation itself
+  is unchanged.
+- Keyboard focus on an `IconButton` is the kit's 3:1 ring instead of the system's.
+- A `ListRow`'s focus ring sits behind its content.
+- The panels of the rail stop growing at 480 pt and scroll.
+- Nothing else is drawn differently until Oisillon adopts a new API: `fillsWhenOpen`, the client tile, the new `Banner`, the label-only
+  button, `SegmentedPill`, `ThemeGlyph(size:)`, the fill modifiers, `listRowCell`, `accentInk(at:)` and `fullMotion` all default to off or
+  to what 0.2.3 drew.
+
+### Known limits
+
+- A focus ring on a `List` cell is clipped by the cell (it stands 4 pt outside a background that is 2 pt from the cell's top).
+- The system's Increase Contrast cannot be switched on for a test, and a window's high-contrast appearance does not set it; the
+  List-hosted tests use the kit's override, which reaches the cells.
 
 ## 0.2.3
 

@@ -115,7 +115,7 @@ extension View {
 /// `.separator` line (`.secondary` under Increase Contrast).
 public struct ContentCanvas<Content: View>: View {
     @Environment(\.designTokens) private var tokens
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.kitContrast) private var contrast
     private let content: Content
 
     public init(@ViewBuilder content: () -> Content) {
@@ -209,6 +209,50 @@ public struct Tile: View {
     }
 }
 
+extension View {
+    /// Draws the kit's tile fill behind the view: a rounded square of `size` filled with the Theme's tile fill, the view
+    /// centred in it in `ColorRoles.tintText` (4.5:1 on it). For a client's own tile content (a logo, an account's
+    /// initial) that `TileContent` has no case for. Hide it from VoiceOver yourself if it is decorative.
+    public func tileFill(_ size: TileSize = .standard) -> some View {
+        modifier(TileFillModifier(size: size))
+    }
+
+    /// Draws the kit's badge fill behind the view: a capsule in the Theme's badge fill, the view padded in it and set
+    /// in `ColorRoles.tintText` (4.5:1 on it). For a client's count or label next to a row's title.
+    public func badgeFill() -> some View {
+        modifier(BadgeFillModifier())
+    }
+}
+
+private struct TileFillModifier: ViewModifier {
+    @Environment(\.designTokens) private var tokens
+    let size: TileSize
+
+    func body(content: Content) -> some View {
+        let side = size.side(tokens.size)
+        WithColorRoles { roles in
+            content
+                .foregroundStyle(roles.tintText)
+                .frame(width: side, height: side)
+                .background(roles.tileFill, in: RoundedRectangle(cornerRadius: size.radius(tokens.radius), style: .continuous))
+        }
+    }
+}
+
+private struct BadgeFillModifier: ViewModifier {
+    @Environment(\.designTokens) private var tokens
+
+    func body(content: Content) -> some View {
+        WithColorRoles { roles in
+            content
+                .foregroundStyle(roles.tintText)
+                .padding(.horizontal, tokens.spacing.badgeHorizontal)
+                .padding(.vertical, tokens.spacing.badgeVertical)
+                .background(roles.badgeFill, in: Capsule(style: .continuous))
+        }
+    }
+}
+
 /// The interaction state of a row.
 public struct RowState: Sendable, Equatable {
     public var isSelected: Bool
@@ -231,15 +275,117 @@ public enum RowPlacement: Sendable, Equatable {
     case layer(level: Int)
 }
 
-/// A row of a list column: a tile, a column of text (title, then optional detail lines), a trailing accessory. Its
-/// background (hover, current, selection in the Theme's colour) fills the row minus half the row gap above and below
-/// and stays inside the column's margin, so two backgrounds never touch. Under Increase Contrast a selected or current
-/// row is outlined in `ColorRoles.outline`; otherwise a selected row carries a bar at its leading edge
-/// (`ColorRoles.selectionMarker`, 3:1), since its fill alone shows at about 1.3:1. Selected: VoiceOver says so.
-public struct ListRow<Leading: View, Trailing: View>: View {
+/// The background of a `ListRow`, on its own: hover, current and selection fills in the Theme's colour, the outline
+/// under Increase Contrast or the bar at the leading edge otherwise, and the focus ring. It fills the row minus half the
+/// row gap above and below and stays inside the column's margin, so two backgrounds never touch. For a row that is a
+/// `List` cell (`listRowBackground(ListRowBackground(state:))`), whose content is a `ListRowContent` or any view with
+/// the row's padding; the cell's insets must cancel the `List`'s own margin (`Spacing.listCellMargin`) so the background lines up as it
+/// does behind a `ListRow` in a stack (`listRowCell(state:placement:)` does both). Hidden from VoiceOver.
+public struct ListRowBackground: View {
     @Environment(\.designTokens) private var tokens
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.kitContrast) private var contrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let state: RowState
+    private let placement: RowPlacement
+
+    public init(state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false)) {
+        self.state = state
+        self.placement = placement
+    }
+
+    public var body: some View {
+        let spacing = tokens.spacing
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.row, style: .continuous)
+        let indent = placement.indent(spacing)
+        WithColorRoles { roles in
+            Color.clear
+                .background { shape.fill(fill(roles)).padding(.leading, indent) }
+                .overlay {
+                    if contrast == .increased && (state.isSelected || state.isCurrent) {
+                        shape.strokeBorder(roles.outline, lineWidth: tokens.size.stroke).padding(.leading, indent)
+                    }
+                }
+                .overlay(alignment: .leading) {
+                    if contrast != .increased && state.isSelected {
+                        Capsule(style: .continuous)
+                            .fill(roles.selectionMarker)
+                            .frame(width: tokens.size.selectionMarker)
+                            .padding(.vertical, spacing.selectionMarkerVertical)
+                            .padding(.leading, indent + spacing.selectionMarkerLeading)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .focusRing(state.isFocused, in: shape)
+                .padding(.horizontal, placement.sideInset(spacing))
+                .padding(.top, placement.topInset(spacing))
+                .padding(.bottom, spacing.rowGap / 2)
+                .animation(MotionRole.hoverFill.animation(reduceMotion: reduceMotion), value: state)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private func fill(_ roles: ColorRoles) -> Color {
+        if state.isSelected { return roles.selectionFill }
+        if state.isCurrent { return roles.currentFill }
+        if state.isHovered { return roles.hoverFill }
+        return .clear
+    }
+}
+
+extension RowPlacement {
+    func indent(_ spacing: DesignTokens.Spacing) -> CGFloat {
+        if case .layer(let level) = self, level > 1 { return CGFloat(level - 1) * spacing.layerIndent }
+        return 0
+    }
+
+    func sideInset(_ spacing: DesignTokens.Spacing) -> CGFloat {
+        switch self {
+        case .free: spacing.listMargin - spacing.rowInsetHorizontal
+        case .layer: spacing.layerInset
+        }
+    }
+
+    func topInset(_ spacing: DesignTokens.Spacing) -> CGFloat {
+        if case .free(true) = self { return spacing.sectionHeaderBottom }
+        return spacing.rowGap / 2
+    }
+}
+
+/// A row of a list column: a tile, a column of text (title, then optional detail lines), a trailing accessory. Its
+/// background (`ListRowBackground`: hover, current, selection in the Theme's colour) fills the row minus half the row gap
+/// above and below and stays inside the column's margin, so two backgrounds never touch. Under Increase Contrast a
+/// selected or current row is outlined in `ColorRoles.outline`; otherwise a selected row carries a bar at its leading
+/// edge (`ColorRoles.selectionMarker`, 3:1), since its fill alone shows at about 1.3:1. Selected: VoiceOver says so.
+/// A row that is a `List` cell is a `ListRowContent` with `listRowCell(state:)`, not a `ListRow`.
+public struct ListRow<Leading: View, Trailing: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let content: ListRowContent<Leading, Trailing>
+    private let state: RowState
+    private let placement: RowPlacement
+
+    public init(
+        _ title: String, details: [String] = [], state: RowState = RowState(),
+        placement: RowPlacement = .free(firstInSection: false),
+        @ViewBuilder leading: () -> Leading, @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) {
+        self.content = ListRowContent(title, details: details, state: state, placement: placement, leading: leading, trailing: trailing)
+        self.state = state
+        self.placement = placement
+    }
+
+    public var body: some View {
+        content
+            .background { ListRowBackground(state: state, placement: placement) }
+            .animation(MotionRole.hoverFill.animation(reduceMotion: reduceMotion), value: state)
+    }
+}
+
+/// What a `ListRow` shows, without its background: the tile, the text, the trailing accessory, at the row's paddings
+/// (`Spacing.rowInsetHorizontal` and the row's vertical insets inside, then the margin and the row gap round the
+/// background it leaves room for), one VoiceOver element with the button trait, "selected" said. For a `List` cell,
+/// whose background is the cell's: `ListRowContent(…).listRowCell(state:)`.
+public struct ListRowContent<Leading: View, Trailing: View>: View {
+    @Environment(\.designTokens) private var tokens
     private let title: String
     private let details: [String]
     private let state: RowState
@@ -262,7 +408,6 @@ public struct ListRow<Leading: View, Trailing: View>: View {
 
     public var body: some View {
         let spacing = tokens.spacing
-        let shape = RoundedRectangle(cornerRadius: tokens.radius.row, style: .continuous)
         WithColorRoles { roles in
             HStack(alignment: details.isEmpty ? .center : .top, spacing: spacing.tileToText) {
                 leading
@@ -280,56 +425,39 @@ public struct ListRow<Leading: View, Trailing: View>: View {
             .padding(.vertical, spacing.textLines)
             .padding(.vertical, spacing.rowInsetVertical)
             .padding(.horizontal, spacing.rowInsetHorizontal)
-            .padding(.leading, indent)
-            .background { shape.fill(fill(roles)).padding(.leading, indent) }
-            .overlay {
-                if contrast == .increased && (state.isSelected || state.isCurrent) {
-                    shape.strokeBorder(roles.outline, lineWidth: tokens.size.stroke).padding(.leading, indent)
-                }
-            }
-            .overlay(alignment: .leading) {
-                if contrast != .increased && state.isSelected {
-                    Capsule(style: .continuous)
-                        .fill(roles.selectionMarker)
-                        .frame(width: tokens.size.selectionMarker)
-                        .padding(.vertical, spacing.selectionMarkerVertical)
-                        .padding(.leading, indent + spacing.selectionMarkerLeading)
-                        .accessibilityHidden(true)
-                }
-            }
-            .focusRing(state.isFocused, in: shape)
-            .padding(.horizontal, sideInset)
-            .padding(.top, topInset)
+            .padding(.leading, placement.indent(spacing))
+            .padding(.horizontal, placement.sideInset(spacing))
+            .padding(.top, placement.topInset(spacing))
             .padding(.bottom, spacing.rowGap / 2)
             .contentShape(.rect)
-            .animation(MotionRole.hoverFill.animation(reduceMotion: reduceMotion), value: state)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(state.isSelected ? [.isSelected, .isButton] : .isButton)
         }
     }
+}
 
-    private var indent: CGFloat {
-        if case .layer(let level) = placement, level > 1 { return CGFloat(level - 1) * tokens.spacing.layerIndent }
-        return 0
+extension View {
+    /// Makes the view a `List` cell drawn like a `ListRow`: `ListRowBackground(state:placement:)` as the cell's
+    /// background, no separator, and the cell's insets set so the background and the content sit where they do in a
+    /// column of `ListRow`s. A `List` cell keeps a margin of `Spacing.listCellMargin` round its content on macOS even
+    /// with zero insets, which a negative inset cancels; the kit does that here. The content is a `ListRowContent`, or
+    /// the client's own view at the same paddings.
+    public func listRowCell(state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false)) -> some View {
+        modifier(ListRowCellModifier(state: state, placement: placement))
     }
+}
 
-    private var sideInset: CGFloat {
-        switch placement {
-        case .free: tokens.spacing.listMargin - tokens.spacing.rowInsetHorizontal
-        case .layer: tokens.spacing.layerInset
-        }
-    }
+private struct ListRowCellModifier: ViewModifier {
+    @Environment(\.designTokens) private var tokens
+    let state: RowState
+    let placement: RowPlacement
 
-    private var topInset: CGFloat {
-        if case .free(true) = placement { return tokens.spacing.sectionHeaderBottom }
-        return tokens.spacing.rowGap / 2
-    }
-
-    private func fill(_ roles: ColorRoles) -> Color {
-        if state.isSelected { return roles.selectionFill }
-        if state.isCurrent { return roles.currentFill }
-        if state.isHovered { return roles.hoverFill }
-        return .clear
+    func body(content: Content) -> some View {
+        let margin = tokens.spacing.listCellMargin
+        content
+            .listRowInsets(EdgeInsets(top: 0, leading: -margin, bottom: 0, trailing: -margin))
+            .listRowSeparator(.hidden)
+            .listRowBackground(ListRowBackground(state: state, placement: placement))
     }
 }
 
@@ -377,7 +505,7 @@ public struct FolderRow: View {
 /// concentric to the rows inside it. First-level children are not indented; the panel says they belong.
 public struct LayerPanel<Content: View>: View {
     @Environment(\.designTokens) private var tokens
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.kitContrast) private var contrast
     private let content: Content
 
     public init(@ViewBuilder content: () -> Content) {
@@ -439,26 +567,39 @@ public struct ColumnSeparator: View {
 
 /// The status line at the top of a column: what the list shows now, in one row a little taller than a compact row.
 /// A small tile, the state ("Personal · Inbox"), a count, and a chevron that says whether the zone under it is open.
-public struct StatusLine: View {
+/// With `fillsWhenOpen` the row is also filled while open, in the current-row fill (outlined under Increase Contrast),
+/// so it reads as the start of the zone under it. The tile is the kit's (`TileContent`) or any view of the client's,
+/// drawn in a `Size.statusTile` square.
+public struct StatusLine<Leading: View>: View {
     @Environment(\.designTokens) private var tokens
-    private let tile: TileContent
+    @Environment(\.kitContrast) private var contrast
+    private let leading: Leading
     private let title: String
     private let count: Int?
     private let isOpen: Bool
+    private let fillsWhenOpen: Bool
     private let state: RowState
 
-    public init(tile: TileContent, title: String, count: Int? = nil, isOpen: Bool, state: RowState = RowState()) {
-        self.tile = tile
+    public init(
+        title: String, count: Int? = nil, isOpen: Bool, fillsWhenOpen: Bool = false, state: RowState = RowState(),
+        @ViewBuilder tile: () -> Leading
+    ) {
+        self.leading = tile()
         self.title = title
         self.count = count
         self.isOpen = isOpen
+        self.fillsWhenOpen = fillsWhenOpen
         self.state = state
     }
 
     public var body: some View {
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.row, style: .continuous)
+        let isFilled = isOpen && fillsWhenOpen
         WithColorRoles { roles in
             HStack(spacing: tokens.spacing.compactTileToText) {
-                Tile(tile, size: .status)
+                leading
+                    .frame(width: tokens.size.statusTile, height: tokens.size.statusTile)
+                    .accessibilityHidden(true)
                 Text(title).role(tokens.type.rowTitleEmphasized).lineLimit(1)
                 if let count {
                     Text(count, format: .number).role(tokens.type.count).foregroundStyle(roles.secondaryText)
@@ -470,14 +611,27 @@ public struct StatusLine: View {
             }
             .padding(.horizontal, tokens.spacing.rowInsetHorizontal)
             .frame(height: tokens.size.statusLine)
-            .background {
-                RoundedRectangle(cornerRadius: tokens.radius.row, style: .continuous)
-                    .fill(state.isHovered ? roles.hoverFill : .clear)
+            .background { shape.fill(isFilled ? roles.currentFill : state.isHovered ? roles.hoverFill : .clear) }
+            .overlay {
+                if isFilled && contrast == .increased {
+                    shape.strokeBorder(roles.outline, lineWidth: tokens.size.stroke).accessibilityHidden(true)
+                }
             }
-            .focusRing(state.isFocused, in: RoundedRectangle(cornerRadius: tokens.radius.row, style: .continuous))
+            .focusRing(state.isFocused, in: shape)
             .padding(.horizontal, tokens.spacing.listMargin - tokens.spacing.rowInsetHorizontal)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
+        }
+    }
+}
+
+extension StatusLine where Leading == Tile {
+    public init(
+        tile: TileContent, title: String, count: Int? = nil, isOpen: Bool, fillsWhenOpen: Bool = false,
+        state: RowState = RowState()
+    ) {
+        self.init(title: title, count: count, isOpen: isOpen, fillsWhenOpen: fillsWhenOpen, state: state) {
+            Tile(tile, size: .status)
         }
     }
 }
@@ -530,12 +684,14 @@ public struct PressedOpacityStyle: ButtonStyle {
     }
 }
 
-/// A symbol-only button in a target of `Size.toolbarButton` (never under `minTarget`); its title is its VoiceOver
-/// label and its help.
+/// A button in a target of `Size.toolbarButton` (never under `minTarget`): a symbol alone, or, without a symbol, its
+/// title alone as a label (`Type.buttonLabel`, `Spacing.buttonLabelHorizontal` either side, never narrower than the
+/// target). The title is its VoiceOver label and its help. Dimmed to `Emphasis.disabled` when disabled, to
+/// `Emphasis.pressed` while pressed; a keyboard focus shows the kit's focus ring (`ColorRoles.focusRing`, 3:1).
 public struct IconButton: View {
     @Environment(\.designTokens) private var tokens
     private let title: String
-    private let systemImage: String
+    private let systemImage: String?
     private let action: () -> Void
 
     public init(_ title: String, systemImage: String, action: @escaping () -> Void) {
@@ -544,16 +700,36 @@ public struct IconButton: View {
         self.action = action
     }
 
+    /// A label-only button: `title` is what it shows.
+    public init(_ title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.systemImage = nil
+        self.action = action
+    }
+
     public var body: some View {
         let side = max(tokens.size.toolbarButton, tokens.size.minTarget)
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.row, style: .continuous)
         WithColorRoles { roles in
             Button(action: action) {
-                Label(title, systemImage: systemImage)
-                    .labelStyle(.iconOnly)
-                    .frame(width: side, height: side)
-                    .contentShape(.rect)
+                Group {
+                    if let systemImage {
+                        Label(title, systemImage: systemImage)
+                            .labelStyle(.iconOnly)
+                            .frame(width: side, height: side)
+                    } else {
+                        Text(title)
+                            .role(tokens.type.buttonLabel)
+                            .lineLimit(1)
+                            .padding(.horizontal, tokens.spacing.buttonLabelHorizontal)
+                            .frame(minWidth: side, minHeight: side)
+                    }
+                }
+                .controlFocusRing(in: shape)
+                .contentShape(.rect)
             }
             .buttonStyle(PressedOpacityStyle())
+            .focusEffectDisabled()
             .foregroundStyle(roles.secondaryText)
             .help(title)
         }
@@ -628,21 +804,42 @@ public struct FieldPill<Trailing: View>: View {
     }
 }
 
+/// The size of a `ThemeGlyph`: `Size.glyphCircle` (24 pt), or `Size.glyphCircleSmall` (16 pt, a search header's).
+public enum GlyphSize: Sendable, CaseIterable {
+    case standard, small
+
+    func side(_ size: DesignTokens.Size) -> CGFloat {
+        switch self {
+        case .standard: size.glyphCircle
+        case .small: size.glyphCircleSmall
+        }
+    }
+
+    func text(_ type: DesignTokens.TypeScale) -> TextRole {
+        switch self {
+        case .standard: type.glyphCircle
+        case .small: type.glyphCircleSmall
+        }
+    }
+}
+
 /// The circle that stands for a Theme-coloured item (a space): the primary hue, opaque, with a symbol (white, or black
-/// where white stays under 3:1) or an initial (white, or black where white stays under 4.5:1).
+/// where white stays under 3:1) or an initial (white, or black where white stays under 4.5:1), at `size`.
 public struct ThemeGlyph: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.theme) private var environmentTheme
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.kitContrast) private var contrast
     private let symbol: String?
     private let name: String
     private let theme: Theme?
+    private let size: GlyphSize
 
-    public init(name: String, symbol: String? = nil, theme: Theme? = nil) {
+    public init(name: String, symbol: String? = nil, theme: Theme? = nil, size: GlyphSize = .standard) {
         self.name = name
         self.symbol = symbol
         self.theme = theme
+        self.size = size
     }
 
     public var body: some View {
@@ -656,9 +853,9 @@ public struct ThemeGlyph: View {
                 Text(name.first.map { String($0).uppercased() } ?? "")
             }
         }
-        .font(tokens.type.glyphCircle.font)
+        .font(size.text(tokens.type).font)
         .foregroundStyle(ColorRoles.ink(on: hue, in: appearance, minimum: minimum))
-        .frame(width: tokens.size.glyphCircle, height: tokens.size.glyphCircle)
+        .frame(width: size.side(tokens.size), height: size.side(tokens.size))
         .background(hue.color, in: .circle)
         .accessibilityHidden(true)
     }
@@ -769,24 +966,57 @@ public struct GlassSwitcher: View {
     }
 }
 
-/// A discreet message on glass over the top of a column or a canvas, with an optional action and a close button.
+/// What a banner's action button does.
+public struct BannerAction {
+    public let title: String
+    public let perform: () -> Void
+
+    public init(_ title: String, perform: @escaping () -> Void) {
+        self.title = title
+        self.perform = perform
+    }
+}
+
+/// A discreet message on glass over the top of a column or a canvas: a symbol, an optional title over the message, and
+/// either the client's own actions or, from `init(systemImage:title:message:action:onClose:)`, the kit's: one action
+/// button and a close button. The title is in the label colour and semibold, the message under it in the secondary ink,
+/// the action in the label colour and semibold (all 4.5:1 on glass), the close button a plain `xmark` named "Close".
 public struct Banner<Actions: View>: View {
     @Environment(\.designTokens) private var tokens
     private let systemImage: String
+    private let title: String?
     private let message: String
     private let actions: Actions
 
     public init(systemImage: String, message: String, @ViewBuilder actions: () -> Actions) {
         self.systemImage = systemImage
+        self.title = nil
+        self.message = message
+        self.actions = actions()
+    }
+
+    /// A banner with a title over its message, and the client's own actions.
+    public init(systemImage: String, title: String, message: String, @ViewBuilder actions: () -> Actions) {
+        self.systemImage = systemImage
+        self.title = title
         self.message = message
         self.actions = actions()
     }
 
     public var body: some View {
         WithColorRoles { roles in
-            HStack(spacing: tokens.spacing.pillActionGap) {
+            HStack(alignment: title == nil ? .center : .top, spacing: tokens.spacing.pillActionGap) {
                 Image(systemName: systemImage).foregroundStyle(roles.tintText).accessibilityHidden(true)
-                Text(message).role(tokens.type.banner).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: tokens.spacing.bannerLines) {
+                    if let title {
+                        Text(title).role(tokens.type.bannerTitle).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Text(message)
+                        .role(tokens.type.banner)
+                        .foregroundStyle(title == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(roles.secondaryText))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Spacer(minLength: 0)
                 actions
             }
@@ -795,5 +1025,161 @@ public struct Banner<Actions: View>: View {
             .surface(.glass(tint: 0), in: RoundedRectangle(cornerRadius: tokens.radius.banner, style: .continuous))
             .accessibilityElement(children: .contain)
         }
+    }
+}
+
+/// The kit's banner actions: an optional action button, then an optional close button.
+public struct BannerButtons: View {
+    @Environment(\.designTokens) private var tokens
+    private let action: BannerAction?
+    private let onClose: (() -> Void)?
+
+    init(action: BannerAction?, onClose: (() -> Void)?) {
+        self.action = action
+        self.onClose = onClose
+    }
+
+    public var body: some View {
+        HStack(spacing: tokens.spacing.pillActionGap) {
+            if let action {
+                let shape = Capsule(style: .continuous)
+                Button(action: action.perform) {
+                    Text(action.title)
+                        .role(tokens.type.buttonLabel)
+                        .lineLimit(1)
+                        .padding(.horizontal, tokens.spacing.buttonLabelHorizontal)
+                        .frame(minHeight: tokens.size.minTarget)
+                        .controlFocusRing(in: shape)
+                        .contentShape(shape)
+                }
+                .buttonStyle(PressedOpacityStyle())
+                .focusEffectDisabled()
+            }
+            if let onClose {
+                let side = max(tokens.size.toolbarButton, tokens.size.minTarget)
+                WithColorRoles { roles in
+                    Button(action: onClose) {
+                        Label {
+                            Text("Close", tableName: "DesignKit", bundle: .module)
+                        } icon: {
+                            Image(systemName: "xmark")
+                        }
+                        .labelStyle(.iconOnly)
+                        .frame(width: side, height: side)
+                        .controlFocusRing(in: Circle())
+                        .contentShape(.circle)
+                    }
+                    .buttonStyle(PressedOpacityStyle())
+                    .focusEffectDisabled()
+                    .foregroundStyle(roles.secondaryText)
+                }
+            }
+        }
+    }
+}
+
+extension Banner where Actions == BannerButtons {
+    /// A banner with the kit's own buttons: an `action` and a close button that calls `onClose`; each is left out when
+    /// nil.
+    public init(
+        systemImage: String, title: String? = nil, message: String, action: BannerAction? = nil,
+        onClose: (() -> Void)? = nil
+    ) {
+        self.systemImage = systemImage
+        self.title = title
+        self.message = message
+        self.actions = BannerButtons(action: action, onClose: onClose)
+    }
+}
+
+/// One segment of a `SegmentedPill`.
+public struct SegmentedPillItem<ID: Hashable>: Identifiable {
+    public let id: ID
+    public let title: String
+    public let systemImage: String?
+
+    public init(id: ID, title: String, systemImage: String? = nil) {
+        self.id = id
+        self.title = title
+        self.systemImage = systemImage
+    }
+}
+
+/// A glass capsule of segments, one selected: a segmented selector (a view's mode, a filter) in the kit's shapes. The
+/// selected segment is filled with the selection fill and set semibold, with a marker bar under its title
+/// (`ColorRoles.selectionMarker`, 3:1) outside Increase Contrast, an outline in `ColorRoles.outline` under it, so it is
+/// never shown by colour alone. The others are in the secondary ink. Each segment is a target of at least `minTarget`,
+/// dims to `Emphasis.pressed` while pressed and to `Emphasis.disabled` when the pill is disabled, and shows the kit's
+/// focus ring on keyboard focus. VoiceOver reads a named group of buttons, the selected one "selected".
+public struct SegmentedPill<ID: Hashable>: View {
+    @Environment(\.designTokens) private var tokens
+    @Environment(\.kitContrast) private var contrast
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let items: [SegmentedPillItem<ID>]
+    private let selection: Binding<ID>
+    private let label: String
+
+    public init(_ items: [SegmentedPillItem<ID>], selection: Binding<ID>, label: String) {
+        self.items = items
+        self.selection = selection
+        self.label = label
+    }
+
+    public var body: some View {
+        WithColorRoles { roles in
+            HStack(spacing: tokens.spacing.segmentGap) {
+                ForEach(items) { item in segment(item, roles: roles) }
+            }
+            .padding(tokens.spacing.segmentPadding)
+            .frame(height: tokens.size.segmentedPill)
+            .surface(.glass(tint: 0), in: Capsule(style: .continuous))
+            .animation(MotionRole.rowState.animation(reduceMotion: reduceMotion), value: selection.wrappedValue)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(label)
+        }
+    }
+
+    private func textRole(_ isSelected: Bool) -> TextRole {
+        isSelected ? tokens.type.segmentSelected : tokens.type.segment
+    }
+
+    private func segment(_ item: SegmentedPillItem<ID>, roles: ColorRoles) -> some View {
+        let isSelected = item.id == selection.wrappedValue
+        let shape = Capsule(style: .continuous)
+        return Button { selection.wrappedValue = item.id } label: {
+            HStack(spacing: tokens.spacing.segmentContent) {
+                if let symbol = item.systemImage {
+                    Image(systemName: symbol).accessibilityHidden(true)
+                }
+                Text(item.title).role(textRole(isSelected)).lineLimit(1)
+            }
+            .font(textRole(isSelected).font)
+            .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(roles.secondaryText))
+            .padding(.horizontal, tokens.spacing.segmentHorizontal)
+            .frame(
+                minWidth: tokens.size.minTarget,
+                minHeight: tokens.size.segmentedPill - 2 * tokens.spacing.segmentPadding)
+            .background {
+                if isSelected {
+                    shape.fill(roles.selectionFill)
+                        .overlay { if contrast == .increased { shape.strokeBorder(roles.outline, lineWidth: tokens.size.stroke) } }
+                        .accessibilityHidden(true)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if isSelected && contrast != .increased {
+                    Capsule(style: .continuous)
+                        .fill(roles.selectionMarker)
+                        .frame(width: tokens.size.segmentMarker, height: tokens.size.selectionMarker)
+                        .padding(.bottom, tokens.spacing.segmentMarkerGap)
+                        .accessibilityHidden(true)
+                }
+            }
+            .controlFocusRing(in: shape)
+            .contentShape(shape)
+        }
+        .buttonStyle(PressedOpacityStyle())
+        .focusEffectDisabled()
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

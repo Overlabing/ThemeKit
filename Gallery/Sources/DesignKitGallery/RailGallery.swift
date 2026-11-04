@@ -6,6 +6,8 @@ import SwiftUI
 
 // The Space rail's gallery: whole windows (two palettes, light and dark, left and right, 3 and 8 Spaces, with and
 // without Profiles) and a sheet of its states per palette and appearance. `DesignKitGallery rail <output directory>`.
+// The states sheet is drawn in a hosted window that is never shown: its panels scroll, and `ImageRenderer` draws no
+// scroll view.
 
 /// The rail's sample data: Work (💼) and Personal (🏡) Profiles, or the Spaces of an app without Profiles.
 struct RailSample {
@@ -252,8 +254,8 @@ func runRail(output: URL) {
             for isDark in [false, true] {
                 let mode = isDark ? "dark" : "light"
                 let sheet = output.appending(path: "B1-kit-states-\(theme.id)-\(mode).png")
-                try renderView(RailStatesSheet(theme: theme, isDark: isDark).theme(theme),
-                               size: CGSize(width: 1260, height: 1640), isDark: isDark, to: sheet)
+                try renderHosted(RailStatesSheet(theme: theme, isDark: isDark).theme(theme),
+                                 size: CGSize(width: 1260, height: 1640), isDark: isDark, to: sheet)
                 sheets.append(sheet)
                 print("OK: \(sheet.lastPathComponent)")
                 for side in ColumnSide.allCases {

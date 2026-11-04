@@ -37,12 +37,13 @@ public enum MotionCurve: Sendable, CaseIterable {
     }
 
     /// A spring keeps moving after its perceptual duration: it is within 0.1 % of its target only after
-    /// `duration × settlingFactor`. 1 for a timing curve.
+    /// `duration × settlingFactor`. Measured on `Spring(duration:bounce:)` (1.4695, 1.3933, 1.3332) and rounded up to
+    /// two decimals, so the residual travel at that time is at most 0.1 %. 1 for a timing curve.
     public var settlingFactor: Double {
         switch self {
         case .smooth: 1.47
-        case .snappy: 1.39
-        case .spring: 1.33
+        case .snappy: 1.40
+        case .spring: 1.34
         case .easeOut, .easeInOut: 1
         }
     }
@@ -97,8 +98,23 @@ public enum MotionRole: String, Sendable, CaseIterable {
             self.reduced = reduced
         }
 
-        /// When the motion is really over: its delay plus its duration times the curve's settling factor.
-        public var settlingSeconds: Double { delay + duration.rawValue * curve.settlingFactor }
+        /// How long the motion itself takes to settle, not counting its delay: the duration times the curve's settling
+        /// factor. Pair it with `delay` where a consumer (a CSS export, say) takes the two separately.
+        public var settlingSecondsWithoutDelay: Double { duration.rawValue * curve.settlingFactor }
+
+        /// When the motion is really over: its delay plus `settlingSecondsWithoutDelay`.
+        public var settlingSeconds: Double { delay + settlingSecondsWithoutDelay }
+
+        /// The animation to run: the duration on the curve, then the delay unless `includingDelay` is false.
+        public func animation(includingDelay: Bool = true) -> Animation {
+            let seconds = duration.rawValue
+            let base: Animation = switch curve {
+            case .easeOut: .easeOut(duration: seconds)
+            case .easeInOut: .easeInOut(duration: seconds)
+            case .smooth, .snappy, .spring: .spring(duration: seconds, bounce: curve.bounce ?? 0)
+            }
+            return includingDelay && delay > 0 ? base.delay(delay) : base
+        }
     }
 
     public var spec: Spec {
@@ -130,15 +146,15 @@ public enum MotionRole: String, Sendable, CaseIterable {
         return spec.reduced == .fade ? Self.reducedFade : nil
     }
 
+    /// The role's animation, with its delay; nil when Reduce Motion makes the change immediate.
     public func animation(reduceMotion: Bool) -> Animation? {
-        guard let spec = resolved(reduceMotion: reduceMotion) else { return nil }
-        let seconds = spec.duration.rawValue
-        let base: Animation = switch spec.curve {
-        case .easeOut: .easeOut(duration: seconds)
-        case .easeInOut: .easeInOut(duration: seconds)
-        case .smooth, .snappy, .spring: .spring(duration: seconds, bounce: spec.curve.bounce ?? 0)
-        }
-        return spec.delay > 0 ? base.delay(spec.delay) : base
+        resolved(reduceMotion: reduceMotion)?.animation()
+    }
+
+    /// The same without the role's delay: for a change that must start at once (content leaving, a skeleton that is
+    /// already showing) while the role is otherwise the same.
+    public func animationWithoutDelay(reduceMotion: Bool) -> Animation? {
+        resolved(reduceMotion: reduceMotion)?.animation(includingDelay: false)
     }
 
     /// `transition`, or under Reduce Motion a plain fade (a role that fades) or nothing.

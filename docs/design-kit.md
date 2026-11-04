@@ -52,6 +52,12 @@ them.
 | `railDotGap` | 4 | the Space rail: between a folded Profile's dots, and before its count |
 | `railCaption` | 4 | the Space rail: its caption to its row |
 | `railFoldPadding` | 4 | the Space rail: inside a folded Profile's target, either side |
+| `badgeHorizontal`, `badgeVertical` | 8, 2 | `badgeFill()`: the capsule round the view |
+| `buttonLabelHorizontal` | 8 | a label-only `IconButton` (and a banner's action): label to the edge of its target |
+| `segmentGap`, `segmentPadding`, `segmentHorizontal` | 2, 4, 12 | a `SegmentedPill`: between segments, from them to the pill's edge, a title to its segment's edge |
+| `segmentContent`, `segmentMarkerGap` | 4, 2 | a segment's symbol to its title; its marker bar to the segment's bottom |
+| `bannerLines` | 2 | between a banner's title and message |
+| `listCellMargin` | 8 (macOS), 0 (iOS) | what a `List` keeps round a cell's content; `listRowCell` cancels it |
 | `statusLineToList` | 10 | status line (or what sits in its place) to the list |
 | `focusRingOffset` | 2 | a focus ring outside its shape |
 | `selectionMarkerLeading`, `selectionMarkerVertical` | 2, 8 | the selected row's marker: from the leading edge of the row's background, and from its top and bottom |
@@ -81,7 +87,9 @@ them.
 | `toolbarButton` | 28 | a toolbar icon button |
 | `swatch`, `swatchRing` | 14, 1.5 | a palette swatch |
 | `pill` | 42 | a field pill |
-| `glyphCircle` | 24 | a Space's glyph circle (the Space rail, `ThemeGlyph`) |
+| `glyphCircle`, `glyphCircleSmall` | 24, 16 | a Space's glyph circle (the Space rail, `ThemeGlyph`), and `ThemeGlyph`'s small size |
+| `segmentedPill`, `segmentMarker` | 36 (macOS), 52 (iOS); 12 | a `SegmentedPill`'s height (`minTarget` plus `2 × segmentPadding`), the marker bar under the selected title |
+| `railPanelMaxHeight` | 480 | how tall a Space rail panel grows before it scrolls |
 | `switcherItemWidth`, `switcherItemHeight` | 52, 40 | the glass switcher (deprecated) |
 | `railHeight` | 36 (macOS), 52 (iOS) | the Space rail's row: `minTarget` plus `Spacing.s` for the marker |
 | `railMarker` | 12 | length of the selected Space's marker (thickness `selectionMarker`) |
@@ -123,12 +131,19 @@ the same share, so their order and the gradient's shape stay.
 
 Text styles on the system font, never point sizes: rows `.body` (selected semibold), detail lines `.caption`, group
 headers `.caption` semibold uppercase, section headers `.subheadline` semibold, counts `.caption`, pill titles `.body`
-semibold, initials `.callout` bold, switcher names `.callout` semibold, banners `.callout`.
+semibold, initials `.callout` bold, switcher names `.callout` semibold, banners `.callout` (their title and a button's
+label `.callout` semibold), segments `.callout` (selected semibold), small glyphs `.caption2` bold.
 
 ### Motion (`MotionRole`)
 
 Durations: instant 0.12 s, quick 0.2 s, calm 0.35 s, deliberate 0.5 s, cycle 1.2 s. Curves: `smooth` (spring, bounce 0,
-settles at ×1.47), `snappy` (0.15, ×1.39), `spring` (0.1, ×1.33), `easeOut`, `easeInOut` (loops only). No visible bounce.
+settles at ×1.47), `snappy` (0.15, ×1.40), `spring` (0.1, ×1.34), `easeOut`, `easeInOut` (loops only). No visible bounce.
+A settling factor is the time a spring needs to be within 0.1 % of its target, as a multiple of its duration, measured on
+`Spring(duration:bounce:)` and rounded up to the hundredth (1.4695, 1.3933, 1.3332).
+
+`role.animation(reduceMotion:)` includes the role's delay; `role.animationWithoutDelay(reduceMotion:)` is the same animation
+without it. `spec.settlingSeconds` is the delay plus `spec.settlingSecondsWithoutDelay` (duration × factor); a consumer that
+takes them apart (a CSS export) reads `spec.duration`, `spec.delay` and `spec.settlingSecondsWithoutDelay`.
 
 | Role | Duration · curve | Delay / stagger | Reduce Motion |
 |---|---|---|---|
@@ -161,19 +176,48 @@ immediate.
 | `ContentCanvas` | content inset 12 pt, rounded 12 pt, 1 pt separator line |
 | `Tile` | a rounded square: a symbol on a colour (white, or black where white stays under 3:1), a tinted symbol, or an initial on the tile fill; four sizes |
 | `ListRow` | tile, title and detail lines, trailing accessory; hover, current, selection fills; the selection's marker bar (outside Increase Contrast); focus ring; `RowPlacement` free or inside a panel |
+| `ListRowBackground`, `ListRowContent`, `.listRowCell(state:)` | a `ListRow` as a `List` cell: the background for `listRowBackground`, the content without it, and the modifier that sets both with the cell's insets (see "Rows as List cells") |
+| `.tileFill(_:)`, `.badgeFill()` | the kit's tile and badge fills behind a client view, which is set in the tinted ink (4.5:1 on them) |
 | `FolderRow` + `LayerPanel` | a folder as a row with a count and a turning chevron; its children on a continuous panel, first level not indented |
 | `SectionHeader` | a section title, or a small uppercase group header |
 | `ColumnSeparator` | a hairline on the column margin, between groups that have no header |
-| `StatusLine` | the one-line state at the top of a column, with its chevron |
+| `StatusLine` | the one-line state at the top of a column, with its chevron; `fillsWhenOpen` fills it while open; its tile is a `TileContent` or any view |
 | `FieldPill` | a glass capsule with a circle in the Theme's colour, a title (or a placeholder in the secondary ink) and an accessory |
-| `IconButton`, `IconButtonRow` | symbol buttons in at least the minimum target, labelled for VoiceOver; dimmed to `Emphasis.disabled` when disabled |
+| `IconButton`, `IconButtonRow` | symbol buttons, or label-only (`IconButton("Done") {}`), in at least the minimum target, labelled for VoiceOver; dimmed to `Emphasis.disabled` when disabled; the kit's focus ring on keyboard focus |
+| `SegmentedPill` | a glass capsule of segments, one selected (fill, semibold, marker bar; an outline under Increase Contrast); targets of at least `minTarget`; disabled and focus states |
 | `SpaceRail`, `SpaceRailPanel` | the Space selector at the bottom of a column (see "Space rail" below) |
-| `ThemeGlyph` | a themed item's glyph: its flat hue with a white or black symbol or initial |
+| `ThemeGlyph` | a themed item's glyph: its flat hue with a white or black symbol or initial; `size: .standard` (24 pt) or `.small` (16 pt) |
 | `GlassSwitcher` | **deprecated in 0.2.4, removed in 0.3**: use `SpaceRail`. The glass bar of themed items at the bottom of a column; an item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`) |
-| `Banner` | a discreet message on glass with its actions |
+| `Banner` | a discreet message on glass: a symbol, an optional title, the message, and the client's actions or the kit's (`action:` and `onClose:`) |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label |
 | `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control |
 | `.surface(_:in:)` | glass or a layer fill, with the accessibility fallbacks below |
+
+## Rows as List cells
+
+A `List` draws a cell's background itself, so a row in a `List` is two views: the cell's content and its background.
+
+```swift
+List {
+    ForEach(rows) { row in
+        ListRowContent(row.title, details: [row.detail], state: state(of: row)) {
+            Tile(.initial(row.initial))        // or a client view: Text(row.initial).tileFill()
+        } trailing: {
+            Text("\(row.unread)").badgeFill()
+        }
+        .listRowCell(state: state(of: row))   // ListRowBackground, no separator, the cell's insets
+    }
+}
+```
+
+`listRowCell` is `listRowBackground(ListRowBackground(state:placement:))`, `listRowSeparator(.hidden)` and
+`listRowInsets` with a negative inset of `Spacing.listCellMargin` each side. A macOS `List` keeps 8 pt round a cell's
+content even with zero insets; the negative inset cancels it, so the background (4 pt from the cell's edge), the tile and
+the bar sit on the same pixels as in a column of `ListRow`s (a test compares them). Do not put a `ListRow` in a cell: it
+draws a background of its own. Increase Contrast reaches the background: a selected or current cell is outlined in
+`ColorRoles.outline`, and the bar is not drawn. A `List` hands each cell the system's own Increase Contrast and colour
+scheme, so `accessibilityOverrides(increaseContrast:)` is carried to the kit's views by an environment value of the kit's
+own as well. A focus ring on a cell is clipped by the cell's bounds.
 
 ## Space rail
 
@@ -214,7 +258,8 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
 - **Overflow**: when the items do not fit (`layout(width:)`: a 28 pt target per Space, the divider, each folded
   Profile, the `+`), the active Profile's last Spaces (never the selected one) give way to a trailing "+n". When not one
   Space fits beside the folded Profiles, those go too. "+n" opens `SpaceRailPanel` in a popover: every Profile under a
-  header, every Space as a row with its glyph and shortcut, then the commands. 8 Spaces and a folded Profile of 3 fit
+  header, every Space as a row with its glyph and shortcut, then the commands. A panel is as tall as its rows up to
+  `Size.railPanelMaxHeight` (480), then scrolls (↑ and ↓ scroll the focused row into view); 8 + 8 Spaces scrolls. 8 Spaces and a folded Profile of 3 fit
   the ideal column (360, 301 pt of 340); at `columnMin` (300) the last two Spaces fold into "+2". 8 + 8 fits at 360.
 - **No Profiles**: `SpaceRail(spaces:…)`. The row is the Spaces alone: no divider, nothing folded, no panel headers.
 - **Keyboard**: the row is one focus stop. ← and → move the focus ring across its items (mirrored right to left),
@@ -251,7 +296,14 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   is not enough to find the row (WCAG 1.4.11); the semibold title is not either. Increase Contrast draws the outline
   instead, so the bar is not drawn there.
 - **Reduce Motion**: each role becomes the shared fade or nothing (table above); the Space rail's marker jumps, its
-  Profile change fades.
+  Profile change fades. `accessibilityOverrides(reduceMotion: true)` simulates it in previews and renders and
+  `accessibilityOverrides(fullMotion: true)` lifts a Reduce Motion the system has on (Reduce Motion wins if both are set).
+- **Accent inks**: `ColorRoles.accentInk(at: index)` is text in the `index`th hue of `DesignTokens.accents` (the twelve system
+  hues, wrapping), mixed with ink until it reaches 4.5:1 on every surface text sits on, the column's included; draw a dot or
+  tile in `accentHue(at:)`. `accentCases(for:in:placement:)` lists them (280 cases, worst accent counted).
+- **Focus and disabled**: `IconButton`, a banner's buttons and `SegmentedPill` draw the kit's focus ring on keyboard focus
+  (their own, the system's effect is off) and are dimmed to `Emphasis.disabled` when disabled; `controlFocusPreview()` forces
+  the ring for renders.
 - **VoiceOver**: rows read their title and details as one element with the button trait, and say "selected"; folders
   say expanded or collapsed; icon buttons read their title; the Space rail is a named group (see above); skeletons read one label;
   decorative tiles, glyphs and lines are hidden.
@@ -264,7 +316,7 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   records the 804 cases of 0.2.1, the 14 selection marker cases added in 0.2.2 (818 on the frame) and the 798 column
   cases of 0.2.3 (1616). `railCases(for:in:)` lists the Space rail's marks on the column's fill (168 in 0.2.4): a quiet
   glyph at 4.5:1 on the fill and its hover disc, the marker, a folded Profile's dots (every system hue, the worst
-  counted) and the divider at 3:1. Glass is measured as anything between the window background (its Reduce Transparency fill) and
+  counted) and the divider at 3:1; `accentCases` lists the 280 accent text cases of 0.2.4 (2064 cases in all). Glass is measured as anything between the window background (its Reduce Transparency fill) and
   what is under it; the switcher's capsule over the bottom of the column (`switcherTop`).
 - **Inactive window**: the kit's inks are explicit and read no window state, so a column keeps its contrast when the
   window resigns key. Draw it with `ColumnSurface` in a plain split item: a system sidebar (`NSSplitViewItem(sidebarWithViewController:)`,
@@ -277,4 +329,6 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
 `ImageRenderer` does not draw Liquid Glass. For previews, snapshots and offscreen renders set
 `.environment(\.glassRendering, .material)`: glass surfaces become a system material in the same shapes, with the same
 tints and lines. `swift run --package-path Gallery DesignKitGallery <folder>` renders the gallery that way;
-`DesignKitGallery audit` prints the legibility cases.
+`DesignKitGallery audit` prints the legibility cases. A `List`, a scroll view or a popover's content is drawn by a view
+hosted in a window that is never shown (`NSHostingView`, `cacheDisplay`), as the gallery's `client` and `rail` commands and
+the List tests do: `ImageRenderer` draws neither a `List` nor a scroll view.

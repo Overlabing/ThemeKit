@@ -16,7 +16,7 @@ import SwiftUI
 public struct SpaceRail: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.kitContrast) private var contrast
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.spaceRailPreviewState) private var preview
     @Namespace private var namespace
@@ -283,7 +283,7 @@ public struct SpaceRail: View {
 struct SpaceRailGlyphView: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.kitContrast) private var contrast
     let space: SpaceRailSpace
     let isSelected: Bool
 
@@ -322,8 +322,9 @@ struct SpaceRailGlyphView: View {
 
 /// The panel the rail's "+n" opens (B3's): every Profile under a small header, each of its Spaces as a row with its
 /// glyph, name and shortcut, the selected one selected; then the app's commands. Without Profiles there are no headers.
-/// With `showsSpaces` false it lists the commands alone (the rail's `+`). One focus stop: ↑ and ↓ move between rows,
-/// Return or Space picks, Escape closes. Its colours are solved like the column's, on the plain background.
+/// With `showsSpaces` false it lists the commands alone (the rail's `+`). One focus stop: ↑ and ↓ move between rows
+/// (scrolling the focused one into view), Return or Space picks, Escape closes. Taller than `Size.railPanelMaxHeight`
+/// it scrolls; shorter it is as tall as its rows. Its colours are solved like the column's, on the plain background.
 public struct SpaceRailPanel: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.dismiss) private var dismiss
@@ -367,53 +368,19 @@ public struct SpaceRailPanel: View {
     }
 
     public var body: some View {
-        let current = focused ?? initialFocus
-        VStack(alignment: .leading, spacing: 0) {
-            if showsSpaces {
-                ForEach(model.profiles) { profile in
-                    if model.hasProfiles {
-                        SectionHeader(
-                            [profile.emoji, profile.name].compactMap { $0 }.joined(separator: " "), isGroupHeader: true)
-                            .padding(.top, tokens.spacing.sectionHeaderBottom)
-                    }
-                    ForEach(Array(profile.spaces.enumerated()), id: \.element.id) { index, space in
-                        WithColorRoles { roles in
-                            ListRow(
-                                space.name,
-                                state: RowState(isSelected: space.id == model.selection, isFocused: current == space.id),
-                                placement: .free(firstInSection: model.hasProfiles && index == 0)
-                            ) {
-                                SpaceRailGlyphView(space: space, isSelected: true)
-                            } trailing: {
-                                if let shortcut = space.shortcut {
-                                    Text(shortcut).role(tokens.type.count).foregroundStyle(roles.secondaryText)
-                                }
-                            }
-                        }
-                        .onTapGesture { selectSpace(space.id) }
-                        .accessibilityAction { selectSpace(space.id) }
-                    }
-                }
+        ScrollViewReader { proxy in
+            ScrollView {
+                content
             }
-            ForEach(Array(commands.enumerated()), id: \.offset) { index, section in
-                if showsSpaces || index > 0 { ColumnSeparator() }
-                ForEach(section) { command in
-                    WithColorRoles { roles in
-                        ListRow(command.title, state: RowState(isFocused: current == command.id)) {
-                            Image(systemName: command.systemImage ?? "circle")
-                                .foregroundStyle(roles.secondaryText)
-                                .opacity(command.systemImage == nil ? 0 : 1)
-                                .frame(width: tokens.size.glyphCircle, height: tokens.size.glyphCircle)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .onTapGesture { perform(command.id) }
-                    .accessibilityAction { perform(command.id) }
-                }
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(maxHeight: tokens.size.railPanelMaxHeight)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: tokens.size.columnMin)
+            .onChange(of: focused) { _, id in
+                guard let entry = entries.first(where: { $0.id == id }) else { return }
+                proxy.scrollTo(entry, anchor: nil)
             }
         }
-        .padding(.vertical, tokens.spacing.layerInset)
-        .frame(width: tokens.size.columnMin)
         .environment(\.surfacePlacement, .column)
         .focusable()
         .focused($isFocused)
@@ -443,6 +410,57 @@ public struct SpaceRailPanel: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(model.accessibilityGroupLabel)
+    }
+
+    private var content: some View {
+        let current = focused ?? initialFocus
+        return VStack(alignment: .leading, spacing: 0) {
+            if showsSpaces {
+                ForEach(model.profiles) { profile in
+                    if model.hasProfiles {
+                        SectionHeader(
+                            [profile.emoji, profile.name].compactMap { $0 }.joined(separator: " "), isGroupHeader: true)
+                            .padding(.top, tokens.spacing.sectionHeaderBottom)
+                    }
+                    ForEach(Array(profile.spaces.enumerated()), id: \.element.id) { index, space in
+                        WithColorRoles { roles in
+                            ListRow(
+                                space.name,
+                                state: RowState(isSelected: space.id == model.selection, isFocused: current == space.id),
+                                placement: .free(firstInSection: model.hasProfiles && index == 0)
+                            ) {
+                                SpaceRailGlyphView(space: space, isSelected: true)
+                            } trailing: {
+                                if let shortcut = space.shortcut {
+                                    Text(shortcut).role(tokens.type.count).foregroundStyle(roles.secondaryText)
+                                }
+                            }
+                        }
+                        .id(Entry.space(space.id))
+                        .onTapGesture { selectSpace(space.id) }
+                        .accessibilityAction { selectSpace(space.id) }
+                    }
+                }
+            }
+            ForEach(Array(commands.enumerated()), id: \.offset) { index, section in
+                if showsSpaces || index > 0 { ColumnSeparator() }
+                ForEach(section) { command in
+                    WithColorRoles { roles in
+                        ListRow(command.title, state: RowState(isFocused: current == command.id)) {
+                            Image(systemName: command.systemImage ?? "circle")
+                                .foregroundStyle(roles.secondaryText)
+                                .opacity(command.systemImage == nil ? 0 : 1)
+                                .frame(width: tokens.size.glyphCircle, height: tokens.size.glyphCircle)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .id(Entry.command(command.id))
+                    .onTapGesture { perform(command.id) }
+                    .accessibilityAction { perform(command.id) }
+                }
+            }
+        }
+        .padding(.vertical, tokens.spacing.layerInset)
     }
 }
 

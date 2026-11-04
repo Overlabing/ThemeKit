@@ -21,6 +21,10 @@ public enum GlassRendering: Sendable, Equatable {
 
 extension EnvironmentValues {
     @Entry public var glassRendering: GlassRendering = .liquidGlass
+    /// Increase Contrast forced by `accessibilityOverrides`, which a `List` cell does not lose as it does the system's key.
+    @Entry var forcedContrast: ColorSchemeContrast? = nil
+    /// The contrast the kit's views draw for: the override if there is one, else the system's.
+    var kitContrast: ColorSchemeContrast { forcedContrast ?? colorSchemeContrast }
 }
 
 extension View {
@@ -31,13 +35,20 @@ extension View {
     }
 
     /// Simulates Increase Contrast, Reduce Transparency and Reduce Motion for previews and renders, without touching
-    /// the system's settings. Never use it in shipping UI: the app follows the system.
+    /// the system's settings; `fullMotion` does the opposite and lifts a Reduce Motion the system has on, to see the
+    /// full animations. When both are set, Reduce Motion wins. Increase Contrast reaches the kit's views inside a
+    /// `List`'s cells too (AppKit hands a cell the system's own value, which this cannot change; the kit's views read
+    /// the override as well). Never use it in shipping UI: the app follows the system.
     public func accessibilityOverrides(
-        increaseContrast: Bool = false, reduceTransparency: Bool = false, reduceMotion: Bool = false
+        increaseContrast: Bool = false, reduceTransparency: Bool = false, reduceMotion: Bool = false,
+        fullMotion: Bool = false
     ) -> some View {
         transformEnvironment(\._colorSchemeContrast) { if increaseContrast { $0 = .increased } }
+            .transformEnvironment(\.forcedContrast) { if increaseContrast { $0 = .increased } }
             .transformEnvironment(\._accessibilityReduceTransparency) { if reduceTransparency { $0 = true } }
-            .transformEnvironment(\._accessibilityReduceMotion) { if reduceMotion { $0 = true } }
+            .transformEnvironment(\._accessibilityReduceMotion) {
+                if reduceMotion { $0 = true } else if fullMotion { $0 = false }
+            }
     }
 }
 
@@ -45,7 +56,7 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
     let surface: Surface
     let shape: S
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.kitContrast) private var contrast
     @Environment(\.designTokens) private var tokens
     @Environment(\.theme) private var theme
     @Environment(\.glassRendering) private var glassRendering
@@ -117,5 +128,34 @@ private struct FocusRing<S: InsettableShape>: ViewModifier {
                 .allowsHitTesting(false)
             }
         }
+    }
+}
+
+extension EnvironmentValues {
+    /// Draws the kit's controls (`IconButton`, `SegmentedPill`, a banner's buttons) as if focused, for previews and
+    /// offscreen renders: `ImageRenderer` has no focus.
+    @Entry public var controlFocusPreview: Bool = false
+}
+
+extension View {
+    /// Draws the controls below with the keyboard focus ring, for previews and renders. Never in shipping UI.
+    public func controlFocusPreview(_ isFocused: Bool = true) -> some View {
+        environment(\.controlFocusPreview, isFocused)
+    }
+
+    /// The kit's focus ring around `shape` while the nearest focusable ancestor (the control's button) has keyboard
+    /// focus. Put it inside the button's label, and disable the button's own focus effect.
+    func controlFocusRing(in shape: some InsettableShape) -> some View {
+        modifier(ControlFocusRing(shape: shape))
+    }
+}
+
+private struct ControlFocusRing<S: InsettableShape>: ViewModifier {
+    @Environment(\.isFocused) private var isFocused
+    @Environment(\.controlFocusPreview) private var preview
+    let shape: S
+
+    func body(content: Content) -> some View {
+        content.focusRing(isFocused || preview, in: shape)
     }
 }
