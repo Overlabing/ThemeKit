@@ -20,6 +20,12 @@ What Oisillon's adoption of 0.2.8 found.
   list of the hover tests costs the same (debug, median of 854 and 653 steps of 36 pt, 3 runs each,
   `THEMEKIT_TIMING=1 swift test --filter ListScrollTimingTests`): 1.07 to 1.09 ms before and 1.06 ms after with
   `listRowCell`, 0.91 to 0.93 ms before and 0.89 to 0.91 ms after with `sidebarRowCell`.
+- **The rail's preview panel stays inside the column** (issue #50): `SpaceRailPreviewState(panel:)` drew its panel at
+  the popover panel's width (`Size.columnMin`, 300 pt) on the trailing margin, so in a 300 pt column it overflowed
+  12 pt to the left. It is now as wide as that where the column leaves it and the margin on both sides, narrower
+  otherwise: 276 pt in a 300 pt column, the margin clear on both sides. From 324 pt up it draws as before. The real
+  popover is unchanged. Tested on an offscreen render, light and dark: at 300 pt both panels start and end 12 pt from
+  the column's edges; at 360 pt they are 300 pt wide on the trailing margin, as before. Gallery: `rail-panels-narrow`.
 
 ### Added
 
