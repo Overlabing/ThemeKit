@@ -8,7 +8,8 @@ import SwiftUI
 // Glass reliably (shapes vanish), so glass surfaces are drawn with `.material`; the live look needs a window on screen.
 // `DesignKitGallery <output directory> [Theme id…]`: the sample Themes, or the ones named. `DesignKitGallery rail
 // <output directory>`: the Space rail's windows and states (RailGallery.swift). `DesignKitGallery client <output
-// directory>`: the 0.2.4 controls and a real List of rows (ClientGallery.swift).
+// directory>`: the 0.2.4 controls and a real List of rows (ClientGallery.swift). `DesignKitGallery 0.2.8 <output
+// directory>`: the 0.2.8 additions (Gallery028.swift).
 
 enum Kind: String, CaseIterable {
     case components
@@ -183,12 +184,16 @@ if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "client" {
     MainActor.assumeIsolated { runClient(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory)) }
     exit(0)
 }
+if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "0.2.8" {
+    MainActor.assumeIsolated { run028(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory)) }
+    exit(0)
+}
 if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "rail" {
     MainActor.assumeIsolated { runRail(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory)) }
     exit(0)
 }
 guard CommandLine.arguments.count >= 2 else {
-    print("usage: DesignKitGallery <output directory> [Theme id…] | rail <output directory> | client <output directory> | audit")
+    print("usage: DesignKitGallery <output directory> [Theme id…] | rail <output directory> | client <output directory> | 0.2.8 <output directory> | audit")
     exit(2)
 }
 let named = CommandLine.arguments.dropFirst(2).map { id in
