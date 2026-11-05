@@ -247,7 +247,7 @@ private struct SidebarRowCell: ViewModifier {
         content
             .listRowInsets(EdgeInsets(
                 top: placement.topInset(spacing) + vertical, leading: side + placement.indent(spacing),
-                bottom: spacing.rowGap / 2 + vertical, trailing: side))
+                bottom: placement.bottomInset(spacing) + vertical, trailing: side))
             .listRowSeparator(.hidden)
             .modifier(CellHover(id: hoverID) { [state, placement, hoverID] localHover in
                 var state = state

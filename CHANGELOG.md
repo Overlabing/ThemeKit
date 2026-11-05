@@ -75,6 +75,22 @@ What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
   draw as before. Tested on an offscreen render: the default draws the same as `.tile(.standard)`; a circle leaves the
   corners a rounded square fills; a 48 pt side keeps its proportional radius; a fitting tile is 22 pt for "A" at
   caption size and a larger square for "ABC" in a title font; the tint text's fill is the tile fill in a circle too.
+- **`RowPlacement.stacked`** (issue #34): compact rows stacked without gaps (Oisillon's zone tabs, which cancelled
+  `ListRowBackground`'s insets with negative padding). A `.stacked` row sits on the column's margin like a free row,
+  with no row gap above or below, so the backgrounds of two such rows touch. `ListRowBackground`, `ListRowContent`,
+  `ListRow`, `listRowCell` and `sidebarRowCell` take it. Tested on an offscreen render, light and dark: two hovered
+  free backgrounds stand a row gap (4 pt) apart, two stacked ones draw one fill top to bottom on the same margin; a
+  stacked `ListRowContent` is 4 pt shorter than a free one.
+- **`SkeletonRows` as `List` cells, placed, with three lines** (issue #33): `SkeletonRows(count:label:lines:placement:
+  style:)`. **`lines`** is the text lines per row, 1 to 3 (3 for a mail row's sender, subject and preview; 2 by
+  default). **`placement`** is the rows' (`.free(firstInSection: true)` counts for the first row only). **`style`**,
+  **`SkeletonRowsStyle`**: `.stack` (the default, one view, as before), `.listCells` (one `listRowCell` per row) or
+  `.sidebarCells` (one `sidebarRowCell` per row, in a `sidebarColumn`), placed and drawn like the rows that replace
+  them; the first cell carries the VoiceOver label, the others are hidden. Tested: the default draws as 0.2.7 drew,
+  pixel for pixel (1/255); 3 lines add a caption line per row and more than 3 count as 3; a first-in-section
+  placement moves the first row only; in a real `List` hosted in a window that is never shown, 5 rows with
+  `.listCells` and with `.sidebarCells` in a `sidebarColumn` are 5 table rows of one height, taller than 50 pt with 3
+  lines.
 - **A context menu per Space and per Profile in the `SpaceRail`** (issue #36): the rail had no menu of its own per
   item, so a client's `contextMenu` on the whole rail could only act on the current Space (Safira's Edit, Move and
   Delete, Oisillon's Edit and Delete). **`.spaceRailContextMenu(space:profile:)`**, or `space:` alone, gives the rails
@@ -91,8 +107,10 @@ What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
 ### Unchanged
 
 - The 2344 legibility cases: the audit's output is the same, line for line, all at their threshold.
-- No source-breaking change. `ColorRoles.legibility` is now a computed property, read-only as before. The new
-  `hoverID` parameters have defaults.
+- Source compatibility: every new parameter has a default and every new modifier is additive.
+  `ColorRoles.legibility` is now a computed property, read-only as before. **One possible break**: `RowPlacement`
+  gains the case `.stacked`, so a client's exhaustive `switch` over `RowPlacement` needs a case for it (neither client
+  switches over it).
 
 ## 0.2.7
 

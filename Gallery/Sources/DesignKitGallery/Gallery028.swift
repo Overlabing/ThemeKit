@@ -155,12 +155,72 @@ struct TileFill028Sheet: View {
     }
 }
 
+/// Compact rows stacked without gaps (issue #34), beside free ones.
+struct StackedRows028Sheet: View {
+    var body: some View {
+        Sheet028 {
+            Labelled("Free rows: a row gap between the fills") {
+                VStack(spacing: 0) {
+                    ListRow("Inbox", state: RowState(isHovered: true)) { Tile(.tintedSymbol("tray"), size: .compact) }
+                    ListRow("Sent", state: RowState(isSelected: true)) { Tile(.tintedSymbol("paperplane"), size: .compact) }
+                    ListRow("Drafts", state: RowState(isCurrent: true)) { Tile(.tintedSymbol("doc"), size: .compact) }
+                }
+            }
+            Labelled(".stacked: compact rows, no gap") {
+                VStack(spacing: 0) {
+                    ListRow("Inbox", state: RowState(isHovered: true), placement: .stacked) {
+                        Tile(.tintedSymbol("tray"), size: .compact)
+                    }
+                    ListRow("Sent", state: RowState(isSelected: true), placement: .stacked) {
+                        Tile(.tintedSymbol("paperplane"), size: .compact)
+                    }
+                    ListRow("Drafts", state: RowState(isCurrent: true), placement: .stacked) {
+                        Tile(.tintedSymbol("doc"), size: .compact)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Skeleton rows as sidebar `List` cells, three lines, then the stack of two (issue #33). Hosted: a `List` draws only in
+/// a window.
+struct Skeleton028Sheet: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            List {
+                Section {
+                    SkeletonRows(count: 4, label: "Loading mail", lines: 3, placement: .free(firstInSection: true),
+                                 style: .sidebarCells)
+                } header: {
+                    Text("sidebarCells, 3 lines").font(.caption.weight(.semibold))
+                }
+            }
+            .sidebarColumn()
+            .frame(width: 360)
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
+                Text("stack, 2 lines (the default)").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    .padding(.horizontal, DesignTokens.standard.spacing.listMargin)
+                SkeletonRows(count: 4, label: "Loading")
+                Spacer(minLength: 0)
+            }
+            .padding(.top, DesignTokens.Spacing.l)
+            .frame(width: 360)
+        }
+        .background { WindowBackground() }
+    }
+}
+
 @MainActor
 func run028(output: URL) {
     let sheets: [(name: String, size: CGSize, view: AnyView)] = [
         ("status-line", CGSize(width: 360, height: 560), AnyView(StatusLine028Sheet())),
         ("detail-cards", CGSize(width: 760, height: 420), AnyView(DetailCards028Sheet())),
         ("tile-fill", CGSize(width: 360, height: 300), AnyView(TileFill028Sheet())),
+        ("stacked-rows", CGSize(width: 360, height: 330), AnyView(StackedRows028Sheet())),
+    ]
+    let hosted: [(name: String, size: CGSize, view: AnyView)] = [
+        ("skeleton", CGSize(width: 720, height: 420), AnyView(Skeleton028Sheet())),
     ]
     do {
         for theme in [Palette.standard.themes[0], Palette.standard.themes[1]] {
@@ -168,6 +228,11 @@ func run028(output: URL) {
                 for sheet in sheets {
                     let url = output.appending(path: "kit-0.2.8-\(sheet.name)-\(theme.id)-\(isDark ? "dark" : "light").png")
                     try renderView(sheet.view.theme(theme), size: sheet.size, isDark: isDark, to: url)
+                    print("OK: \(url.lastPathComponent)")
+                }
+                for sheet in hosted {
+                    let url = output.appending(path: "kit-0.2.8-\(sheet.name)-\(theme.id)-\(isDark ? "dark" : "light").png")
+                    try renderHosted(sheet.view.theme(theme), size: sheet.size, isDark: isDark, to: url)
                     print("OK: \(url.lastPathComponent)")
                 }
             }
