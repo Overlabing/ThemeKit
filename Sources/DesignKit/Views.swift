@@ -1,6 +1,7 @@
 import ColorCore
 import ColorUI
 import SwiftUI
+import Synchronization
 
 // The kit's views. Each reads `designTokens` and the Theme from the environment, and asks `ColorRoles` for colours.
 
@@ -290,21 +291,44 @@ public struct ListRowBackground: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.kitContrast) private var contrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let state: RowState
+    @Environment(ListHover.self) private var hover: ListHover?
+    private let given: RowState
     private let placement: RowPlacement
+    private let hoverID: AnyHashable?
 
-    public init(state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false)) {
-        self.state = state
+    /// `hoverID` is the row's id in the environment's `ListHover`: the background is hovered when that row is, as well
+    /// as when `state` says so, and only that row's hover steps re-evaluate it.
+    public init(
+        state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false), hoverID: AnyHashable? = nil
+    ) {
+        self.given = state
         self.placement = placement
+        self.hoverID = hoverID
+    }
+
+    #if DEBUG
+    /// How many times a background's body ran, for the tests that count them per hover step.
+    nonisolated static let evaluations = Mutex<Int>(0)
+    #endif
+
+    /// `state`, hovered too when the `ListHover` says so (observing this row alone).
+    private func resolvedState() -> RowState {
+        #if DEBUG
+        Self.evaluations.withLock { $0 += 1 }
+        #endif
+        var state = given
+        if let hoverID, let hover, hover.isHovered(hoverID) { state.isHovered = true }
+        return state
     }
 
     public var body: some View {
+        let state = resolvedState()
         let spacing = tokens.spacing
         let shape = RoundedRectangle(cornerRadius: tokens.radius.row, style: .continuous)
         let indent = placement.indent(spacing)
         WithColorRoles { roles in
             Color.clear
-                .background { shape.fill(fill(roles)).padding(.leading, indent) }
+                .background { shape.fill(fill(roles, state)).padding(.leading, indent) }
                 .overlay {
                     if contrast == .increased && (state.isSelected || state.isCurrent) {
                         shape.strokeBorder(roles.outline, lineWidth: tokens.size.stroke).padding(.leading, indent)
@@ -329,7 +353,7 @@ public struct ListRowBackground: View {
         }
     }
 
-    private func fill(_ roles: ColorRoles) -> Color {
+    private func fill(_ roles: ColorRoles, _ state: RowState) -> Color {
         if state.isSelected { return roles.selectionFill }
         if state.isCurrent { return roles.currentFill }
         if state.isHovered { return roles.hoverFill }
@@ -447,8 +471,14 @@ extension View {
     /// column of `ListRow`s. A `List` cell keeps a margin of `Spacing.listCellMargin` round its content on macOS even
     /// with zero insets, which a negative inset cancels; the kit does that here. The content is a `ListRowContent`, or
     /// the client's own view at the same paddings.
-    public func listRowCell(state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false)) -> some View {
-        modifier(ListRowCellModifier(state: state, placement: placement))
+    ///
+    /// With `hoverID` (the row's id) the cell tracks the pointer itself and draws its hover fill, so `state` needs no
+    /// `isHovered`: in the environment's `ListHover` when there is one (`listHover(_:)`), else in the cell's own state.
+    /// A hover step then re-evaluates the row it leaves and the row it enters, never the others.
+    public func listRowCell(
+        state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false), hoverID: AnyHashable? = nil
+    ) -> some View {
+        modifier(ListRowCellModifier(state: state, placement: placement, hoverID: hoverID))
     }
 }
 
@@ -456,13 +486,18 @@ private struct ListRowCellModifier: ViewModifier {
     @Environment(\.designTokens) private var tokens
     let state: RowState
     let placement: RowPlacement
+    let hoverID: AnyHashable?
 
     func body(content: Content) -> some View {
         let margin = tokens.spacing.listCellMargin
         content
             .listRowInsets(EdgeInsets(top: 0, leading: -margin, bottom: 0, trailing: -margin))
             .listRowSeparator(.hidden)
-            .listRowBackground(ListRowBackground(state: state, placement: placement))
+            .modifier(CellHover(id: hoverID) { [state, placement, hoverID] localHover in
+                var state = state
+                if localHover { state.isHovered = true }
+                return ListRowBackground(state: state, placement: placement, hoverID: hoverID)
+            })
     }
 }
 
