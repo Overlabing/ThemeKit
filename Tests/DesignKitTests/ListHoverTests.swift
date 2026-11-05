@@ -6,6 +6,7 @@ import ColorUI
 import Foundation
 import Observation
 import SwiftUI
+import Synchronization
 import Testing
 
 /// A hover step re-evaluates only the rows it touches (issue #38): the row it leaves and the row it enters, whatever the
@@ -25,16 +26,17 @@ struct ListHoverTests {
     struct KitList: View {
         let hover: ListHover
         let cell: Cell
+        var rows = ListHoverTests.rows
 
         var body: some View {
             switch cell {
             case .list:
-                List(0..<ListHoverTests.rows, id: \.self) { index in
+                List(0..<rows, id: \.self) { index in
                     ListRowContent("Row \(index)") { Tile(.initial("R")) }.listRowCell(hoverID: index)
                 }
                 .listHover(hover)
             case .sidebar:
-                List(0..<ListHoverTests.rows, id: \.self) { index in
+                List(0..<rows, id: \.self) { index in
                     Text("Row \(index)").sidebarRowCell(hoverID: index)
                 }
                 .listHover(hover)
@@ -126,6 +128,65 @@ struct ListHoverTests {
         #expect(hover.hoveredID == nil && !hover.isHovered("b"))
         hover.move(to: "c")
         #expect(hover.isHovered("c"), "a row asked about after it was hovered starts hovered")
+    }
+
+    /// Scrolled from top to bottom through 5,000 rows, the store keeps at most `ListHover.capacity` of them (issue #48),
+    /// where 0.2.8 kept every row ever drawn, and a hover step still re-evaluates the rows it touches alone.
+    @Test(arguments: [Cell.list, .sidebar])
+    func theStoreStaysBoundedOverALongScroll(_ cell: Cell) throws {
+        let hover = ListHover()
+        let host = Host(KitList(hover: hover, cell: cell, rows: 5_000))
+        defer { host.close() }
+        let scroll = try #require(host.window.contentView?.firstScrollView)
+        let table = try #require(scroll.documentView as? NSTableView)
+        var most = 0
+        while true {
+            let end = table.frame.height - scroll.contentView.bounds.height
+            let y = scroll.contentView.bounds.minY
+            guard y < end else { break }
+            scroll.contentView.scroll(to: CGPoint(x: 0, y: min(end, y + scroll.contentView.bounds.height / 2)))
+            scroll.reflectScrolledClipView(scroll.contentView)
+            host.window.contentView?.layoutSubtreeIfNeeded()
+            host.window.contentView?.displayIfNeeded()
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.002))
+            most = max(most, hover.storedRows)
+        }
+        host.settle()
+        let shown = table.rows(in: scroll.contentView.bounds)
+        print("STORE \(cell): at most \(most) rows stored over 5000, \(hover.storedRows) at the end, rows \(shown) shown")
+        #expect(shown.upperBound == 5_000, "the list is scrolled to its end")
+        #expect(most <= ListHover.capacity)
+        #expect(most >= ListHover.capacity / 2, "the scroll went through more rows than the store keeps")
+        let row = shown.location + shown.length / 2
+        let enter = evaluations(host) { hover.setHovered(row, true) }
+        let move = evaluations(host) { hover.setHovered(row, false); hover.setHovered(row + 1, true) }
+        print("STORE \(cell): enter \(enter), move \(move), stored \(hover.storedRows)")
+        #expect(enter == 1)
+        #expect(move == 2)
+    }
+
+    /// The store's two generations, without a list: 5,000 ids asked about in turn leave at most `capacity` stored; the
+    /// hovered row is kept however long ago it was asked about; a dropped row asked about again reads the hover as it
+    /// is; and a view still observing a dropped row is told, after the update that dropped it, so that it asks again.
+    @Test func theStoreKeepsTheHoveredRowAndTellsTheDroppedOnes() async throws {
+        let hover = ListHover()
+        #expect(!hover.isHovered(0))
+        hover.move(to: 0)
+        let told = Mutex(false)
+        withObservationTracking { _ = hover.isHovered(1) } onChange: { told.withLock { $0 = true } }
+        var most = 0
+        for id in 2..<5_002 {
+            _ = hover.isHovered(id)
+            most = max(most, hover.storedRows)
+        }
+        #expect(most <= ListHover.capacity)
+        #expect(hover.isHovered(0), "the hovered row is kept")
+        for _ in 0..<20 where !told.withLock({ $0 }) { try await Task.sleep(for: .milliseconds(5)) }
+        #expect(told.withLock { $0 }, "the view observing the dropped row 1 is told")
+        hover.move(to: 1)
+        #expect(hover.isHovered(1) && !hover.isHovered(0), "row 1, asked about again, reads the hover as it is")
+        hover.move(to: 3)
+        #expect(hover.isHovered(3), "a row dropped and hovered since starts hovered when it asks")
     }
 
     /// The hovered row draws the hover fill; another row draws none. Rendered unhovered first: an `ImageRenderer`
