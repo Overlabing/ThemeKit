@@ -197,7 +197,7 @@ immediate.
 | `FolderRow` + `LayerPanel` | a folder as a row with a count and a turning chevron; its children on a continuous panel, first level not indented |
 | `SectionHeader` | a section title, or a small uppercase group header |
 | `ColumnSeparator` | a hairline on the column margin, between groups that have no header |
-| `StatusLine` | the one-line state at the top of a column, with its chevron; `fillsWhenOpen` fills it while open (a hover shows the hover fill over it); `chevron:` turns the chevron apart from `isOpen`, `countPlacement: .trailing` puts the count at the end, `truncationMode:` cuts a long title (`.middle`); at least 38 pt tall, taller with larger text; its tile is a `TileContent` or any view |
+| `StatusLine` | the one-line state at the top of a column, with its chevron; `fillsWhenOpen` fills it while open (`hoverOverOpenFill` shows the hover fill over it); `chevron:` turns the chevron apart from `isOpen`, `chevronTransition:` sets how it changes, `countPlacement: .trailing` puts the count at the end, `truncationMode:` cuts a long title (`.middle`); at least 38 pt tall, taller with larger text; its tile is a `TileContent` or any view |
 | `FieldPill` | a glass capsule with a circle in the Theme's colour, a title (or a placeholder in the secondary ink) and an accessory |
 | `IconButton`, `IconButtonRow` | symbol buttons, or label-only (`IconButton("Done") {}`), in at least the minimum target, labelled for VoiceOver; dimmed to `Emphasis.disabled` when disabled; the kit's focus ring on keyboard focus |
 | `SegmentedPill` | a glass capsule of segments, one selected (fill, semibold, marker bar; an outline under Increase Contrast); targets of at least `minTarget`; disabled and focus states |

@@ -65,11 +65,12 @@ struct StatusLine028Sheet: View {
                                isOpen: false, truncationMode: .middle)
                 }
             }
-            Labelled("Open with the open fill, then hovered: the hover fill shows over it") {
+            Labelled("Open and hovered: the open fill kept (default), then hoverOverOpenFill") {
                 VStack(spacing: 0) {
-                    StatusLine(tile: .initial("A"), title: "All · Inbox", count: 12, isOpen: true, fillsWhenOpen: true)
                     StatusLine(tile: .initial("A"), title: "All · Inbox", count: 12, isOpen: true, fillsWhenOpen: true,
                                state: RowState(isHovered: true))
+                    StatusLine(tile: .initial("A"), title: "All · Inbox", count: 12, isOpen: true, fillsWhenOpen: true,
+                               state: RowState(isHovered: true), hoverOverOpenFill: true)
                 }
             }
             Labelled("Larger text: the line grows past its 38 pt") {
