@@ -340,3 +340,65 @@ public struct SpaceRailModel: Sendable, Equatable {
         String(localized: "\(count) Spaces", table: "DesignKit", bundle: .module)
     }
 }
+
+/// The keyboard focus inside a Space rail panel: the focused row, and whether its focus ring shows. macOS draws a focus
+/// ring for keyboard navigation only, so a panel opened with the pointer starts without one; the first arrow or Tab
+/// key shows it on the row the panel started on, the next ones move it. A panel opened from the keyboard shows it from
+/// the start.
+public struct SpaceRailPanelFocus: Sendable, Equatable {
+    /// A key the panel handles.
+    public enum Key: Sendable, Equatable {
+        case up, down, tab, activate, escape
+    }
+
+    /// What a key press did.
+    public enum Outcome: Sendable, Equatable {
+        /// The focus moved (or stayed at an end) with the ring showing.
+        case moved
+        /// The ring appeared on the focused row; the focus did not move.
+        case revealed
+        /// Return or Space picked the row with this id.
+        case pick(String)
+        /// Escape: close the panel.
+        case dismiss
+        /// Not handled: the system's own handling applies (Tab with the ring already showing).
+        case ignored
+    }
+
+    /// The focused row's id (a Space's or a command's).
+    public private(set) var row: String?
+    /// Whether the focus ring shows on `row`.
+    public private(set) var showsRing: Bool
+
+    public init(row: String?, showsRing: Bool) {
+        self.row = row
+        self.showsRing = showsRing
+    }
+
+    /// Handles `key` over the panel's rows `ids`, in order.
+    public mutating func press(_ key: Key, in ids: [String]) -> Outcome {
+        switch key {
+        case .escape:
+            return .dismiss
+        case .up, .down, .tab:
+            guard showsRing else {
+                showsRing = true
+                if row.map(ids.contains) != true { row = ids.first }
+                return .revealed
+            }
+            guard key != .tab else { return .ignored }
+            guard !ids.isEmpty else { return .ignored }
+            let index = row.flatMap { ids.firstIndex(of: $0) } ?? 0
+            row = ids[min(max(index + (key == .down ? 1 : -1), 0), ids.count - 1)]
+            return .moved
+        case .activate:
+            guard showsRing, let row, ids.contains(row) else { return .ignored }
+            return .pick(row)
+        }
+    }
+
+    /// Points the focus at `row` without changing whether the ring shows (the panel's first row, when it appears).
+    public mutating func start(at row: String?) {
+        self.row = row
+    }
+}

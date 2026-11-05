@@ -286,6 +286,10 @@ extension DesignTokens {
         public var initial = TextRole(.callout, .bold)
         public var glyphCircle = TextRole(.caption, .bold)
         public var glyphCircleSmall = TextRole(.caption2, .bold)
+        /// An emoji glyph (a Space's, in the rail and its panel) is drawn at `glyphCircle`'s size times this, so that
+        /// it fills its circle the way an initial does instead of sitting small in it. Capped by
+        /// `DesignTokens.glyphEmojiSize(textSize:)` so its artwork stays inside `Size.glyphCircle`.
+        public var glyphEmojiScale: CGFloat = 1.3
         public var switcherLabel = TextRole(.callout, .semibold)
         public var banner = TextRole(.callout)
         public var bannerTitle = TextRole(.callout, .semibold)
@@ -307,6 +311,19 @@ extension DesignTokens {
         public init() {}
 
         public func spec(isDark: Bool) -> GradientSpec { isDark ? dark : light }
+    }
+}
+
+extension DesignTokens {
+    /// The share of `Size.glyphCircle` an emoji glyph's size never exceeds: 0.55, 13.2 pt in the 24 pt circle. An
+    /// emoji's artwork spans about 1.25 times its size (Apple Color Emoji), so at this size the corners of a square one
+    /// (16.5 pt, half a diagonal of 11.7 pt) stay inside the circle's 12 pt radius.
+    public static let glyphEmojiMaxShare: CGFloat = 0.55
+
+    /// The point size of an emoji glyph when `glyphCircle`'s text style is `textSize` points: `textSize` times
+    /// `TypeScale.glyphEmojiScale`, at most `glyphEmojiMaxShare` of `Size.glyphCircle`. On macOS, 10 pt caption: 13 pt.
+    public func glyphEmojiSize(textSize: CGFloat) -> CGFloat {
+        min(textSize * type.glyphEmojiScale, size.glyphCircle * Self.glyphEmojiMaxShare)
     }
 }
 

@@ -132,7 +132,10 @@ the same share, so their order and the gradient's shape stay.
 Text styles on the system font, never point sizes: rows `.body` (selected semibold), detail lines `.caption`, group
 headers `.caption` semibold uppercase, section headers `.subheadline` semibold, counts `.caption`, pill titles `.body`
 semibold, initials `.callout` bold, switcher names `.callout` semibold, banners `.callout` (their title and a button's
-label `.callout` semibold), segments `.callout` (selected semibold), small glyphs `.caption2` bold.
+label `.callout` semibold), segments `.callout` (selected semibold), small glyphs `.caption2` bold. An emoji glyph (a
+Space's, in the rail and its panel) is the glyph circle's style times `glyphEmojiScale` (1.3: 13 pt on macOS), at most
+`DesignTokens.glyphEmojiMaxShare` (0.55) of `Size.glyphCircle`, so its artwork fills the circle the way an initial does
+and its corners stay inside it (`DesignTokens.glyphEmojiSize(textSize:)`).
 
 ### Motion (`MotionRole`)
 
@@ -249,7 +252,8 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   and a `railMarker` × `selectionMarker` bar in `ColorRoles.selectionMarker` `railMarkerGap` under it, so it is never
   shown by colour alone. Under Increase Contrast the circle is also outlined in `ColorRoles.outline`.
 - **Other Spaces of the active Profile**: quiet. The symbol or initial alone in `ColorRoles.secondaryText`; an emoji
-  keeps its colours. A hover fill disc on hover.
+  keeps its colours. A hover fill disc on hover. An emoji, quiet or selected, is drawn at its own size (`Type` above):
+  about 15 pt of artwork in the 24 pt circle, where the initial's capital is 7 pt.
 - **Folded Profiles**, after a `railDivider` hairline in `ColorRoles.railDivider`: one target per Profile, its first
   `railDotsMax` Spaces as `dot` dots in `ColorRoles.railDot(_:)` (each Space's own hue, mixed with ink to 3:1), then
   "+n". A click asks the app to switch Profile; the caption says "🏡 Personal · 3 Spaces · opens Home · ⌃⌥⌘→".
@@ -264,7 +268,10 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
 - **No Profiles**: `SpaceRail(spaces:…)`. The row is the Spaces alone: no divider, nothing folded, no panel headers.
 - **Keyboard**: the row is one focus stop. ← and → move the focus ring across its items (mirrored right to left),
   Return or Space activates. The `+` and the "+n" open their panel, itself one focus stop: ↑ and ↓ move, Return or Space
-  picks, Escape closes. The app keeps its own shortcuts (⌃1…9, say) working from anywhere.
+  picks, Escape closes. Opened from the keyboard (or by an assistive technology) the panel's focus ring starts on its
+  first row (the selected Space in "+n"); opened with a click it shows none until the first arrow or Tab key, which
+  shows it there without moving it, as macOS draws a focus ring for keyboard navigation only. Until then Return picks
+  nothing (`SpaceRailPanelFocus`; `SpaceRailPanel(showsFocusRing:)`). The app keeps its own shortcuts (⌃1…9, say) working from anywhere.
 - **VoiceOver**: the row is a named group. A Space reads "Space Research, 2 of 3", plus "selected" on the selected one;
   a folded Profile "Profile Personal, 3 Spaces", hint "opens Home"; the overflow "All Spaces, 2 more"; the `+` "Add".
   Dots, the divider, the marker and the caption are hidden.
