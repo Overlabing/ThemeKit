@@ -2,7 +2,9 @@
 
 ## 0.2.6
 
-The Space rail's emoji and its popovers' focus ring (issue #20), both seen when Safira adopted the rail.
+The Space rail's emoji and its popovers' focus ring (issue #20), both seen when Safira adopted the rail. Then the column
+surface deprecated, since Safira takes Oisillon's system sidebar as it is (issue #21), and `ThemeGlyph`'s emoji, for
+Oisillon's Spaces (issue #22).
 
 ### Changed
 
@@ -11,14 +13,47 @@ The Space rail's emoji and its popovers' focus ring (issue #20), both seen when 
   It is now that style's size times **`TypeScale.glyphEmojiScale` (1.3)**: 13 pt on macOS, about 15 pt of artwork in the
   24 pt circle where the initial's capital is 7 pt. **`DesignTokens.glyphEmojiSize(textSize:)`** caps it at
   **`DesignTokens.glyphEmojiMaxShare` (0.55)** of `Size.glyphCircle` (13.2 pt), where the corners of a square emoji
-  still fall inside the circle; on iOS (caption 12 pt, more under Dynamic Type) the cap applies. Initials, symbols and
-  `ThemeGlyph` are unchanged. Tested on an offscreen render, light and dark: nothing drawn outside the circles, the
-  emoji 14 to 16 pt tall against the initial's 7 to 8.
+  still fall inside the circle; on iOS (caption 12 pt, more under Dynamic Type) the cap applies. Initials and symbols
+  are unchanged. Tested on an offscreen render, light and dark: nothing drawn outside the circles, the
+  emoji 14 to 16 pt tall against the initial's 7 to 8. (`ThemeGlyph` gains its own emoji below.)
 - **No focus ring on a popover opened with the pointer**: clicking the rail's `+` or "+n" drew the kit's focus ring
   around the panel's first row. A panel opened with a click now shows none until the first arrow or Tab key, which
   shows it on that row without moving it; Return and Space pick nothing until then. Opened from the keyboard (Return or
   Space on the rail), or by an assistive technology, the ring starts on the first row as before (the selected Space in
   "+n"). Shift-Tab counts as Tab.
+- **The rail's panels take the placement around them** (issue #21): the "+n" and `+` panels forced
+  `surfacePlacement` `.column`, so their inks were solved on a column's fill while they sit in a popover. They now
+  inherit it like the rail, `.frame` by default, and nothing on the rail's path sets `.column`. What moved: the
+  secondary ink is a little more opaque in every Theme (alpha +0.01 to +0.03 in light, +0.10 to +0.14 in dark, +0.01 to
+  +0.04 and +0.09 to +0.11 under Increase Contrast), and in light the selection of four bright Themes is heavier
+  (orange-pink 0.375 to 0.478, teal-green 0.381 to 0.5, mint-cyan 0.391 to 0.5, brown-yellow 0.300 to 0.317). Nothing
+  got lighter. On the popover, bounded by the plain background and that background at half opacity over the gradient
+  (the material cannot be drawn without a window), the panels' text reaches 4.72:1 at worst in light (4.62 before),
+  5.86 in dark (4.81), 4.70 and 5.51 under Increase Contrast (4.61, 4.73); the focus ring and the marker 3.36:1. So
+  `.frame` holds there, and no placement of its own is needed.
+- **`DesignTokens.glyphEmojiSize(textSize:circle:)`**: the emoji size for any glyph circle, the same scale with the cap
+  a share of that circle. `glyphEmojiSize(textSize:)` is it for `Size.glyphCircle`. The rail and `ThemeGlyph` both
+  size their emoji through it, one helper for both.
+
+### Deprecated
+
+Neither app draws the kit's column surface: Safira and Oisillon both use a system `NavigationSplitView` sidebar, flush
+with the window's edge (issue #21). These still compile in 0.2.6, with a warning that points at the system sidebar, and
+are removed in 0.3:
+
+- **`ColumnSurface`**, **`.columnSurface(side:)`** and **`ColumnLayout`**, which is built on it.
+- **`SurfacePlacement.column`**, so **`ColorRoles(…, placement: .column)`**. `SurfacePlacement.allCases` is written
+  out (a deprecated case stops Swift from synthesizing it) and still lists both.
+- **`ColorRoles.columnEdge`**, **`columnEdgeRGBA`**, **`columnEdgeAlpha(…)`**, **`columnEdgeNeighbours(…)`** and
+  **`columnFillOpacity`**.
+- **`Spacing.columnInset`**, **`Spacing.columnTop`** and **`Radius.column`**.
+- **`DesignTokens.columnSurfaces(in:)`**.
+
+The kit builds with no deprecation warning of its own, so a client that uses none of them sees none.
+`ColorRoles.railDivider` keeps the column edge's ink (3.65:1 at least on the frame's gradient and the plain
+background), and the legibility audit keeps its column cases (798 legibility cases, the 168 rail cases and 140 + 140
+accent cases) until the column is removed. The docs and the README now show
+the column as a system sidebar: a plain `List` with `.scrollContentBackground(.hidden)`, the kit's views in `.frame`.
 
 ### Added
 
@@ -26,11 +61,18 @@ The Space rail's emoji and its popovers' focus ring (issue #20), both seen when 
   ↑, ↓, Tab, Return or Space and Escape do), testable without a window.
 - **`SpaceRailPanel(…, showsFocusRing:)`**: `false` for a panel opened with the pointer. The default, `true`, draws what
   0.2.5 drew, so a client that builds a panel itself is unchanged.
+- **`ThemeGlyph(name:symbol:emoji:theme:size:)`** (issue #22): a glyph can be an emoji, at both sizes. It wins over the
+  symbol and the initial, keeps its own colours (no ink, no tint) and is drawn at the rail's emoji size for its circle:
+  13 pt in the 24 pt circle, 8.8 pt (the cap) in the small 16 pt one. Measured on an offscreen render, light and dark:
+  📚 spans 13×14 pt in the standard circle, within a point of the rail's selected emoji, and 9×10 in the small one, the
+  same share of the circle; the initial is 7×8 in both (caption and caption2 are both 10 pt on macOS); nothing is drawn
+  outside either circle. The glyph stays hidden from VoiceOver: the item it stands for carries the Space's name, never
+  the emoji's description. `emoji: nil`, the default, draws what 0.2.5 drew.
 
 ### Unchanged
 
 - The 2344 legibility cases: the audit's output is the same, line for line, all at their threshold.
-- No source-breaking change.
+- No source-breaking change: the deprecations warn, nothing is removed.
 
 ## 0.2.5
 

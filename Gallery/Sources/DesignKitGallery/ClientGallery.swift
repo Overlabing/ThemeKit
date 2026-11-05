@@ -128,8 +128,10 @@ struct ClientControlsSheet: View {
                     HStack(spacing: DesignTokens.Spacing.s) {
                         ThemeGlyph(name: "Work", symbol: "briefcase")
                         ThemeGlyph(name: "Home")
+                        ThemeGlyph(name: "Books", emoji: "📚")
                         ThemeGlyph(name: "Work", symbol: "briefcase", size: .small)
                         ThemeGlyph(name: "Home", size: .small)
+                        ThemeGlyph(name: "Books", emoji: "📚", size: .small)
                     }
                     .padding(.horizontal, tokens.spacing.listMargin)
                 }

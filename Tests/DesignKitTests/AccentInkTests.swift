@@ -24,6 +24,7 @@ struct AccentLegibilityTests {
         return all
     }()
 
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     @Test func everyAccentCaseIsRecorded() {
         #expect(Self.computed.count == 280)
         #expect(Self.computed.values.filter { $0.placement == .column }.count == 140)
@@ -212,6 +213,7 @@ struct ThemeRelativeAccentLegibilityTests {
         return all
     }()
 
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     @Test func everyCaseIsRecordedAndAtThreshold() {
         #expect(Self.computed.count == 280)
         #expect(Self.computed.values.filter { $0.placement == .column }.count == 140)

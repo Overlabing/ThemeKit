@@ -25,7 +25,12 @@ extension DesignTokens {
     /// The same inside a list column (`ColumnSurface`): every surface sits on the column's own fill, the plain
     /// background at `Emphasis.column(isDark:)` over the gradient, or on the plain background alone (Reduce
     /// Transparency).
-    public func columnSurfaces(in appearance: Appearance) -> Surfaces {
+    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    public func columnSurfaces(in appearance: Appearance) -> Surfaces { columnFillSurfaces(in: appearance) }
+
+    /// `columnSurfaces(in:)`, for the kit's own use until it is removed: the legibility audit keeps its column cases
+    /// and the rail's divider keeps its ink.
+    func columnFillSurfaces(in appearance: Appearance) -> Surfaces {
         var described = surfaces(in: appearance)
         described.backdrop = emphasis.column(isDark: appearance.isDark)
         return described
@@ -33,19 +38,20 @@ extension DesignTokens {
 
     /// The surfaces of `placement`.
     public func surfaces(in appearance: Appearance, placement: SurfacePlacement) -> Surfaces {
-        switch placement {
-        case .frame: surfaces(in: appearance)
-        case .column: columnSurfaces(in: appearance)
-        }
+        placement == .frame ? surfaces(in: appearance) : columnFillSurfaces(in: appearance)
     }
 }
 
 /// Where a view of the kit sits, which decides the surfaces its colours are solved on.
 public enum SurfacePlacement: String, Sendable, CaseIterable, Hashable {
-    /// On the window's gradient.
+    /// On the window's gradient. A system `NavigationSplitView` sidebar, a popover and a sheet take this one too.
     case frame
     /// Inside a list column's own surface (`ColumnSurface`).
+    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
     case column
+
+    /// Written out: a deprecated case keeps Swift from synthesizing it. The legibility audit walks both until 0.3.
+    public static let allCases: [SurfacePlacement] = [.frame, .deprecatedColumn]
 }
 
 /// The colours a view of the kit may use for one Theme, tokens and appearance. Views ask for a role, never for a hue
@@ -62,9 +68,9 @@ public struct ColorRoles: Sendable {
     /// `tokens.accents` resolved against `theme`.
     private let accentHues: [Hue]
 
-    /// `placement` `.column` solves the inks, the selection fill, the marker and the focus ring on the column's own
-    /// fill instead of the gradient. The hue keeps the share the frame was solved at (`hueScale`), since the column's
-    /// fill lets the same gradient through.
+    /// `placement` `.column` (deprecated) solves the inks, the selection fill, the marker and the focus ring on the
+    /// column's own fill instead of the gradient. The hue keeps the share the frame was solved at (`hueScale`), since
+    /// the column's fill lets the same gradient through.
     public init(theme: Theme, tokens: DesignTokens, appearance: Appearance, placement: SurfacePlacement = .frame) {
         self.theme = theme
         self.tokens = tokens
@@ -74,14 +80,11 @@ public struct ColorRoles: Sendable {
         self.accentHues = accentHues
         let frame = Legibility.fitted(
             theme, accents: accentHues, surfaces: tokens.surfaces(in: appearance), in: appearance)
-        switch placement {
-        case .frame:
-            legibility = frame
-        case .column:
-            legibility = Legibility.of(
-                theme, accents: accentHues, surfaces: tokens.columnSurfaces(in: appearance),
+        legibility = placement == .frame
+            ? frame
+            : Legibility.of(
+                theme, accents: accentHues, surfaces: tokens.columnFillSurfaces(in: appearance),
                 hueScale: frame.hueScale, in: appearance)
-        }
         resolved = ResolvedColors(theme, accents: accentHues, in: appearance)
         focus = RGBA.keyboardFocus(in: appearance)
     }
@@ -173,23 +176,37 @@ public struct ColorRoles: Sendable {
     }
 
     /// The column's own fill: the plain background at this opacity over the gradient (1 under Reduce Transparency).
+    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
     public var columnFillOpacity: Double { emphasis.column(isDark: appearance.isDark) }
 
     /// The edge of the column's surface: the label's ink at the alpha that reaches 3:1 against the gradient around
     /// the column and against the column's own fill, at every height, with or without Reduce Transparency.
-    public var columnEdge: Color { Color(rgba: columnEdgeRGBA) }
-    public var columnEdgeRGBA: RGBA {
-        resolved.ink.opacity(ColorRoles.columnEdgeAlpha(
-            colors: resolved, frame: tokens.surfaces(in: appearance), column: tokens.columnSurfaces(in: appearance),
+    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    public var columnEdge: Color { Color(rgba: edgeRGBA) }
+    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    public var columnEdgeRGBA: RGBA { edgeRGBA }
+
+    /// `columnEdgeRGBA`, for the rail's divider until the column is removed.
+    private var edgeRGBA: RGBA {
+        resolved.ink.opacity(ColorRoles.edgeAlpha(
+            colors: resolved, frame: tokens.surfaces(in: appearance), column: tokens.columnFillSurfaces(in: appearance),
             hueScale: hueScale, minimum: emphasis.nonTextContrast))
     }
 
     /// The smallest alpha of the ink (to 1/1000) at which the edge, drawn over the column's fill, reaches `minimum`
     /// against the bare gradient beside it and against that fill; 1 when even the opaque ink falls short.
+    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
     public static func columnEdgeAlpha(
         colors: ResolvedColors, frame: Surfaces, column: Surfaces, hueScale: Double, minimum: Double
     ) -> Double {
-        let pairs = columnEdgeNeighbours(colors: colors, frame: frame, column: column, hueScale: hueScale)
+        edgeAlpha(colors: colors, frame: frame, column: column, hueScale: hueScale, minimum: minimum)
+    }
+
+    /// `columnEdgeAlpha`, for the kit's own use until it is removed (the audit, the rail's divider).
+    static func edgeAlpha(
+        colors: ResolvedColors, frame: Surfaces, column: Surfaces, hueScale: Double, minimum: Double
+    ) -> Double {
+        let pairs = edgeNeighbours(colors: colors, frame: frame, column: column, hueScale: hueScale)
         return Legibility.solveMinimum(from: 0, to: 1) { alpha in
             pairs.allSatisfy { fill, outside in
                 let edge = colors.ink.opacity(alpha).composited(over: fill)
@@ -201,7 +218,15 @@ public struct ColorRoles: Sendable {
     /// Each place along the column's edge: the column's fill there (the edge is drawn over it) and the bare gradient
     /// just outside, sampled top to bottom; then the plain background (Reduce Transparency) beside every gradient
     /// sample.
+    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
     public static func columnEdgeNeighbours(
+        colors: ResolvedColors, frame: Surfaces, column: Surfaces, hueScale: Double
+    ) -> [(fill: RGBA, outside: RGBA)] {
+        edgeNeighbours(colors: colors, frame: frame, column: column, hueScale: hueScale)
+    }
+
+    /// `columnEdgeNeighbours`, for the kit's own use until it is removed.
+    static func edgeNeighbours(
         colors: ResolvedColors, frame: Surfaces, column: Surfaces, hueScale: Double
     ) -> [(fill: RGBA, outside: RGBA)] {
         let spec = frame.scaled(by: hueScale).gradient
@@ -225,7 +250,7 @@ public struct ColorRoles: Sendable {
 
     /// The hairline between the Space rail's groups. It uses the column edge's ink, so it reaches 3:1 on the column's
     /// fill. The system separator stays near 1.3:1 there.
-    public var railDivider: Color { columnEdge }
+    public var railDivider: Color { Color(rgba: edgeRGBA) }
 
     /// A band of the Theme's colour (the active profile, say): the primary hue, opaque, and the text on it, white or
     /// black, at 4.5:1 at least.
@@ -266,7 +291,8 @@ extension Color {
 extension EnvironmentValues {
     /// The tokens every kit component reads.
     @Entry public var designTokens: DesignTokens = .standard
-    /// Where the views below sit: `ColumnSurface` sets `.column`, so their colours are solved on the column's fill.
+    /// Where the views below sit: `.frame`, which a system `NavigationSplitView` sidebar, a popover and a sheet take
+    /// too. `ColumnSurface` (deprecated) sets `.column`, so their colours are solved on the column's fill.
     @Entry public var surfacePlacement: SurfacePlacement = .frame
 }
 

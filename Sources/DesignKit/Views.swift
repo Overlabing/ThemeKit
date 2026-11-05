@@ -32,7 +32,8 @@ public enum ColumnSide: String, Sendable, CaseIterable {
 
 /// A list column beside a detail, on the window background. The column sits on its own surface (`ColumnSurface`),
 /// `Size.columnIdeal` wide; the detail sits in a content canvas, on the gradient. `.right` mirrors the layout without
-/// mirroring what is inside the column.
+/// mirroring what is inside the column. Deprecated with `ColumnSurface`, which it is built on.
+@available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
 public struct ColumnLayout<Column: View, Detail: View>: View {
     @Environment(\.designTokens) private var tokens
     private let side: ColumnSide
@@ -64,8 +65,11 @@ public struct ColumnLayout<Column: View, Detail: View>: View {
 /// than the frame in dark, lighter in light, a trace of the Theme left), and edged in `ColorRoles.columnEdge` (3:1
 /// against the gradient and the fill). Opaque under Reduce Transparency. The content starts `Spacing.columnTop` under
 /// the window's top edge and is clipped to the surface; the views in it solve their colours on the column's fill
-/// (`SurfacePlacement.column`). Drawn with the kit's pieces, never a system sidebar, whose labels dim in an inactive
-/// window. Give it its width through the content (or the split item hosting it).
+/// (`SurfacePlacement.column`). Give it its width through the content (or the split item hosting it). Deprecated in
+/// 0.2.6, removed in 0.3: neither client draws a column surface. The column is a system `NavigationSplitView` sidebar,
+/// flush with the window's edge, its list plain with `.scrollContentBackground(.hidden)`, the kit's views in it in
+/// `.frame`.
+@available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
 public struct ColumnSurface<Content: View>: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -106,6 +110,7 @@ public struct ColumnSurface<Content: View>: View {
 
 extension View {
     /// Sets the view on a list column's own surface (`ColumnSurface`), on `side` of the window.
+    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
     public func columnSurface(side: ColumnSide = .left) -> some View {
         ColumnSurface(side: side) { self }
     }
@@ -821,23 +826,39 @@ public enum GlyphSize: Sendable, CaseIterable {
         case .small: type.glyphCircleSmall
         }
     }
+
+    /// The point size of an emoji in this circle: its text style's size times `TypeScale.glyphEmojiScale`, capped by
+    /// `DesignTokens.glyphEmojiSize(textSize:circle:)`. The rail's glyphs and `ThemeGlyph` both draw an emoji at it.
+    func emojiSize(_ tokens: DesignTokens, _ dynamicTypeSize: DynamicTypeSize) -> CGFloat {
+        tokens.glyphEmojiSize(textSize: text(tokens.type).pointSize(dynamicTypeSize), circle: side(tokens.size))
+    }
 }
 
-/// The circle that stands for a Theme-coloured item (a space): the primary hue, opaque, with a symbol (white, or black
-/// where white stays under 3:1) or an initial (white, or black where white stays under 4.5:1), at `size`.
+/// The circle that stands for a Theme-coloured item (a space): the primary hue, opaque, with an emoji, a symbol (white,
+/// or black where white stays under 3:1) or an initial (white, or black where white stays under 4.5:1), at `size`. An
+/// emoji wins over a symbol, a symbol over the initial. The emoji keeps its own colours (no ink, no tint) and is drawn
+/// at the rail's emoji size for that circle (`TypeScale.glyphEmojiScale`, `DesignTokens.glyphEmojiSize(textSize:circle:)`),
+/// so that it fills the circle the way an initial does. The glyph is hidden from accessibility: the item it stands for
+/// carries the name, never the emoji's description.
 public struct ThemeGlyph: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.theme) private var environmentTheme
     @Environment(\.colorScheme) private var scheme
     @Environment(\.kitContrast) private var contrast
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let symbol: String?
+    private let emoji: String?
     private let name: String
     private let theme: Theme?
     private let size: GlyphSize
 
-    public init(name: String, symbol: String? = nil, theme: Theme? = nil, size: GlyphSize = .standard) {
+    /// `emoji` (a Space's, say) is drawn instead of `symbol` and the initial when it is not nil or empty.
+    public init(
+        name: String, symbol: String? = nil, emoji: String? = nil, theme: Theme? = nil, size: GlyphSize = .standard
+    ) {
         self.name = name
         self.symbol = symbol
+        self.emoji = emoji.flatMap { $0.isEmpty ? nil : $0 }
         self.theme = theme
         self.size = size
     }
@@ -846,15 +867,17 @@ public struct ThemeGlyph: View {
         let hue = (theme ?? environmentTheme ?? Palette.standard.themes[0]).primary
         let appearance = Appearance(isDark: scheme == .dark, isIncreasedContrast: contrast == .increased)
         let minimum = symbol == nil ? tokens.emphasis.textContrast : tokens.emphasis.nonTextContrast
+        let ink = ColorRoles.ink(on: hue, in: appearance, minimum: minimum)
         Group {
-            if let symbol {
-                Image(systemName: symbol)
+            if let emoji {
+                Text(emoji).font(.system(size: size.emojiSize(tokens, dynamicTypeSize)))
+            } else if let symbol {
+                Image(systemName: symbol).foregroundStyle(ink)
             } else {
-                Text(name.first.map { String($0).uppercased() } ?? "")
+                Text(name.first.map { String($0).uppercased() } ?? "").foregroundStyle(ink)
             }
         }
         .font(size.text(tokens.type).font)
-        .foregroundStyle(ColorRoles.ink(on: hue, in: appearance, minimum: minimum))
         .frame(width: size.side(tokens.size), height: size.side(tokens.size))
         .background(hue.color, in: .circle)
         .accessibilityHidden(true)

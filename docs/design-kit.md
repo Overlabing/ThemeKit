@@ -39,8 +39,8 @@ them.
 | `glassMerge` | 6 | merge distance of glass shapes in a `GlassEffectContainer` |
 | `bannerVertical`, `bannerHorizontal` | 6, 12 | banner insets |
 | `canvasInset` | 12 | a content canvas inside its column |
-| `columnInset` | 12 | a list column's surface from the window's edges (top, bottom, outer side); equal to `canvasInset`, so column and canvas line up |
-| `columnTop` | 24 | the window's top edge to the column's first row: `columnInset`, then `listMargin` inside the surface |
+| `columnInset` | 12 | **deprecated in 0.2.6, removed in 0.3**, with `ColumnSurface`: a list column's surface from the window's edges (top, bottom, outer side); equal to `canvasInset`, so column and canvas line up |
+| `columnTop` | 24 | **deprecated in 0.2.6, removed in 0.3**, with `ColumnSurface`: the window's top edge to the column's first row: `columnInset`, then `listMargin` inside the surface |
 | `pillActionGap` | 8 | between icon buttons, and between groups of buttons |
 | `pillFloat` | 12 | a floating pill to the edges of what it floats over |
 | `headerTracking` | 0.6 | letter spacing of small uppercase group headers |
@@ -71,7 +71,7 @@ them.
 | `layer` | 12 | a panel holding rows (`row + layerInset`, concentric) |
 | `banner` | 12 | a banner |
 | `canvas` | 12 | a content canvas |
-| `column` | 12 | a list column's surface (`row` + the 4 pt from its edge to a row's background, concentric) |
+| `column` | 12 | **deprecated in 0.2.6, removed in 0.3**, with `ColumnSurface`: a list column's surface (`row` + the 4 pt from its edge to a row's background, concentric) |
 
 ### Sizes (pt)
 
@@ -133,9 +133,10 @@ Text styles on the system font, never point sizes: rows `.body` (selected semibo
 headers `.caption` semibold uppercase, section headers `.subheadline` semibold, counts `.caption`, pill titles `.body`
 semibold, initials `.callout` bold, switcher names `.callout` semibold, banners `.callout` (their title and a button's
 label `.callout` semibold), segments `.callout` (selected semibold), small glyphs `.caption2` bold. An emoji glyph (a
-Space's, in the rail and its panel) is the glyph circle's style times `glyphEmojiScale` (1.3: 13 pt on macOS), at most
-`DesignTokens.glyphEmojiMaxShare` (0.55) of `Size.glyphCircle`, so its artwork fills the circle the way an initial does
-and its corners stay inside it (`DesignTokens.glyphEmojiSize(textSize:)`).
+Space's, in the rail and its panel, and `ThemeGlyph`'s) is its circle's style times `glyphEmojiScale` (1.3: 13 pt on
+macOS), at most `DesignTokens.glyphEmojiMaxShare` (0.55) of that circle, so its artwork fills the circle the way an
+initial does and its corners stay inside it (`DesignTokens.glyphEmojiSize(textSize:circle:)`: 13 pt in the 24 pt
+circle, 8.8 pt in `ThemeGlyph`'s small 16 pt one).
 
 ### Motion (`MotionRole`)
 
@@ -174,8 +175,8 @@ immediate.
 | View | What it is |
 |---|---|
 | `WindowBackground` | `.background`, then the Theme's vertical gradient, behind the whole window |
-| `ColumnLayout(side:)` | a list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
-| `ColumnSurface(side:)`, `.columnSurface(side:)` | a list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`). Kit pieces, never a system sidebar |
+| `ColumnLayout(side:)` | **deprecated in 0.2.6, removed in 0.3**: use a system sidebar (see "The column" below). A list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
+| `ColumnSurface(side:)`, `.columnSurface(side:)` | **deprecated in 0.2.6, removed in 0.3**: use a system sidebar (see "The column" below). A list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`, deprecated with it) |
 | `ContentCanvas` | content inset 12 pt, rounded 12 pt, 1 pt separator line |
 | `Tile` | a rounded square: a symbol on a colour (white, or black where white stays under 3:1), a tinted symbol, or an initial on the tile fill; four sizes |
 | `ListRow` | tile, title and detail lines, trailing accessory; hover, current, selection fills; the selection's marker bar (outside Increase Contrast); focus ring; `RowPlacement` free or inside a panel |
@@ -189,12 +190,23 @@ immediate.
 | `IconButton`, `IconButtonRow` | symbol buttons, or label-only (`IconButton("Done") {}`), in at least the minimum target, labelled for VoiceOver; dimmed to `Emphasis.disabled` when disabled; the kit's focus ring on keyboard focus |
 | `SegmentedPill` | a glass capsule of segments, one selected (fill, semibold, marker bar; an outline under Increase Contrast); targets of at least `minTarget`; disabled and focus states |
 | `SpaceRail`, `SpaceRailPanel` | the Space selector at the bottom of a column (see "Space rail" below) |
-| `ThemeGlyph` | a themed item's glyph: its flat hue with a white or black symbol or initial; `size: .standard` (24 pt) or `.small` (16 pt) |
+| `ThemeGlyph` | a themed item's glyph: its flat hue with an emoji (`emoji:`, in its own colours, at the rail's emoji size for the circle), or a white or black symbol or initial; `size: .standard` (24 pt) or `.small` (16 pt). Hidden from VoiceOver: the item carries the name, never the emoji's description |
 | `GlassSwitcher` | **deprecated in 0.2.4, removed in 0.3**: use `SpaceRail`. The glass bar of themed items at the bottom of a column; an item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`) |
 | `Banner` | a discreet message on glass: a symbol, an optional title, the message, and the client's actions or the kit's (`action:` and `onClose:`) |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label |
 | `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control |
 | `.surface(_:in:)` | glass or a layer fill, with the accessibility fallbacks below |
+
+## The column
+
+The list column is a system sidebar, flush with the window's edge, as both clients draw it: a `NavigationSplitView`
+sidebar whose `List` is plain (`.listStyle(.plain)`) with `.scrollContentBackground(.hidden)`, its rows as List cells
+(below), the Space rail at its bottom. The kit's views in it stay in `.frame`, the default `surfacePlacement`, so their
+inks are the frame's; so do the Space rail's popovers, which inherit it. `ColumnSurface` and `ColumnLayout`, the kit's
+own inset column surface with its fill and edge, have no client: they, `SurfacePlacement.column`,
+`ColorRoles(…placement: .column)`, `columnEdge*`, `columnFillOpacity`, `Spacing.columnInset` and `columnTop`,
+`Radius.column` and `DesignTokens.columnSurfaces(in:)` are deprecated in 0.2.6 and removed in 0.3. The legibility audit
+keeps its column cases until then.
 
 ## Rows as List cells
 
@@ -278,7 +290,11 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
 - **Motion**: changing Space slides the marker and recolours the glyph (`themeChange`; immediate under Reduce Motion).
   Changing Profile folds the old group's glyphs while the new group's open, one after the other (`profileSwap`, stagger
   0.04; the shared fade under Reduce Motion). The caption fades in (`overlayFade`).
-- **Reduce Transparency**: the rail draws no glass; it sits on the column's surface, which turns opaque.
+- **Reduce Transparency**: the rail draws no glass; it sits on what is behind it, the sidebar.
+- **Placement**: the rail and its panels take the `surfacePlacement` around them, `.frame` by default. Before 0.2.6 the
+  panels forced `.column`, so their inks were solved for a column fill they are not on. On the popover (bounded by the
+  plain background and that background at half opacity over the gradient) their text reaches 4.70:1 at worst, their
+  focus ring and marker 3.36:1.
 - **Previews and renders**: `.spaceRailPreviewState(SpaceRailPreviewState(hovered:focused:))` forces a hover and a
   focus (`ImageRenderer` has neither); `SpaceRailPanel(model:commands:…)` draws the panel outside its popover.
 
@@ -287,7 +303,7 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
 - **Reduce Transparency**: every glass surface becomes an opaque `.background` fill with a 1 pt `.separator` line; the
   (deprecated) glass switcher's selected item becomes a solid tinted capsule; a list column's surface becomes the opaque `.background` (its
   edge stays).
-- **Column surface**: inside a `ColumnSurface` every text, the selection fill, the marker, the focus ring and the
+- **Column surface** (deprecated in 0.2.6): inside a `ColumnSurface` every text, the selection fill, the marker, the focus ring and the
   tinted text are solved on the column's fill (the plain background over the gradient, or alone under Reduce
   Transparency) instead of the bare gradient (`ColorRoles(placement: .column)`, set by the surface through
   `surfacePlacement`). The hue keeps the frame's `hueScale`, so the gradient under the column and the fills in it are
@@ -328,9 +344,8 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   counted) and the divider at 3:1; `accentCases` lists the 280 accent text cases of 0.2.4 (2064 cases in all), and 0.2.5 adds 280 with the Theme's own hues
   first, `[.primary, .secondary, .hue(.mint), .hue(.yellow)]` (2344). Glass is measured as anything between the window background (its Reduce Transparency fill) and
   what is under it; the switcher's capsule over the bottom of the column (`switcherTop`).
-- **Inactive window**: the kit's inks are explicit and read no window state, so a column keeps its contrast when the
-  window resigns key. Draw it with `ColumnSurface` in a plain split item: a system sidebar (`NSSplitViewItem(sidebarWithViewController:)`,
-  a source list) dims its own labels in an inactive window.
+- **Inactive window**: the kit's inks are explicit and read no window state, so the kit's text keeps its contrast when
+  the window resigns key, in a system sidebar too. The system's own sidebar labels dim there, as in every Mac app.
 - **Disabled controls** carry no contrast requirement (WCAG 1.4.3, 1.4.11); the kit draws no disabled text. A disabled
   plain button (`PressedOpacityStyle`, so `IconButton`) draws its label at `Emphasis.disabled` so that it looks disabled.
 

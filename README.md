@@ -74,8 +74,10 @@ fills at their opacity times that share.
 ## Design kit
 
 `DesignKit` turns a Theme into a window: one set of tokens (`DesignTokens.standard`), named motions (`MotionRole`),
-colours from the legibility solver (`ColorRoles`), and the small views a themed list column is made of. `ColumnLayout`
-sets the column on its own surface (`ColumnSurface`), beside the detail on the Theme's gradient.
+colours from the legibility solver (`ColorRoles`), and the small views a themed list column is made of. The column is
+a system sidebar: a `NavigationSplitView` sidebar, flush with the window's edge, its `List` plain with
+`.scrollContentBackground(.hidden)`, and the kit's views in it in `.frame` (the default `surfacePlacement`, so nothing
+to set). `ColumnLayout` and `ColumnSurface`, the kit's own column surface, are deprecated in 0.2.6 and removed in 0.3.
 
 ```swift
 import ColorCore
@@ -86,16 +88,23 @@ struct Root: View {
     let theme = Palette.standard.themes[0]
 
     var body: some View {
-        ColumnLayout(side: .left) {
-            VStack(spacing: 0) {
+        NavigationSplitView {
+            List {
+                ListRowContent("Selected", state: RowState(isSelected: true)) { Tile(.initial("S")) }
+                    .listRowCell(state: RowState(isSelected: true))   // see "Rows as List cells"
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .safeAreaInset(edge: .top) {
                 StatusLine(tile: .tintedSymbol("tray.full"), title: "All · Inbox", count: 4, isOpen: false)
-                ListRow("Selected", state: RowState(isSelected: true)) { Tile(.initial("S")) }
-                Spacer()
+            }
+            .safeAreaInset(edge: .bottom) {
                 SpaceRail(spaces: spaces, selection: current) { current = $0 }  // spaces carry their shortcut
             }
         } detail: {
             DetailView()
         }
+        .background { WindowBackground() }
         .designTokens(.standard)   // the default; set it to inject an adjusted copy
         .theme(theme)
     }

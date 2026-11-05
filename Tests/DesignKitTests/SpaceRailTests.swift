@@ -293,6 +293,7 @@ struct SpaceRailLegibilityTests {
 
 struct SpaceRailLegibilityInvariantTests {
     @Test(arguments: Palette.standard.themes)
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func everyRailMarkReachesItsThreshold(_ theme: Theme) {
         for appearance in Appearance.allCases {
             let cases = DesignTokens.standard.railCases(for: theme, in: appearance)
@@ -317,6 +318,7 @@ struct SpaceRailLegibilityInvariantTests {
 
     /// A dot in any system hue reaches 3:1 on every surface solved in the column, whatever the column's Theme.
     @Test(arguments: Palette.standard.themes)
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func aDotOfAnyHueReachesThreeToOne(_ theme: Theme) {
         for appearance in Appearance.allCases {
             let roles = ColorRoles(theme: theme, tokens: .standard, appearance: appearance, placement: .column)
@@ -336,6 +338,7 @@ struct SpaceRailLegibilityInvariantTests {
 struct SpaceRailRenderTests {
     static let yellow = Theme(id: "yellow-orange", primary: .yellow, secondary: .orange)
 
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func pixels(_ theme: Theme, _ scheme: ColorScheme) throws -> (width: Int, height: Int, data: [UInt8]) {
         let profiles = [
             RailSample.work(3),
@@ -371,6 +374,7 @@ struct SpaceRailRenderTests {
     /// the row's top, the marker 28…31 under it. Three Spaces (84) and the divider (9) put Yellow's one-dot target at
     /// 103…131, its dot at 113…121.
     @Test(arguments: [Palette.standard.themes[0], Palette.standard.themes[2], Palette.standard.themes[5]], [ColorScheme.light, .dark])
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func theMarkerAndTheDotsReachThreeToOne(_ theme: Theme, _ scheme: ColorScheme) throws {
         let (width, height, data) = try pixels(theme, scheme)
         func color(_ x: Int, _ y: Int) -> RGBA {
