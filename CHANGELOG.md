@@ -32,6 +32,45 @@ The Space rail's emoji and its popovers' focus ring (issue #20), both seen when 
 - The 2344 legibility cases: the audit's output is the same, line for line, all at their threshold.
 - No source-breaking change.
 
+### Sidebar
+
+The system sidebar, dressed by the kit (issue #24). Two apps put a sidebar beside a detail: a system
+`NavigationSplitView` flush with the window's edges, the Theme's gradient behind it, the `SpaceRail` at the column's
+bottom. The kit now holds that sidebar, so both apps draw it from one place. It reproduces the sidebar of the first app
+to ship one, pixel for pixel, with one change at the bottom bar (below).
+
+#### Added
+
+- **`SidebarSplitView`**: a `NavigationSplitView` on `WindowBackground`, with `sidebarWindowChrome()`.
+- **`.sidebarColumn(field:header:bottomBar:)`** (and `sidebarColumn(bottomBar:)`, `sidebarColumn(header:bottomBar:)`):
+  the column widths (`columnMin`, `columnIdeal`, `columnMax`), a plain list with no content background and no section
+  separators, no AppKit selection platter, an optional head field where the system's sidebar search sits, an optional
+  header, and the bottom bar in a `safeAreaBar`.
+- **`.sidebarRowCell(state:placement:)`**: a sidebar `List` cell. Its background sits where `listRowCell`'s does; its
+  content keeps the `List`'s own margin, 20 pt from the column's edge.
+- **`SidebarDetail`**: the detail's card, inset 12 pt from the window's top edge and the column's edges, with an optional
+  floating bottom bar.
+- **`.sidebarWindowChrome()`**: the toolbar lets the gradient through, shows no title, and slides away in full screen
+  until the pointer reaches the top.
+- **`NSSplitViewItem.sidebar(hosting:)`** and **`NSSplitViewItem.sidebarToolbarItems`**: the same sidebar in an AppKit
+  window, as the system's sidebar split item.
+- **Tokens**: `Spacing.barFade` (16), `Spacing.sidebarFieldSide`, `sidebarFieldTop`, `sidebarFieldBottom` (10, 9, 8) and
+  `Size.sidebarField` (29).
+
+#### Fixed, compared with the app it comes from
+
+- **No row under the bottom bar.** The list scrolled under the bar down to the window's edge, so a row's text showed
+  between the bar's controls and the edge. The list now fades out over the bar's first `barFade` points and shows
+  nothing below.
+
+#### Proof
+
+Captured in the background beside the source app's sidebar, in light, dark, and Increase Contrast light and dark (an
+inactive window each time): the column's edge, the search field, the sidebar button, the header, the list's top, the
+selected row's background, marker and content, the detail's card and its floating bar land on the same pixels; the
+sidebar's fill, the gradient and the selection fill match within 1 of 255. `SidebarTests` holds the geometry: the cell's
+margins, the fade under the bar, the platter turned off, the AppKit item's widths, the card's inset.
+
 ## 0.2.5
 
 Theme-relative accent order (issue #17). `DesignTokens.accents` can name the Theme's own hues, so a client can say "the

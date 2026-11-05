@@ -83,6 +83,13 @@ extension DesignTokens {
         public var switcherItemGap: CGFloat = xxs
         public var switcherPadding: CGFloat = xs
         public var switcherBottom: CGFloat = s
+        /// A sidebar's own head field (`sidebarColumn(field:…)`): from the column's sides, above it, and under it to the
+        /// header, so it sits where the system's sidebar search field sits.
+        public var sidebarFieldSide: CGFloat = 10
+        public var sidebarFieldTop: CGFloat = 9
+        public var sidebarFieldBottom: CGFloat = s
+        /// A sidebar's bottom bar: the list fades out over the bar's first points, gone before the window's edge.
+        public var barFade: CGFloat = l
         /// From the status line (or the controls in its place) to the list.
         public var statusLineToList: CGFloat = 10
         /// Gap between a focus ring and the shape it surrounds.
@@ -242,6 +249,8 @@ extension DesignTokens {
         public var glyphCircleSmall: CGFloat = 16
         public var switcherItemWidth: CGFloat = 52
         public var switcherItemHeight: CGFloat = 40
+        /// A sidebar's head field: the height of the system's sidebar search field, the least the slot gives the field.
+        public var sidebarField: CGFloat = 29
         /// A list column: minimum, ideal and maximum widths.
         public var columnMin: CGFloat = 300
         public var columnIdeal: CGFloat = 360
