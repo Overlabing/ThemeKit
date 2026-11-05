@@ -85,7 +85,9 @@ public struct SpaceRail: View {
     }
 
     /// The panel `spaceRailPreviewState` opens, drawn in place above the rail rather than in a popover: a popover draws
-    /// neither in an offscreen render nor in a capture of the window alone.
+    /// neither in an offscreen render nor in a capture of the window alone. It is as wide as the popover's panel
+    /// (`Size.columnMin`) where the column leaves it that and the margin on both sides, narrower otherwise, so that it
+    /// stays inside the column (issue #50).
     @ViewBuilder
     private var previewPanel: some View {
         if let panel = preview?.panel {
@@ -95,8 +97,8 @@ public struct SpaceRail: View {
                 .drawnWithoutScrolling()
                 .environment(\.spaceRailContextMenus, menus)
                 .surface(.glass(tint: 0), in: RoundedRectangle(cornerRadius: tokens.radius.banner, style: .continuous))
-                .fixedSize()
-                .padding(.trailing, tokens.spacing.listMargin)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, tokens.spacing.listMargin)
                 .padding(.bottom, tokens.spacing.railCaption)
         }
     }
@@ -468,7 +470,8 @@ public struct SpaceRailPanel: View {
                 }
             }
         } else {
-            content.frame(width: tokens.size.columnMin)
+            // As wide as in the popover, or narrower in a narrower column (the rail's preview state).
+            content.frame(maxWidth: tokens.size.columnMin)
         }
     }
 

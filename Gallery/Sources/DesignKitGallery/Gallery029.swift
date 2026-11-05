@@ -40,10 +40,39 @@ struct SideBySide029Sheet: View {
     }
 }
 
+/// The rail's panels opened by its preview state in 300 pt columns (issue #50), then in a 360 pt one: inside the column,
+/// the margin clear on both sides. Each column's edges are outlined.
+struct RailPanels029Sheet: View {
+    var body: some View {
+        HStack(spacing: DesignTokens.Spacing.l) {
+            column(SpaceRailPreviewState(panel: .spaces), width: 300)
+            column(SpaceRailPreviewState(panel: .commands, panelFocus: "profile"), width: 300)
+            column(SpaceRailPreviewState(panel: .spaces), width: 360)
+        }
+        .padding(DesignTokens.Spacing.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background { WindowBackground() }
+    }
+
+    private func column(_ state: SpaceRailPreviewState, width: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Text(verbatim: "\(Int(width)) pt").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                .padding(.top, DesignTokens.Spacing.s)
+            Spacer(minLength: 0)
+            SpaceRail(profiles: RailPanels028Sheet.profiles, selection: "w2", commands: RailPanels028Sheet.commands,
+                      selectSpace: { _ in }, selectProfile: { _ in })
+                .spaceRailPreviewState(state)
+        }
+        .frame(width: width)
+        .overlay { Rectangle().strokeBorder(.secondary.opacity(0.5), lineWidth: 1) }
+    }
+}
+
 @MainActor
 func run029(output: URL) {
     let sheets: [(name: String, size: CGSize, view: AnyView)] = [
         ("side-by-side-rows", CGSize(width: 360, height: 330), AnyView(SideBySide029Sheet())),
+        ("rail-panels-narrow", CGSize(width: 1040, height: 800), AnyView(RailPanels029Sheet())),
     ]
     do {
         for theme in [Palette.standard.themes[0], Palette.standard.themes[1]] {
