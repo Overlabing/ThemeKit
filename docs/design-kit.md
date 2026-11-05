@@ -192,6 +192,7 @@ immediate.
 | `Tile` | a rounded square: a symbol on a colour (white, or black where white stays under 3:1), a tinted symbol, or an initial on the tile fill; four sizes |
 | `ListRow` | tile, title and detail lines, trailing accessory; hover, current, selection fills; the selection's marker bar (outside Increase Contrast); focus ring; `RowPlacement` free or inside a panel |
 | `ListRowBackground`, `ListRowContent`, `.listRowCell(state:)` | a `ListRow` as a `List` cell: the background for `listRowBackground`, the content without it, and the modifier that sets both with the cell's insets (see "Rows as List cells") |
+| `ListHover`, `.listHover(_:)`, `.listHoverTracking(id:)` | the hovered row, observed row by row: a cell given its `hoverID` (`listRowCell`, `sidebarRowCell`, `ListRowBackground`) tracks and draws its own hover, and a hover step re-evaluates only the two rows it touches; `sidebarColumn` sets one |
 | `.tileFill(_:)`, `.badgeFill()` | the kit's tile and badge fills behind a client view, which is set in the tinted ink (4.5:1 on them) |
 | `FolderRow` + `LayerPanel` | a folder as a row with a count and a turning chevron; its children on a continuous panel, first level not indented |
 | `SectionHeader` | a section title, or a small uppercase group header |

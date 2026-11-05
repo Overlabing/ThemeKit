@@ -1,6 +1,7 @@
 import ColorCore
 import ColorPlatform
 import SwiftUI
+import Synchronization
 
 extension DesignTokens {
     /// Where the kit draws text, described for the legibility solver: the frame's gradient, the panel that groups an
@@ -57,16 +58,18 @@ public enum SurfacePlacement: String, Sendable, CaseIterable, Hashable {
 /// The colours a view of the kit may use for one Theme, tokens and appearance. Views ask for a role, never for a hue
 /// and an opacity of their own. Text colours come from the legibility solver, so they reach 4.5:1 on every surface
 /// the kit draws text on; glyphs, the focus ring and outlines reach 3:1.
+///
+/// Building one is cheap: what it solves (the legibility, the system colours, the inks mixed from them) is solved once
+/// per Theme, colour tokens (`emphasis`, `gradient`, `accents`), appearance and placement, then shared by every
+/// `ColorRoles` of that key, from any thread. A row's body builds its roles on every evaluation (`WithColorRoles`), and
+/// a hover re-evaluates every visible row.
 public struct ColorRoles: Sendable {
     public let theme: Theme
     public let tokens: DesignTokens
     public let appearance: Appearance
     public let placement: SurfacePlacement
-    public let legibility: Legibility
-    private let resolved: ResolvedColors
-    private let focus: RGBA
-    /// `tokens.accents` resolved against `theme`.
-    private let accentHues: [Hue]
+    /// What the roles hand out, shared by every `ColorRoles` of the same key (`Solved.cached`).
+    let solved: Solved
 
     /// `placement` `.column` (deprecated) solves the inks, the selection fill, the marker and the focus ring on the
     /// column's own fill instead of the gradient. The hue keeps the share the frame was solved at (`hueScale`), since
@@ -76,18 +79,15 @@ public struct ColorRoles: Sendable {
         self.tokens = tokens
         self.appearance = appearance
         self.placement = placement
-        let accentHues = tokens.accentHues(in: theme)
-        self.accentHues = accentHues
-        let frame = Legibility.fitted(
-            theme, accents: accentHues, surfaces: tokens.surfaces(in: appearance), in: appearance)
-        legibility = placement == .frame
-            ? frame
-            : Legibility.of(
-                theme, accents: accentHues, surfaces: tokens.columnFillSurfaces(in: appearance),
-                hueScale: frame.hueScale, in: appearance)
-        resolved = ResolvedColors(theme, accents: accentHues, in: appearance)
-        focus = RGBA.keyboardFocus(in: appearance)
+        solved = Solved.cached(
+            Solved.Key(theme: theme, tokens: tokens, appearance: appearance, placement: placement), tokens: tokens)
     }
+
+    /// The solved legibility: the opacities and the mixes every text and mark is drawn at.
+    public var legibility: Legibility { solved.values.legibility }
+    private var resolved: ResolvedColors { solved.values.resolved }
+    /// `tokens.accents` resolved against `theme`.
+    private var accentHues: [Hue] { solved.values.accentHues }
 
     private var increased: Bool { appearance.isIncreasedContrast }
     private var emphasis: DesignTokens.Emphasis { tokens.emphasis }
@@ -127,13 +127,11 @@ public struct ColorRoles: Sendable {
     /// Secondary text on the frame and on rows: the label colour at the solved alpha, instead of the system's
     /// secondary label, which falls under 4.5:1 on a tinted frame.
     public var secondaryText: Color { Color(rgba: resolved.label, alpha: legibility.secondaryAlpha) }
-    public var secondaryTextRGBA: RGBA {
-        RGBA(red: resolved.label.red, green: resolved.label.green, blue: resolved.label.blue, alpha: legibility.secondaryAlpha)
-    }
+    public var secondaryTextRGBA: RGBA { solved.values.secondaryText }
 
     /// Text and glyphs drawn in the Theme's colour: the primary hue mixed with ink by the solved share.
     public var tintText: Color { Color(rgba: tintTextRGBA) }
-    public var tintTextRGBA: RGBA { resolved.primary.mixed(with: resolved.ink, by: legibility.tintMix) }
+    public var tintTextRGBA: RGBA { solved.values.tintText }
 
     /// The hue `DesignTokens.accents` gives index `index`, resolved against the Theme (`.primary` is its primary hue);
     /// an index past the end wraps, a negative one counts from the end. Draw a dot or a tile in it; draw text in
@@ -148,10 +146,9 @@ public struct ColorRoles: Sendable {
     /// raw hue falls as low as 1.0:1 on them (the worst accent).
     public func accentInk(at index: Int) -> Color { Color(rgba: accentInkRGBA(at: index)) }
     public func accentInkRGBA(at index: Int) -> RGBA {
-        let hues = accentHues
-        guard !hues.isEmpty else { return tintTextRGBA }
-        let slot = ((index % hues.count) + hues.count) % hues.count
-        return resolved.accents[slot].mixed(with: resolved.ink, by: legibility.accentMix[slot])
+        let inks = solved.values.accentInks
+        guard !inks.isEmpty else { return tintTextRGBA }
+        return inks[((index % inks.count) + inks.count) % inks.count]
     }
 
     /// The outline of a selected or current row under Increase Contrast: the secondary ink, 4.5:1 on the row's fill
@@ -162,18 +159,12 @@ public struct ColorRoles: Sendable {
     /// ink until it reaches 3:1 on every surface a row sits on, the selection's fill included. The fill alone differs
     /// from the gradient by about 1.3:1. Increase Contrast draws `outline` instead.
     public var selectionMarker: Color { Color(rgba: selectionMarkerRGBA) }
-    public var selectionMarkerRGBA: RGBA {
-        resolved.primary.mixed(
-            with: resolved.ink,
-            by: legibility.mix(of: resolved.primary, toward: resolved.ink, reaching: emphasis.nonTextContrast))
-    }
+    public var selectionMarkerRGBA: RGBA { solved.values.selectionMarker }
 
     /// The keyboard focus ring: the system's focus colour made opaque and mixed with ink until it reaches 3:1 on every
     /// surface a row sits on (drawn translucent, it falls to 1.5:1 on a bright frame).
     public var focusRing: Color { Color(rgba: focusRingRGBA) }
-    public var focusRingRGBA: RGBA {
-        legibility.focusRing(focus, ink: resolved.ink, minimum: emphasis.nonTextContrast)
-    }
+    public var focusRingRGBA: RGBA { solved.values.focusRing }
 
     /// The column's own fill: the plain background at this opacity over the gradient (1 under Reduce Transparency).
     @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
@@ -187,11 +178,7 @@ public struct ColorRoles: Sendable {
     public var columnEdgeRGBA: RGBA { edgeRGBA }
 
     /// `columnEdgeRGBA`, for the rail's divider until the column is removed.
-    private var edgeRGBA: RGBA {
-        resolved.ink.opacity(ColorRoles.edgeAlpha(
-            colors: resolved, frame: tokens.surfaces(in: appearance), column: tokens.columnFillSurfaces(in: appearance),
-            hueScale: hueScale, minimum: emphasis.nonTextContrast))
-    }
+    private var edgeRGBA: RGBA { solved.values.edge }
 
     /// The smallest alpha of the ink (to 1/1000) at which the edge, drawn over the column's fill, reaches `minimum`
     /// against the bare gradient beside it and against that fill; 1 when even the opaque ink falls short.
@@ -242,10 +229,8 @@ public struct ColorRoles: Sendable {
     /// short: yellow on a light column is about 1.5:1.
     public func railDot(_ hue: Hue) -> Color { Color(rgba: railDotRGBA(hue)) }
     public func railDotRGBA(_ hue: Hue) -> RGBA {
-        let raw = RGBA(hue.systemColor, in: appearance)
-        let opaque = RGBA(red: raw.red, green: raw.green, blue: raw.blue)
-        return opaque.mixed(with: resolved.ink, by: legibility.mix(
-            of: opaque, toward: resolved.ink, reaching: emphasis.nonTextContrast))
+        solved.values.railDots[hue] ?? Solved.railDot(hue, in: appearance, legibility: legibility, ink: resolved.ink,
+                                                      minimum: emphasis.nonTextContrast)
     }
 
     /// The hairline between the Space rail's groups. It uses the column edge's ink, so it reaches 3:1 on the column's
@@ -255,14 +240,18 @@ public struct ColorRoles: Sendable {
     /// A band of the Theme's colour (the active profile, say): the primary hue, opaque, and the text on it, white or
     /// black, at 4.5:1 at least.
     public var bandFill: Color { Color(rgba: resolved.primary, alpha: 1) }
-    public var bandText: Color { Self.ink(on: theme.primary, in: appearance, minimum: emphasis.textContrast) }
+    public var bandText: Color { solved.values.bandTextIsWhite ? .white : .black }
 
     /// A symbol on the opaque primary hue (a field pill's circle): white, or black where white stays under 3:1.
-    public var primaryGlyph: Color { Self.ink(on: theme.primary, in: appearance, minimum: emphasis.nonTextContrast) }
+    public var primaryGlyph: Color { solved.values.primaryGlyphIsWhite ? .white : .black }
 
     /// White, or black where white stays under `minimum` on `hue` drawn opaque in `appearance`.
     public static func ink(on hue: Hue, in appearance: Appearance, minimum: Double) -> Color {
-        Contrast.ink(on: RGBA(hue.systemColor, in: appearance), minimum: minimum) == .white ? .white : .black
+        inkIsWhite(on: hue, in: appearance, minimum: minimum) ? .white : .black
+    }
+
+    static func inkIsWhite(on hue: Hue, in appearance: Appearance, minimum: Double) -> Bool {
+        Contrast.ink(on: RGBA(hue.systemColor, in: appearance), minimum: minimum) == .white
     }
 
     /// The same for any colour, resolved in `environment` (a tile's own colour).
@@ -271,6 +260,113 @@ public struct ColorRoles: Sendable {
         func clipped(_ channel: Float) -> Double { min(1, max(0, Double(channel))) }
         let rgba = RGBA(red: clipped(resolved.red), green: clipped(resolved.green), blue: clipped(resolved.blue))
         return Contrast.ink(on: rgba, minimum: minimum) == .white ? .white : .black
+    }
+}
+
+extension ColorRoles {
+    /// Everything `ColorRoles` solves for one key, solved once and shared: the legibility, the resolved system colours
+    /// and every ink mixed from them. Immutable, so any thread may read it.
+    final class Solved: Sendable {
+        /// What the solved colours depend on. Of the tokens only the colour ones count (`emphasis`, `gradient`,
+        /// `accents`): two sets of tokens that differ in spacing or type share their colours.
+        struct Key: Hashable, Sendable {
+            let theme: Theme
+            let accents: [Accent]
+            let emphasis: DesignTokens.Emphasis
+            let gradient: DesignTokens.WindowGradient
+            let appearance: Appearance
+            let placement: SurfacePlacement
+
+            init(theme: Theme, tokens: DesignTokens, appearance: Appearance, placement: SurfacePlacement) {
+                self.theme = theme
+                accents = tokens.accents
+                emphasis = tokens.emphasis
+                gradient = tokens.gradient
+                self.appearance = appearance
+                self.placement = placement
+            }
+        }
+
+        struct Values: Sendable, Equatable {
+            let legibility: Legibility
+            let resolved: ResolvedColors
+            let accentHues: [Hue]
+            let secondaryText: RGBA
+            let tintText: RGBA
+            /// One per accent hue, in `accentHues`' order.
+            let accentInks: [RGBA]
+            let selectionMarker: RGBA
+            let focusRing: RGBA
+            /// The column's edge and the rail's divider.
+            let edge: RGBA
+            /// Every hue's rail dot.
+            let railDots: [Hue: RGBA]
+            let bandTextIsWhite: Bool
+            let primaryGlyphIsWhite: Bool
+        }
+
+        let values: Values
+
+        /// Solves `key`'s colours with `tokens`, whose colour tokens are `key`'s. Use `cached(_:tokens:)`.
+        init(_ key: Key, tokens: DesignTokens) {
+            let appearance = key.appearance
+            let emphasis = tokens.emphasis
+            let accentHues = tokens.accentHues(in: key.theme)
+            let frame = Legibility.fitted(
+                key.theme, accents: accentHues, surfaces: tokens.surfaces(in: appearance), in: appearance)
+            let legibility = key.placement == .frame
+                ? frame
+                : Legibility.of(
+                    key.theme, accents: accentHues, surfaces: tokens.columnFillSurfaces(in: appearance),
+                    hueScale: frame.hueScale, in: appearance)
+            let resolved = ResolvedColors(key.theme, accents: accentHues, in: appearance)
+            let ink = resolved.ink
+            let minimum = emphasis.nonTextContrast
+            values = Values(
+                legibility: legibility,
+                resolved: resolved,
+                accentHues: accentHues,
+                secondaryText: RGBA(
+                    red: resolved.label.red, green: resolved.label.green, blue: resolved.label.blue,
+                    alpha: legibility.secondaryAlpha),
+                tintText: resolved.primary.mixed(with: ink, by: legibility.tintMix),
+                accentInks: resolved.accents.indices.map { resolved.accents[$0].mixed(with: ink, by: legibility.accentMix[$0]) },
+                selectionMarker: resolved.primary.mixed(
+                    with: ink, by: legibility.mix(of: resolved.primary, toward: ink, reaching: minimum)),
+                focusRing: legibility.focusRing(RGBA.keyboardFocus(in: appearance), ink: ink, minimum: minimum),
+                edge: ink.opacity(ColorRoles.edgeAlpha(
+                    colors: resolved, frame: tokens.surfaces(in: appearance),
+                    column: tokens.columnFillSurfaces(in: appearance), hueScale: legibility.hueScale, minimum: minimum)),
+                railDots: Dictionary(uniqueKeysWithValues: Hue.allCases.map { hue in
+                    (hue, Self.railDot(hue, in: appearance, legibility: legibility, ink: ink, minimum: minimum))
+                }),
+                bandTextIsWhite: ColorRoles.inkIsWhite(on: key.theme.primary, in: appearance, minimum: emphasis.textContrast),
+                primaryGlyphIsWhite: ColorRoles.inkIsWhite(on: key.theme.primary, in: appearance, minimum: minimum))
+        }
+
+        /// `hue`, opaque, mixed with `ink` until it reaches `minimum` on every surface `legibility` was solved on.
+        static func railDot(_ hue: Hue, in appearance: Appearance, legibility: Legibility, ink: RGBA, minimum: Double) -> RGBA {
+            let raw = RGBA(hue.systemColor, in: appearance)
+            let opaque = RGBA(red: raw.red, green: raw.green, blue: raw.blue)
+            return opaque.mixed(with: ink, by: legibility.mix(of: opaque, toward: ink, reaching: minimum))
+        }
+
+        /// The colours of `key`, solved with `tokens` the first time and shared after. Solved outside the lock, so two
+        /// threads asking for a new key at once may both solve it; the first stored wins and both get it.
+        static func cached(_ key: Key, tokens: DesignTokens) -> Solved {
+            if let known = cache.withLock({ $0[key] }) { return known }
+            let solved = Solved(key, tokens: tokens)
+            return cache.withLock { cache in
+                if let known = cache[key] { return known }
+                cache[key] = solved
+                return solved
+            }
+        }
+
+        /// How many keys are solved so far.
+        static var cachedCount: Int { cache.withLock { $0.count } }
+
+        private static let cache = Mutex<[Key: Solved]>([:])
     }
 }
 

@@ -156,7 +156,7 @@ extension DesignTokens {
     }
 
     /// Opacities, of the Theme's primary hue unless named otherwise.
-    public struct Emphasis: Sendable, Equatable {
+    public struct Emphasis: Sendable, Hashable {
         public var hover: Double = 0.10
         /// A secondary selection: the current item inside an open group.
         public var current: Double = 0.16
@@ -317,7 +317,7 @@ extension DesignTokens {
     }
 
     /// The window gradient's opacities per appearance: top (primary hue), middle (secondary), bottom (primary).
-    public struct WindowGradient: Sendable, Equatable {
+    public struct WindowGradient: Sendable, Hashable {
         public var light: GradientSpec = .light
         public var dark: GradientSpec = .dark
 
