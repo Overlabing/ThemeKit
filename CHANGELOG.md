@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.2.6
+
+The Space rail's emoji and its popovers' focus ring (issue #20), both seen when Safira adopted the rail.
+
+### Changed
+
+- **Emoji glyphs at their own size**: a Space's emoji, quiet or selected, in the rail and in its panel, was drawn in
+  `TypeScale.glyphCircle`'s font like an initial and sat small in its circle (the selected 📖 at about half its width).
+  It is now that style's size times **`TypeScale.glyphEmojiScale` (1.3)**: 13 pt on macOS, about 15 pt of artwork in the
+  24 pt circle where the initial's capital is 7 pt. **`DesignTokens.glyphEmojiSize(textSize:)`** caps it at
+  **`DesignTokens.glyphEmojiMaxShare` (0.55)** of `Size.glyphCircle` (13.2 pt), where the corners of a square emoji
+  still fall inside the circle; on iOS (caption 12 pt, more under Dynamic Type) the cap applies. Initials, symbols and
+  `ThemeGlyph` are unchanged. Tested on an offscreen render, light and dark: nothing drawn outside the circles, the
+  emoji 14 to 16 pt tall against the initial's 7 to 8.
+- **No focus ring on a popover opened with the pointer**: clicking the rail's `+` or "+n" drew the kit's focus ring
+  around the panel's first row. A panel opened with a click now shows none until the first arrow or Tab key, which
+  shows it on that row without moving it; Return and Space pick nothing until then. Opened from the keyboard (Return or
+  Space on the rail), or by an assistive technology, the ring starts on the first row as before (the selected Space in
+  "+n"). Shift-Tab counts as Tab.
+
+### Added
+
+- **`SpaceRailPanelFocus`**: the panel's keyboard focus as a value (the focused row, whether the ring shows, and what
+  ↑, ↓, Tab, Return or Space and Escape do), testable without a window.
+- **`SpaceRailPanel(…, showsFocusRing:)`**: `false` for a panel opened with the pointer. The default, `true`, draws what
+  0.2.5 drew, so a client that builds a panel itself is unchanged.
+
+### Unchanged
+
+- The 2344 legibility cases: the audit's output is the same, line for line, all at their threshold.
+- No source-breaking change.
+
 ## 0.2.5
 
 Theme-relative accent order (issue #17). `DesignTokens.accents` can name the Theme's own hues, so a client can say "the

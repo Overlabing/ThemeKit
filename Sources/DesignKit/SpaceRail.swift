@@ -25,6 +25,7 @@ public struct SpaceRail: View {
     @State private var focused: SpaceRailItem.Key?
     @State private var showsPanel = false
     @State private var showsCommands = false
+    @State private var panelShowsFocusRing = false
     private let model: SpaceRailModel
     private let commands: [[SpaceRailCommand]]
     private let label: String?
@@ -151,7 +152,7 @@ public struct SpaceRail: View {
                 focused = layout.key(movingFrom: focused, by: forward ? 1 : -1)
             default:
                 guard let item = layout.items.first(where: { $0.id == focused }) else { return .ignored }
-                run(model.action(for: item))
+                run(model.action(for: item), fromKeyboard: true)
             }
             return .handled
         }
@@ -159,12 +160,18 @@ public struct SpaceRail: View {
         .accessibilityLabel(label ?? model.accessibilityGroupLabel)
     }
 
-    private func run(_ action: SpaceRailAction) {
+    /// Runs `action`. A panel opened with the pointer (`fromKeyboard` false) shows no focus ring until the first arrow
+    /// or Tab key; one opened from the keyboard, or by an assistive technology, shows it on its first row.
+    private func run(_ action: SpaceRailAction, fromKeyboard: Bool) {
         switch action {
         case .selectSpace(let id): selectSpace(id)
         case .selectProfile(let id, _): selectProfile(id)
-        case .showPanel: showsPanel = true
-        case .showCommands: showsCommands = true
+        case .showPanel:
+            panelShowsFocusRing = fromKeyboard
+            showsPanel = true
+        case .showCommands:
+            panelShowsFocusRing = fromKeyboard
+            showsCommands = true
         }
     }
 
@@ -192,17 +199,17 @@ public struct SpaceRail: View {
             .onHover { inside in
                 if inside { hovered = item.id } else if hovered == item.id { hovered = nil }
             }
-            .onTapGesture { run(model.action(for: item)) }
+            .onTapGesture { run(model.action(for: item), fromKeyboard: false) }
             .help(help(item))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(model.accessibilityLabel(for: item))
             .accessibilityHint(hint(item))
             .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-            .accessibilityAction { run(model.action(for: item)) }
+            .accessibilityAction { run(model.action(for: item), fromKeyboard: true) }
         switch item {
         case .overflow:
             base.popover(isPresented: $showsPanel, arrowEdge: .top) {
-                SpaceRailPanel(model: model, commands: commands, selectSpace: { id in
+                SpaceRailPanel(model: model, commands: commands, showsFocusRing: panelShowsFocusRing, selectSpace: { id in
                     showsPanel = false
                     selectSpace(id)
                 }, perform: { id in
@@ -212,7 +219,9 @@ public struct SpaceRail: View {
             }
         case .add:
             base.popover(isPresented: $showsCommands, arrowEdge: .top) {
-                SpaceRailPanel(model: model, commands: commands, showsSpaces: false, selectSpace: { _ in }, perform: { id in
+                SpaceRailPanel(
+                    model: model, commands: commands, showsSpaces: false, showsFocusRing: panelShowsFocusRing,
+                    selectSpace: { _ in }, perform: { id in
                     showsCommands = false
                     perform(id)
                 })
@@ -279,11 +288,13 @@ public struct SpaceRail: View {
 /// A Space's glyph in the rail. The selected Space is its Theme's hue in a circle (`Size.glyphCircle`), with its symbol
 /// or initial in white, or black where white falls short (ThemeGlyph's rule); under Increase Contrast the circle is
 /// outlined in `ColorRoles.outline`. Every other Space is quiet: its symbol or initial alone in the secondary ink. An
-/// emoji keeps its own colours either way.
+/// emoji keeps its own colours either way, at its own size (`DesignTokens.glyphEmojiSize(textSize:)`), so that it
+/// fills the circle the way an initial does.
 struct SpaceRailGlyphView: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.colorScheme) private var scheme
     @Environment(\.kitContrast) private var contrast
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let space: SpaceRailSpace
     let isSelected: Bool
 
@@ -296,7 +307,8 @@ struct SpaceRailGlyphView: View {
             Group {
                 switch space.glyph {
                 case .emoji(let emoji):
-                    Text(emoji)
+                    Text(emoji).font(.system(size: tokens.glyphEmojiSize(
+                        textSize: tokens.type.glyphCircle.pointSize(dynamicTypeSize))))
                 case .symbol(let name):
                     Image(systemName: name).foregroundStyle(isSelected ? symbolInk : roles.secondaryText)
                 case .initial:
@@ -323,13 +335,14 @@ struct SpaceRailGlyphView: View {
 /// The panel the rail's "+n" opens (B3's): every Profile under a small header, each of its Spaces as a row with its
 /// glyph, name and shortcut, the selected one selected; then the app's commands. Without Profiles there are no headers.
 /// With `showsSpaces` false it lists the commands alone (the rail's `+`). One focus stop: ↑ and ↓ move between rows
-/// (scrolling the focused one into view), Return or Space picks, Escape closes. Taller than `Size.railPanelMaxHeight`
+/// (scrolling the focused one into view), Return or Space picks, Escape closes. Opened with the pointer it shows no
+/// focus ring until the first arrow or Tab key (`SpaceRailPanelFocus`). Taller than `Size.railPanelMaxHeight`
 /// it scrolls; shorter it is as tall as its rows. Its colours are solved like the column's, on the plain background.
 public struct SpaceRailPanel: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.dismiss) private var dismiss
     @FocusState private var isFocused: Bool
-    @State private var focused: String?
+    @State private var focus: SpaceRailPanelFocus
     private let model: SpaceRailModel
     private let commands: [[SpaceRailCommand]]
     private let showsSpaces: Bool
@@ -338,10 +351,11 @@ public struct SpaceRailPanel: View {
     private let initialFocus: String?
 
     /// `focus` (a Space's or a command's id) is for previews and renders; the panel otherwise starts on the selected
-    /// Space.
+    /// Space, or on its first row. `showsFocusRing` false is for a panel opened with the pointer: no focus ring until
+    /// the first arrow or Tab key, as macOS draws one for keyboard navigation only.
     public init(
         model: SpaceRailModel, commands: [[SpaceRailCommand]], showsSpaces: Bool = true, focus: String? = nil,
-        selectSpace: @escaping (String) -> Void, perform: @escaping (String) -> Void
+        showsFocusRing: Bool = true, selectSpace: @escaping (String) -> Void, perform: @escaping (String) -> Void
     ) {
         self.model = model
         self.commands = commands
@@ -349,7 +363,11 @@ public struct SpaceRailPanel: View {
         self.selectSpace = selectSpace
         self.perform = perform
         self.initialFocus = focus
+        self._focus = State(initialValue: SpaceRailPanelFocus(row: nil, showsRing: showsFocusRing))
     }
+
+    /// Shift-Tab, as AppKit reports it.
+    private static let backTab = KeyEquivalent("\u{19}")
 
     private enum Entry: Hashable {
         case space(String)
@@ -376,7 +394,7 @@ public struct SpaceRailPanel: View {
             .frame(maxHeight: tokens.size.railPanelMaxHeight)
             .fixedSize(horizontal: false, vertical: true)
             .frame(width: tokens.size.columnMin)
-            .onChange(of: focused) { _, id in
+            .onChange(of: focus.row) { _, id in
                 guard let entry = entries.first(where: { $0.id == id }) else { return }
                 proxy.scrollTo(entry, anchor: nil)
             }
@@ -387,24 +405,29 @@ public struct SpaceRailPanel: View {
         .focusEffectDisabled()
         .onAppear {
             isFocused = true
-            focused = initialFocus ?? (showsSpaces ? model.selection : nil) ?? entries.first?.id
+            focus.start(at: initialFocus ?? (showsSpaces ? model.selection : nil) ?? entries.first?.id)
         }
-        .onKeyPress(keys: [.upArrow, .downArrow, .return, .space, .escape]) { press in
-            let ids = entries.map(\.id)
-            switch press.key {
-            case .upArrow, .downArrow:
-                guard !ids.isEmpty else { return .ignored }
-                let index = focused.flatMap { ids.firstIndex(of: $0) } ?? 0
-                let step = press.key == .downArrow ? 1 : -1
-                focused = ids[min(max(index + step, 0), ids.count - 1)]
-            case .escape:
+        .onKeyPress(keys: [.upArrow, .downArrow, .tab, Self.backTab, .return, .space, .escape]) { press in
+            let key: SpaceRailPanelFocus.Key = switch press.key {
+            case .upArrow: .up
+            case .downArrow: .down
+            case .escape: .escape
+            case .return, .space: .activate
+            default: .tab
+            }
+            switch focus.press(key, in: entries.map(\.id)) {
+            case .moved, .revealed:
+                break
+            case .dismiss:
                 dismiss()
-            default:
-                guard let entry = entries.first(where: { $0.id == focused }) else { return .ignored }
+            case .pick(let id):
+                guard let entry = entries.first(where: { $0.id == id }) else { return .ignored }
                 switch entry {
                 case .space(let id): selectSpace(id)
                 case .command(let id): perform(id)
                 }
+            case .ignored:
+                return .ignored
             }
             return .handled
         }
@@ -413,7 +436,7 @@ public struct SpaceRailPanel: View {
     }
 
     private var content: some View {
-        let current = focused ?? initialFocus
+        let current = focus.showsRing ? focus.row ?? initialFocus : nil
         return VStack(alignment: .leading, spacing: 0) {
             if showsSpaces {
                 ForEach(model.profiles) { profile in
