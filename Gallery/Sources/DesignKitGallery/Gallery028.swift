@@ -7,7 +7,7 @@ import SwiftUI
 // The 0.2.8 additions, rendered offscreen on the window's gradient, light and dark, one sheet per change.
 // `DesignKitGallery 0.2.8 <output directory>`.
 
-private struct Labelled<Content: View>: View {
+struct Labelled<Content: View>: View {
     let title: String
     let content: Content
 
@@ -26,7 +26,7 @@ private struct Labelled<Content: View>: View {
 }
 
 /// One sheet of the 0.2.8 gallery: a column of labelled examples on the window's gradient.
-private struct Sheet028<Content: View>: View {
+struct Sheet028<Content: View>: View {
     let content: Content
 
     init(@ViewBuilder content: () -> Content) {
