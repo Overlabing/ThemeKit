@@ -125,6 +125,8 @@ extension DesignTokens {
         public var listCellMargin: CGFloat = Self.platformListCellMargin
         /// A banner: between its title and its message.
         public var bannerLines: CGFloat = xxs
+        /// A banner too narrow for its actions beside the text: from the message to the actions under it.
+        public var bannerActionsUnder: CGFloat = xs
 
         public init() {}
 
@@ -256,6 +258,8 @@ extension DesignTokens {
         public var switcherItemHeight: CGFloat = 40
         /// A sidebar's head field: the height of the system's sidebar search field, the least the slot gives the field.
         public var sidebarField: CGFloat = 29
+        /// A banner's text beside its actions: the least width it keeps there; narrower, the actions go under it.
+        public var bannerMessageMin: CGFloat = 160
         /// A list column: minimum, ideal and maximum widths.
         public var columnMin: CGFloat = 300
         public var columnIdeal: CGFloat = 360

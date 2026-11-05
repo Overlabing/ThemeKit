@@ -39,6 +39,17 @@ What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
   size clipped its title. It is now at least that tall, with the row's vertical inset round its content: 38 pt at the
   standard sizes, as before, taller when the text needs it.
 
+- **A `Banner` at narrow widths** (issue #44): at 300 pt "Try Again" was cut to "Try Ag…" and a long host broke in
+  the middle of a word. The actions sit beside the text while the text keeps **`Size.bannerMessageMin`** (new, 160 pt)
+  beside them, as before; narrower, they go under the message (**`Spacing.bannerActionsUnder`**, new, 4 pt), the kit's
+  action button with its label on the message's edge and its close button at the top trailing corner, a client's own
+  actions all there. A word with dots may break after a dot (a zero-width space before the letter after it):
+  "imap.mail.example.com" breaks at a dot rather than mid-word; a sentence's dot and a number's are left alone, and
+  VoiceOver reads the text as written. A banner whose actions fit draws as before. Tested on an offscreen render, light
+  and dark: at 300 pt the banner with "Try Again" is a row taller than without, and the action's ink is as wide as
+  the label drawn alone (not cut); at 560 pt it is as tall as without, the action beside; "Undo" and the close button
+  at 320 pt stay beside; at 220 pt a long host draws as the same host written with a line break after a dot.
+
 ### Added
 
 - **`StatusLine` options** (issue #32), each a parameter with a default, on both initialisers:

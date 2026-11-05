@@ -205,7 +205,7 @@ immediate.
 | `SpaceRail`, `SpaceRailPanel` | the Space selector at the bottom of a column (see "Space rail" below) |
 | `ThemeGlyph` | a themed item's glyph: its flat hue with an emoji (`emoji:`, in its own colours, at the rail's emoji size for the circle), or a white or black symbol or initial; `size: .standard` (24 pt) or `.small` (16 pt). Hidden from VoiceOver: the item carries the name, never the emoji's description |
 | `GlassSwitcher` | **deprecated in 0.2.4, removed in 0.3**: use `SpaceRail`. The glass bar of themed items at the bottom of a column; an item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`) |
-| `Banner` | a discreet message on glass: a symbol, an optional title, the message, and the client's actions or the kit's (`action:` and `onClose:`). The message shows in full and the banner grows with it; `messageLineLimit:` caps it |
+| `Banner` | a discreet message on glass: a symbol, an optional title, the message, and the client's actions or the kit's (`action:` and `onClose:`). The message shows in full and the banner grows with it; `messageLineLimit:` caps it. Narrower than its actions plus `bannerMessageMin` (160 pt) of text, the actions go under the message; a host breaks at its dots |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label; 1 to 3 `lines`, a `placement`, and `style` `.stack`, `.listCells` or `.sidebarCells` (one real `List` cell per row) |
 | `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control |
 | `.surface(_:in:)` | glass or a layer fill, with the accessibility fallbacks below |
