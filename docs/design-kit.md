@@ -47,6 +47,8 @@ them.
 | `pillLeading`, `pillTrailing`, `pillVertical`, `pillTileToText` | 5, 14, 5, 8 | a field pill around its 32 pt circle |
 | `switcherItemGap`, `switcherPadding` | 2, 4 | the glass switcher (deprecated) |
 | `switcherBottom` | 8 | the Space rail's (and the glass switcher's) margin to the column's bottom edge |
+| `barFade` | 16 | a sidebar's bottom bar: the list fades out over the bar's first points |
+| `sidebarFieldSide`, `sidebarFieldTop`, `sidebarFieldBottom` | 10, 9, 8 | a sidebar's own head field: from the column's sides, above it, under it; where the system's sidebar search field sits |
 | `railMarkerGap` | 2 | the Space rail: a glyph to its marker |
 | `railGroupGap` | 4 | the Space rail: either side of the divider |
 | `railDotGap` | 4 | the Space rail: between a folded Profile's dots, and before its count |
@@ -97,6 +99,7 @@ them.
 | `railCount` | 16 | width kept for a folded Profile's "+n" |
 | `railDotsMax` | 4 (a count) | dots a folded Profile shows before its "+n" |
 | `columnMin`, `columnIdeal`, `columnMax` | 300, 360, 480 | a list column |
+| `sidebarField` | 29 | a sidebar's head field: the height of the system's sidebar search field, the least the slot gives it |
 | `disclosureDegrees` | 90 | an open folder's chevron |
 
 ### Emphasis (opacity of the Theme's primary hue unless noted)
@@ -174,6 +177,12 @@ immediate.
 | View | What it is |
 |---|---|
 | `WindowBackground` | `.background`, then the Theme's vertical gradient, behind the whole window |
+| `SidebarSplitView` | a system `NavigationSplitView` on the gradient, with `sidebarWindowChrome()` (see "Sidebar" below) |
+| `.sidebarColumn(field:header:bottomBar:)` | the sidebar's `List`: the column widths, a plain list on the gradient, no system selection platter, an optional head field and header, the bottom bar in a `safeAreaBar` with the list faded out under it |
+| `.sidebarRowCell(state:placement:)` | a sidebar `List` cell: `ListRowBackground` behind it, the `List`'s own margin kept round its content |
+| `SidebarDetail` | the detail beside a sidebar: a card inset 12 pt, from the window's top edge, with an optional floating bottom bar |
+| `.sidebarWindowChrome()` | the window of a sidebar app: transparent toolbar, no title shown, toolbar on hover in full screen |
+| `NSSplitViewItem.sidebar(hosting:)` | AppKit: the system's sidebar split item hosting a `sidebarColumn`, at the column widths; `sidebarToolbarItems` for the window's toolbar |
 | `ColumnLayout(side:)` | a list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
 | `ColumnSurface(side:)`, `.columnSurface(side:)` | a list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`). Kit pieces, never a system sidebar |
 | `ContentCanvas` | content inset 12 pt, rounded 12 pt, 1 pt separator line |
@@ -221,6 +230,81 @@ draws a background of its own. Increase Contrast reaches the background: a selec
 `ColorRoles.outline`, and the bar is not drawn. A `List` hands each cell the system's own Increase Contrast and colour
 scheme, so `accessibilityOverrides(increaseContrast:)` is carried to the kit's views by an environment value of the kit's
 own as well. A focus ring on a cell is clipped by the cell's bounds.
+
+## Sidebar
+
+A sidebar app's window is the system's own: a `NavigationSplitView` flush with the window's edges, the system's sidebar
+material over the Theme's gradient, the sidebar button at the column's top trailing corner, and the system's dimming
+of an inactive window. The kit adds the gradient, the column's list style, its row geometry, two slots and the detail's
+card. It draws no column surface of its own.
+
+```swift
+SidebarSplitView {
+    List(selection: $selection) {
+        ForEach(rows) { row in
+            RowContent(row)                                    // a tile, the text, a trailing accessory; no padding
+                .tag(row.id)
+                .sidebarRowCell(state: RowState(isSelected: selection == row.id))
+        }
+    }
+    .sidebarColumn {
+        StatusLine(tile: .tintedSymbol("tray.full"), title: "Work · All", count: 4, isOpen: false)  // optional header
+    } bottomBar: {
+        SpaceRail(spaces: spaces, selection: current) { current = $0 }
+    }
+} detail: {
+    SidebarDetail {
+        Page()
+    } bottomBar: {
+        Actions()                                              // optional, floats over the card's bottom
+    }
+}
+.searchable(text: $query, placement: .sidebar, prompt: "Search")  // the head field: the system's search
+.theme(theme)
+```
+
+- **Head field.** The system's sidebar search (`.searchable(text:placement: .sidebar,…)` on the split view) sits under
+  the window's controls, full width less 10 pt each side. An app with a field of its own (an address field) passes it
+  to `sidebarColumn(field:header:bottomBar:)`. The kit puts it in the same place: `sidebarFieldSide` from the column's
+  sides, `sidebarFieldTop` under the window's controls, at least `Size.sidebarField` (29 pt) tall, the header
+  `sidebarFieldBottom` under it. The field's look is the app's.
+- **Header.** Optional. It sits under the head field, `statusLineToList` above the list.
+- **Rows.** `sidebarRowCell` draws the cell's background like `listRowCell` does: 4 pt from the column's edges, the
+  selection's marker 2 pt inside it. It keeps the `List`'s own 8 pt margin (`listCellMargin`) round the content, so the
+  content starts 20 pt from the column's edge and ends 21 pt from it: 16 pt inside the background, where `listRowCell`
+  leaves 8. The cell's insets carry the row's vertical padding, so the content has none of its own.
+- **Selection.** `sidebarColumn` turns off the platter AppKit draws behind a selected row. The cell's background is the
+  only selection.
+- **Bottom bar.** Pinned to the column's bottom edge in a `safeAreaBar` (no spacing): the `SpaceRail`. The list scrolls
+  under the bar and fades out over the bar's first `barFade` points, so no row shows between the bar's controls and the
+  window's edge. The rail draws no glass, so a row under it would otherwise stay readable under its glyphs.
+- **Detail.** `SidebarDetail` sets its content on the plain background in a card inset `canvasInset` from the detail's
+  edges and from the window's top edge (under the transparent toolbar), rounded `Radius.canvas`, with a 1 pt
+  `.separator` line centred on its edge. Its optional bottom bar floats `pillFloat` from the card's edges.
+- **Inactive window.** The sidebar is the system's, so its labels dim when the window resigns key, as the system's
+  sidebars do. The kit keeps that on purpose.
+
+### In an AppKit window
+
+The native way to host the sidebar in an AppKit window is the system's sidebar split item. `NSSplitViewItem.sidebar(hosting:)`
+returns `NSSplitViewItem(sidebarWithViewController:)` hosting the column, between `columnMin` and `columnMax` and
+`columnIdeal` wide at first. The rest of the window matches what `SidebarSplitView` sets in SwiftUI:
+
+```swift
+let split = NSSplitViewController()
+split.addSplitViewItem(.sidebar(hosting: list.sidebarColumn(field: { AddressField() }, header: { EmptyView() }, bottomBar: { rail })))
+split.addSplitViewItem(NSSplitViewItem(viewController: NSHostingController(rootView: SidebarDetail { page })))
+// The window's content: a WindowBackground under split.view, both pinned to the window's edges.
+window.styleMask.insert(.fullSizeContentView)
+window.titlebarAppearsTransparent = true
+window.titleVisibility = .hidden
+toolbar.displayMode = .iconOnly                                // its delegate returns NSSplitViewItem.sidebarToolbarItems
+window.toolbar = toolbar
+```
+
+`.searchable(placement: .sidebar)` needs a `NavigationSplitView`, so an AppKit window passes its own field. Hosting the
+whole `SidebarSplitView` in an `NSHostingController` is not the way: the window's toolbar then keeps its background
+and has no sidebar button.
 
 ## Space rail
 
