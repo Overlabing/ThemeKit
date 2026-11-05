@@ -68,11 +68,52 @@ struct RailPanels029Sheet: View {
     }
 }
 
+/// A Space's and a Profile's context menus opened by the rail's preview state (issue #51): a Space in the row, the
+/// folded Profile, and a Space of the folded Profile (anchored on its dots). 330 pt columns, edges outlined.
+struct RailContextMenu029Sheet: View {
+    var body: some View {
+        HStack(spacing: DesignTokens.Spacing.l) {
+            column(.space("w3"), "Work 3, in the row")
+            column(.profile("home"), "Personal, folded")
+            column(.space("h2"), "Reading, in the folded Personal")
+        }
+        .padding(DesignTokens.Spacing.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background { WindowBackground() }
+    }
+
+    private func column(_ key: SpaceRailItem.Key, _ title: String) -> some View {
+        VStack(spacing: 0) {
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                .padding(.top, DesignTokens.Spacing.s)
+            Spacer(minLength: 0)
+            SpaceRail(profiles: RailPanels028Sheet.profiles, selection: "w2", commands: RailPanels028Sheet.commands,
+                      selectSpace: { _ in }, selectProfile: { _ in })
+                .spaceRailContextMenu { space in
+                    Button("Edit \(space.name)…", systemImage: "pencil") {}
+                    Button("Duplicate", systemImage: "plus.square.on.square") {}
+                    Divider()
+                    Button("Move to Another Profile", systemImage: "arrow.right.square") {}.disabled(true)
+                    Button("Delete \(space.name)", systemImage: "trash", role: .destructive) {}
+                } profile: { profile in
+                    Button("Edit \(profile.name)…", systemImage: "pencil") {}
+                    Button("New Space in \(profile.name)…", systemImage: "plus") {}
+                    Divider()
+                    Button("Delete \(profile.name)", systemImage: "trash", role: .destructive) {}
+                }
+                .spaceRailPreviewState(SpaceRailPreviewState(hovered: key, contextMenu: key))
+        }
+        .frame(width: 330)
+        .overlay { Rectangle().strokeBorder(.secondary.opacity(0.5), lineWidth: 1) }
+    }
+}
+
 @MainActor
 func run029(output: URL) {
     let sheets: [(name: String, size: CGSize, view: AnyView)] = [
         ("side-by-side-rows", CGSize(width: 360, height: 330), AnyView(SideBySide029Sheet())),
         ("rail-panels-narrow", CGSize(width: 1040, height: 800), AnyView(RailPanels029Sheet())),
+        ("rail-context-menu", CGSize(width: 1110, height: 420), AnyView(RailContextMenu029Sheet())),
     ]
     do {
         for theme in [Palette.standard.themes[0], Palette.standard.themes[1]] {

@@ -81,7 +81,46 @@ public struct SpaceRail: View {
                 Color.clear.frame(maxWidth: .infinity).frame(height: 0)
                     .overlay(alignment: .bottomTrailing) { previewPanel }
             }
+            .overlayPreferenceValue(SpaceRailItemBounds.self, alignment: .top) { bounds in
+                previewMenu(bounds)
+            }
         }
+    }
+
+    /// The context menu `spaceRailPreviewState` opens (issue #51), drawn in place like the menu: the client's own menu
+    /// for that Space or Profile, its items on the kit's glass surface, hanging above the item it belongs to (its leading
+    /// edge at the item's middle) and kept inside the column's margin. A Space that the row does not show anchors it on
+    /// its folded Profile, else on the "+n"; a Profile not folded (the active one), on the "+n". Nothing without a menu.
+    @ViewBuilder
+    private func previewMenu(_ bounds: [SpaceRailItem.Key: Anchor<CGRect>]) -> some View {
+        if let key = preview?.contextMenu, let menu = previewMenuContent(key) {
+            GeometryReader { proxy in
+                let anchor = previewMenuAnchor(key).compactMap { bounds[$0] }.first
+                SpaceRailMenuPlacement(
+                    anchorX: anchor.map { proxy[$0].midX }, margin: tokens.spacing.listMargin,
+                    gap: tokens.spacing.railCaption
+                ) {
+                    SpaceRailMenuPreview(menu: menu)
+                }
+                .frame(width: proxy.size.width, height: 0)
+            }
+        }
+    }
+
+    /// The client's menu for `key`: a Space's or a Profile's, nil for the "+n" and the `+` or without one.
+    private func previewMenuContent(_ key: SpaceRailItem.Key) -> AnyView? {
+        switch key {
+        case .space(let id): model.profiles.flatMap(\.spaces).first { $0.id == id }.flatMap { menus.space?($0) }
+        case .profile(let id): model.profiles.first { $0.id == id }.flatMap { menus.profile?($0) }
+        case .overflow, .add: nil
+        }
+    }
+
+    /// The items the menu of `key` may hang from, the first one the row shows winning.
+    private func previewMenuAnchor(_ key: SpaceRailItem.Key) -> [SpaceRailItem.Key] {
+        guard case .space(let id) = key else { return [key, .overflow] }
+        let profile = model.profiles.first { $0.spaces.contains { $0.id == id } }
+        return [key] + (profile.map { [SpaceRailItem.Key.profile($0.id)] } ?? []) + [.overflow]
     }
 
     /// The panel `spaceRailPreviewState` opens, drawn in place above the rail rather than in a popover: a popover draws
@@ -234,6 +273,7 @@ public struct SpaceRail: View {
             .accessibilityHint(model.accessibilityHint(for: item))
             .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             .accessibilityAction { run(model.action(for: item), fromKeyboard: true) }
+            .anchorPreference(key: SpaceRailItemBounds.self, value: .bounds) { [item.id: $0] }
         switch item {
         case .overflow:
             base.popover(isPresented: $showsPanel, arrowEdge: .top) {
@@ -548,15 +588,115 @@ public struct SpaceRailPreviewState: Sendable, Equatable {
     public var panel: Panel?
     /// The panel's row (a Space's or a command's id) shown with the focus ring; none when nil.
     public var panelFocus: String?
+    /// The Space (`.space(id)`) or Profile (`.profile(id)`) whose context menu is shown open: the client's menu
+    /// (`spaceRailContextMenu(space:profile:)`) built for it, drawn in place above the rail the way the menu looks
+    /// (its items on the kit's glass surface, rounded like a banner), hanging above that item and inside the column. Any
+    /// Space or Profile, current or not, shown in the row or not. Nothing is drawn for one without a menu, nor for the
+    /// "+n" and the `+`.
+    public var contextMenu: SpaceRailItem.Key?
 
     public init(
         hovered: SpaceRailItem.Key? = nil, focused: SpaceRailItem.Key? = nil, panel: Panel? = nil,
-        panelFocus: String? = nil
+        panelFocus: String? = nil, contextMenu: SpaceRailItem.Key? = nil
     ) {
         self.hovered = hovered
         self.focused = focused
         self.panel = panel
         self.panelFocus = panelFocus
+        self.contextMenu = contextMenu
+    }
+}
+
+/// Where each item of a rail's row is, for the context menu its preview state opens.
+struct SpaceRailItemBounds: PreferenceKey {
+    static let defaultValue: [SpaceRailItem.Key: Anchor<CGRect>] = [:]
+
+    static func reduce(value: inout [SpaceRailItem.Key: Anchor<CGRect>], nextValue: () -> [SpaceRailItem.Key: Anchor<CGRect>]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// Places one view above a strip with no height, its bottom `gap` above the strip and its leading edge at `anchorX`
+/// (the margin when nil), moved back inside `margin` from either end; no wider than the strip less both margins.
+struct SpaceRailMenuPlacement: Layout {
+    let anchorX: CGFloat?
+    let margin: CGFloat
+    let gap: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        CGSize(width: proposal.width ?? 0, height: 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let menu = subviews.first else { return }
+        let room = max(0, bounds.width - 2 * margin)
+        let ideal = menu.sizeThatFits(.unspecified)
+        let width = min(ideal.width, room)
+        let size = menu.sizeThatFits(ProposedViewSize(width: width, height: nil))
+        let x = min(max(anchorX ?? margin, margin), bounds.width - margin - width)
+        menu.place(
+            at: CGPoint(x: bounds.minX + x, y: bounds.minY - gap), anchor: .bottomLeading,
+            proposal: ProposedViewSize(width: width, height: size.height))
+    }
+}
+
+/// A client's context menu drawn the way the menu looks, for the rail's preview state: its buttons as menu items (the
+/// title and its symbol, leading, a dimmed ink when disabled), its dividers as lines, on the kit's glass surface.
+struct SpaceRailMenuPreview: View {
+    @Environment(\.designTokens) private var tokens
+    let menu: AnyView
+
+    /// A menu is at least this wide, as macOS draws one.
+    static let minWidth: CGFloat = 180
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            menu
+        }
+        .buttonStyle(SpaceRailMenuItemStyle())
+        .labelStyle(SpaceRailMenuLabelStyle())
+        .font(tokens.type.rowTitle.font)
+        .padding(tokens.spacing.layerInset)
+        .frame(minWidth: Self.minWidth, alignment: .leading)
+        .surface(.glass(tint: 0), in: RoundedRectangle(cornerRadius: tokens.radius.banner, style: .continuous))
+        .accessibilityHidden(true)
+    }
+}
+
+/// A menu item's label: its symbol in a column of its own, as a menu lines them up, then its title.
+struct SpaceRailMenuLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: DesignTokens.Spacing.s) {
+            configuration.icon.frame(width: Self.iconColumn)
+            configuration.title
+        }
+    }
+
+    /// As wide as a symbol at the menu's text size.
+    static let iconColumn: CGFloat = 20
+}
+
+/// A button as an item of a menu drawn by `SpaceRailMenuPreview`.
+struct SpaceRailMenuItemStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Item(label: configuration.label)
+    }
+
+    private struct Item<Label: View>: View {
+        @Environment(\.designTokens) private var tokens
+        @Environment(\.isEnabled) private var isEnabled
+        let label: Label
+
+        var body: some View {
+            WithColorRoles { roles in
+                label
+                    .foregroundStyle(isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(roles.secondaryText))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, tokens.spacing.rowInsetHorizontal)
+                    .padding(.vertical, DesignTokens.Spacing.xs)
+            }
+        }
     }
 }
 

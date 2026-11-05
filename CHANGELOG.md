@@ -39,6 +39,18 @@ What Oisillon's adoption of 0.2.8 found.
   200 pt wide from the line's edge, with half a row gap clear above and below; 4 pt apart they draw 100, 4 and 100 pt;
   the padded line starts 4 pt in, as a free row does; a `ListRowContent` side by side is as tall as a free one and
   8 pt narrower. Gallery: `swift run --package-path Gallery DesignKitGallery 0.2.9 <dir>`.
+- **`SpaceRailPreviewState(contextMenu:)`** (issue #51): opens a Space's (`.space(id)`) or a Profile's (`.profile(id)`)
+  context menu in a preview, an offscreen render or a capture, which needed real input until now. It is the client's
+  menu from `spaceRailContextMenu(space:profile:)` built for that item, drawn in place above the rail the way the menu
+  looks: its buttons as menu items (the symbol in a column of its own, then the title, a dimmed ink when disabled), its
+  dividers as lines, on the kit's glass surface rounded like a banner. It hangs above its item, its leading edge on the
+  item's middle, moved back inside the column's margin. Any Space or Profile, current or not: a Space the row does not
+  show hangs it on its folded Profile, else on the "+n"; the active Profile on the "+n". Nothing draws for an item
+  without a menu, nor for the "+n" and the `+`. The other parameters are unchanged. Tested on an offscreen render,
+  light and dark: a Space's menu draws above the rail, the next Space's an item further along, the rail's row as
+  before under it; the folded Profile's menu stays inside the margin at 300 and 360 pt; two items draw taller than
+  one; a Space of the folded Profile hangs on it, a Space behind the "+n" on the "+n"; with no menu, or for the `+`,
+  the "+n" or an unknown id, the render is the rail alone. Gallery: `rail-context-menu`.
 
 ## 0.2.8
 
