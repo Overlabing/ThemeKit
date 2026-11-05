@@ -342,8 +342,8 @@ public struct RowState: Sendable, Equatable {
     }
 }
 
-/// Where a row sits: free in the column (after a section header or not), inside a nested panel, or stacked against the
-/// rows above and below it.
+/// Where a row sits: free in the column (after a section header or not), inside a nested panel, stacked against the
+/// rows above and below it, or side by side with the rows next to it.
 public enum RowPlacement: Sendable, Equatable {
     case free(firstInSection: Bool)
     /// Inside a `LayerPanel`; `level` 1 has no indent, level 2 is indented by `Spacing.layerIndent`.
@@ -351,6 +351,12 @@ public enum RowPlacement: Sendable, Equatable {
     /// Compact rows stacked without gaps (a zone's tabs, say): on the column's margin like a free row, with no row gap
     /// above or below, so two backgrounds touch.
     case stacked
+    /// Rows laid next to each other in one line (an accounts row, say): with no side inset of their own, the background
+    /// fills the row's own width, so two neighbours stand as far apart as the client lays them (touching with no
+    /// spacing), and the line's outer edges are the client's. Above and below, half the row gap, like a free row, so a
+    /// line of them sits among free rows as a row does. To set the line on the column's margin like a free row, pad it
+    /// by a free row's side inset, `Spacing.listMargin - Spacing.rowInsetHorizontal`.
+    case sideBySide
 }
 
 /// The background of a `ListRow`, on its own: hover, current and selection fills in the Theme's colour, the outline
@@ -444,6 +450,7 @@ extension RowPlacement {
         switch self {
         case .free, .stacked: spacing.listMargin - spacing.rowInsetHorizontal
         case .layer: spacing.layerInset
+        case .sideBySide: 0
         }
     }
 

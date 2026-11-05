@@ -21,6 +21,19 @@ What Oisillon's adoption of 0.2.8 found.
   `THEMEKIT_TIMING=1 swift test --filter ListScrollTimingTests`): 1.07 to 1.09 ms before and 1.06 ms after with
   `listRowCell`, 0.91 to 0.93 ms before and 0.89 to 0.91 ms after with `sidebarRowCell`.
 
+### Added
+
+- **`RowPlacement.sideBySide`** (issue #49): rows laid next to each other in one line, Oisillon's accounts row say,
+  which had to offset each row by 4 pt to cancel the kit's side inset. A side-by-side row has no side inset of its own:
+  its background fills the row's own width, so two neighbours stand as far apart as the client lays them (touching
+  with no spacing), and the line's outer edges are the client's. Above and below it keeps half the row gap, like a free
+  row, so a line of them sits among free rows as a row does. Padded by a free row's side inset
+  (`Spacing.listMargin - Spacing.rowInsetHorizontal`), the line starts where a free row's background does. Tested on
+  an offscreen render, light and dark: two free rows side by side stand 8 pt apart, two side-by-side rows make one fill
+  200 pt wide from the line's edge, with half a row gap clear above and below; 4 pt apart they draw 100, 4 and 100 pt;
+  the padded line starts 4 pt in, as a free row does; a `ListRowContent` side by side is as tall as a free one and
+  8 pt narrower. Gallery: `swift run --package-path Gallery DesignKitGallery 0.2.9 <dir>`.
+
 ## 0.2.8
 
 What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
