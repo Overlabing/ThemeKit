@@ -23,6 +23,13 @@ struct HostedPixels {
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: appearance)
         window.contentView = hosting
+        try self.init(capturing: hosting, size: size)
+        window.contentView = nil
+    }
+
+    /// What `hosting`, already in a window, draws now, after half a second of run loop so a `List` lays out and the
+    /// kit's measured heights settle. Call it again after a state change to see the new frame.
+    init(capturing hosting: NSView, size: CGSize) throws {
         hosting.layoutSubtreeIfNeeded()
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
         hosting.layoutSubtreeIfNeeded()
@@ -39,7 +46,6 @@ struct HostedPixels {
             return true
         }
         #expect(drawn)
-        window.contentView = nil
         width = image.width
         height = image.height
         scale = Double(image.width) / size.width

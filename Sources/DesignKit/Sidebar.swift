@@ -12,7 +12,8 @@ import AppKit
 /// gradient behind it (`WindowBackground`) and the kit's window chrome (`sidebarWindowChrome()`). Put the sidebar's
 /// `List` in `sidebar` with `sidebarColumn(…)`, the detail in `detail`, in a `SidebarDetail` for the inset card. The
 /// head field is the system's sidebar search (`.searchable(text:placement: .sidebar,…)` on this view), or the client's
-/// own field in `sidebarColumn(field:…)`.
+/// own field in `sidebarColumn(field:…)`. The sidebar takes the kit's column widths (`sidebarColumnWidth()`) at its root,
+/// so they reach the split wherever `sidebarColumn` sits inside it, in a container or a view of the client's.
 public struct SidebarSplitView<Sidebar: View, Detail: View>: View {
     private let columnVisibility: Binding<NavigationSplitViewVisibility>?
     private let sidebar: Sidebar
@@ -31,9 +32,9 @@ public struct SidebarSplitView<Sidebar: View, Detail: View>: View {
     public var body: some View {
         Group {
             if let columnVisibility {
-                NavigationSplitView(columnVisibility: columnVisibility) { sidebar } detail: { detail }
+                NavigationSplitView(columnVisibility: columnVisibility) { sidebar.sidebarColumnWidth() } detail: { detail }
             } else {
-                NavigationSplitView { sidebar } detail: { detail }
+                NavigationSplitView { sidebar.sidebarColumnWidth() } detail: { detail }
             }
         }
         .sidebarWindowChrome()
@@ -83,11 +84,22 @@ extension NSSplitViewItem {
 // MARK: Column
 
 extension View {
-    /// The sidebar column around its `List`: the kit's column widths (`Size.columnMin`, `columnIdeal`, `columnMax`), a
-    /// plain list on the gradient (no content background, no section separators, no system selection platter: the
-    /// cells' `ListRowBackground` is the selection), and `bottomBar` pinned to the column's bottom edge in a
-    /// `safeAreaBar`, the `SpaceRail` for instance. The list scrolls under the bar, and fades out under it before the
-    /// window's edge.
+    /// The sidebar column around its `List` with no bottom bar: as `sidebarColumn(bottomBar:)`, every row shown down to
+    /// the column's bottom edge.
+    public func sidebarColumn() -> some View {
+        modifier(SidebarColumn(field: EmptyView(), header: EmptyView(), bottomBar: EmptyView()))
+    }
+
+    /// The sidebar column around its `List`: the kit's column widths (`sidebarColumnWidth()`), a plain list on the
+    /// gradient (no content background, no section separators, no system selection platter: the cells'
+    /// `ListRowBackground` is the selection), and `bottomBar` pinned to the column's bottom edge in a `safeAreaBar`, the
+    /// `SpaceRail` for instance. The list scrolls under the bar, and fades out under it before the window's edge. A bar
+    /// that draws nothing (`EmptyView()`, or a view that is empty in its current state, a rail with one Space) takes no
+    /// height and hides no row, and a bar that empties gives its height back.
+    ///
+    /// The widths reach a `NavigationSplitView` only from the root of its sidebar column. `SidebarSplitView` sets them
+    /// there itself, so the column can sit anywhere in its sidebar; in a `NavigationSplitView` of the client's, either
+    /// apply `sidebarColumn` at the column's root or put `sidebarColumnWidth()` there.
     public func sidebarColumn<BottomBar: View>(@ViewBuilder bottomBar: () -> BottomBar) -> some View {
         modifier(SidebarColumn(field: EmptyView(), header: EmptyView(), bottomBar: bottomBar()))
     }
@@ -116,6 +128,34 @@ extension View {
     public func sidebarRowCell(state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false)) -> some View {
         modifier(SidebarRowCell(state: state, placement: placement))
     }
+
+    /// The kit's sidebar column widths (`Size.columnMin`, `columnIdeal`, `columnMax`) on a `NavigationSplitView` column.
+    /// Put it on the column's root view: below a container (a `VStack`, a `Group` of the client's) the split does not see
+    /// it and opens the column at its own default width. `SidebarSplitView` and `sidebarColumn` at a column's root
+    /// already set it.
+    public func sidebarColumnWidth() -> some View {
+        modifier(SidebarColumnWidth())
+    }
+
+    /// Turns off the selection platter AppKit draws behind a selected `List` row, so the cells' own background is the
+    /// only selection drawn, without the rest of `sidebarColumn` (list style, mask, bars, widths). Apply it to the
+    /// `List`. Nothing on iOS, which draws no platter under a cell with its own `listRowBackground`.
+    public func listSelectionPlatterOff() -> some View {
+        #if os(macOS)
+        background(ListSelectionPlatterOff())
+        #else
+        self
+        #endif
+    }
+}
+
+private struct SidebarColumnWidth: ViewModifier {
+    @Environment(\.designTokens) private var tokens
+
+    func body(content: Content) -> some View {
+        content.navigationSplitViewColumnWidth(
+            min: tokens.size.columnMin, ideal: tokens.size.columnIdeal, max: tokens.size.columnMax)
+    }
 }
 
 private struct SidebarColumn<Field: View, Header: View, BottomBar: View>: ViewModifier {
@@ -131,9 +171,7 @@ private struct SidebarColumn<Field: View, Header: View, BottomBar: View>: ViewMo
             .listSectionSeparator(.hidden)
             .scrollContentBackground(.hidden)
             .mask { BarFade(barHeight: barHeight, fade: tokens.spacing.barFade).ignoresSafeArea(.all, edges: .bottom) }
-            #if os(macOS)
-            .background(ListSelectionPlatterOff())
-            #endif
+            .listSelectionPlatterOff()
             .safeAreaBar(edge: .top, spacing: Header.self == EmptyView.self ? 0 : tokens.spacing.statusLineToList) {
                 VStack(spacing: 0) {
                     if Field.self != EmptyView.self {
@@ -147,9 +185,15 @@ private struct SidebarColumn<Field: View, Header: View, BottomBar: View>: ViewMo
                 }
             }
             .safeAreaBar(edge: .bottom, spacing: 0) {
-                bottomBar.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = $0 }
+                if BottomBar.self != EmptyView.self {
+                    // Measured on a stack that is always there: a bar that empties (a rail down to one Space) leaves
+                    // it 0 pt tall, and its height comes back to 0. Measured on the bar itself, an empty bar sends no
+                    // new height and the last one stays, and `EmptyView` measured takes the whole column.
+                    VStack(spacing: 0) { bottomBar }
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = max(0, $0) }
+                }
             }
-            .navigationSplitViewColumnWidth(min: tokens.size.columnMin, ideal: tokens.size.columnIdeal, max: tokens.size.columnMax)
+            .sidebarColumnWidth()
             #if os(macOS)
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             #endif
@@ -158,11 +202,20 @@ private struct SidebarColumn<Field: View, Header: View, BottomBar: View>: ViewMo
 
 /// What the list shows of itself: all of it above the bottom bar, then a fade over the bar's first `fade` points, then
 /// nothing down to the window's edge. Without it a row under the bar shows below the bar's controls, against the edge.
+/// With no bar (0 pt) it is a plain rectangle: the whole list shows.
 private struct BarFade: View {
     let barHeight: CGFloat
     let fade: CGFloat
 
     var body: some View {
+        if barHeight <= 0 {
+            Rectangle()
+        } else {
+            fading
+        }
+    }
+
+    private var fading: some View {
         VStack(spacing: 0) {
             Rectangle()
             LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)

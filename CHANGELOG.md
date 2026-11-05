@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.2.7
+
+Three fixes Oisillon's adoption of 0.2.6 found: a `Banner` cut its message at two lines (issue #30), the sidebar column's
+widths did not reach the split view from below a container (issue #28), and a sidebar column with an empty bottom bar
+hid every row (issue #29).
+
+### Fixed
+
+- **A `Banner` shows its whole message** (issue #30): the message was cut at 2 lines, so a 3-line error lost its end.
+  Every initialiser takes **`messageLineLimit: Int?`**, and it defaults to **`nil`, no limit**: the message shows on as
+  many lines as it takes and the banner grows with it. Unlimited rather than the old 2, because the banner carries
+  errors whose end is often the part to act on ("…then try again"), a cut message cannot be read anywhere else, and a
+  client that wants the old height asks for it with `messageLineLimit: 2`. A message that fits on 1 or 2 lines draws
+  what 0.2.6 drew; only longer ones grow. The title keeps its 2 lines. Tested on an offscreen render, light and dark: a
+  3-line message is one line taller than with `messageLineLimit: 2`, the same height with no limit as with 3 and 4,
+  with a title, with the client's actions and beside the close button.
+- **The sidebar column's widths reach the split view** (issue #28): `navigationSplitViewColumnWidth` counts only on the
+  root of a `NavigationSplitView` column, so `sidebarColumn` under a container of the client's (a `VStack` in the
+  column view's body) set widths the split never saw, and the column opened at 144 pt, the split's default.
+  **`SidebarSplitView`** now sets the kit's widths on its sidebar's root itself: the column opens at `Size.columnIdeal`
+  (360 pt) wherever `sidebarColumn` sits inside it. In a `NavigationSplitView` of the client's, the widths have one
+  place, the column's root: `sidebarColumn` there, or the new **`.sidebarColumnWidth()`** there when the list sits
+  deeper. Tested by hosting the split in a 1100 pt window that is never shown and measuring the column: 360 pt with the
+  column at the root and under a `VStack`, in `SidebarSplitView` and in a client split with `sidebarColumnWidth()`.
+- **An empty bottom bar hides no row** (issue #29): with `bottomBar: { EmptyView() }` every row was drawn invisible,
+  though the rows were in the accessibility tree: the bar's height was measured on the `EmptyView`, which took the
+  whole column, and the fade mask hid all of it. And a bar that emptied (a `SpaceRail` going from 2 Spaces to 1, which
+  hides itself) sent no new height, so the mask kept its last 80 pt of rows hidden. The bar is now measured on a stack
+  that is always there and is 0 pt tall when the bar draws nothing, an `EmptyView` bar is not measured at all, and with
+  a 0 pt bar the mask is a plain rectangle. A bar that is shown draws and fades the list as in 0.2.6. Tested on a pixel
+  render of twelve rows: every row shows with no bar, with an `EmptyView` bar (also with a header), with a bar that is
+  empty in its state, and after a bar empties; the bar coming back fades the rows under it again.
+
+### Added
+
+- **`.sidebarColumn()`**: the sidebar column with no bottom bar.
+- **`.sidebarColumnWidth()`**: the kit's column widths (`columnMin`, `columnIdeal`, `columnMax`) on a
+  `NavigationSplitView` column's root.
+- **`.listSelectionPlatterOff()`** (issue #29): turns off the selection platter AppKit draws behind a selected `List`
+  row, on its own, without the rest of `sidebarColumn` (no list style, mask, bars or widths). Nothing on iOS.
+  `sidebarColumn` uses it.
+- **`Banner(…, messageLineLimit:)`**, above.
+
+### Unchanged
+
+- The 2344 legibility cases: the audit's output is the same, line for line, all at their threshold.
+- No source-breaking change: every new parameter has a default, every new modifier is additive.
+
 ## 0.2.6
 
 The Space rail's emoji and its popovers' focus ring (issue #20), both seen when Safira adopted the rail. Then the column
