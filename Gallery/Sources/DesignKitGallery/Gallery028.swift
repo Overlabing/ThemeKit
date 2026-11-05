@@ -211,6 +211,44 @@ struct Skeleton028Sheet: View {
     }
 }
 
+/// The rail's panels opened by its preview state (issue #37), at the bottom of a column: the `+` panel with a focused
+/// row, then the "+n" panel.
+struct RailPanels028Sheet: View {
+    static let commands = [
+        [SpaceRailCommand(id: "space", title: "New Space in Work…", systemImage: "plus"),
+         SpaceRailCommand(id: "profile", title: "New Profile…", systemImage: "person.crop.circle.badge.plus")],
+        [SpaceRailCommand(id: "edit", title: "Edit Spaces and Profiles…", systemImage: "pencil")],
+    ]
+    static let themes = Palette.standard.themes
+    static let profiles = [
+        SpaceRailProfile(id: "work", name: "Work", emoji: "💼", spaces: (1...8).map {
+            SpaceRailSpace(id: "w\($0)", name: "Work \($0)", theme: themes[$0 % themes.count], shortcut: "⌃\($0)")
+        }),
+        SpaceRailProfile(id: "home", name: "Personal", emoji: "🏡", spaces: [
+            SpaceRailSpace(id: "h1", name: "Home", glyph: .emoji("🏡"), theme: themes[4]),
+            SpaceRailSpace(id: "h2", name: "Reading", glyph: .symbol("books.vertical"), theme: themes[2]),
+        ]),
+    ]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            column(SpaceRailPreviewState(panel: .commands, panelFocus: "profile"))
+            column(SpaceRailPreviewState(panel: .spaces))
+        }
+        .background { WindowBackground() }
+    }
+
+    private func column(_ state: SpaceRailPreviewState) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            SpaceRail(profiles: Self.profiles, selection: "w2", commands: Self.commands, selectSpace: { _ in },
+                      selectProfile: { _ in })
+                .spaceRailPreviewState(state)
+        }
+        .frame(width: 330)
+    }
+}
+
 @MainActor
 func run028(output: URL) {
     let sheets: [(name: String, size: CGSize, view: AnyView)] = [
@@ -218,6 +256,7 @@ func run028(output: URL) {
         ("detail-cards", CGSize(width: 760, height: 420), AnyView(DetailCards028Sheet())),
         ("tile-fill", CGSize(width: 360, height: 300), AnyView(TileFill028Sheet())),
         ("stacked-rows", CGSize(width: 360, height: 330), AnyView(StackedRows028Sheet())),
+        ("rail-panels", CGSize(width: 660, height: 760), AnyView(RailPanels028Sheet())),
     ]
     let hosted: [(name: String, size: CGSize, view: AnyView)] = [
         ("skeleton", CGSize(width: 720, height: 420), AnyView(Skeleton028Sheet())),

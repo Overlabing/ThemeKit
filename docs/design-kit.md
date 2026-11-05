@@ -404,8 +404,10 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   panels forced `.column`, so their inks were solved for a column fill they are not on. On the popover (bounded by the
   plain background and that background at half opacity over the gradient) their text reaches 4.70:1 at worst, their
   focus ring and marker 3.36:1.
-- **Previews and renders**: `.spaceRailPreviewState(SpaceRailPreviewState(hovered:focused:))` forces a hover and a
-  focus (`ImageRenderer` has neither); `SpaceRailPanel(model:commands:…)` draws the panel outside its popover.
+- **Previews and renders**: `.spaceRailPreviewState(SpaceRailPreviewState(hovered:focused:panel:panelFocus:))` forces a
+  hover and a focus (`ImageRenderer` has neither) and opens a panel (`.spaces` for "+n", `.commands` for `+`), drawn in
+  place above the rail rather than in a popover, so that a render or a capture of the window shows it;
+  `SpaceRailPanel(model:commands:…)` draws the panel on its own.
 
 ## Accessibility
 
