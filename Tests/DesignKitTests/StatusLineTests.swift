@@ -79,16 +79,34 @@ struct StatusLineTests {
     }
 
     @Test(arguments: [ColorScheme.light, .dark])
-    func hoverShowsOverTheOpenFill(_ scheme: ColorScheme) throws {
+    func hoverCanShowOverTheOpenFill(_ scheme: ColorScheme) throws {
         let roles = ColorRoles(theme: theme, tokens: .standard, appearance: scheme == .dark ? .dark : .light)
+        let hovered = RowState(isHovered: true)
         let open = try render(StatusLine(tile: .initial("A"), title: "All", isOpen: true, fillsWhenOpen: true), scheme: scheme)
-        let hovered = try render(
-            StatusLine(tile: .initial("A"), title: "All", isOpen: true, fillsWhenOpen: true, state: RowState(isHovered: true)),
+        let kept = try render(
+            StatusLine(tile: .initial("A"), title: "All", isOpen: true, fillsWhenOpen: true, state: hovered), scheme: scheme)
+        let over = try render(
+            StatusLine(tile: .initial("A"), title: "All", isOpen: true, fillsWhenOpen: true, state: hovered,
+                       hoverOverOpenFill: true),
+            scheme: scheme)
+        let closed = try render(
+            StatusLine(tile: .initial("A"), title: "All", isOpen: false, fillsWhenOpen: true, state: hovered,
+                       hoverOverOpenFill: true),
             scheme: scheme)
         // The fill starts 4 pt in, the tile 8 pt further: sample between them.
-        #expect(Contrast.ratio(open.color(x: 8, y: 19), over(roles.currentOpacity, scheme: scheme)) < 1.02)
-        #expect(Contrast.ratio(hovered.color(x: 8, y: 19), over(roles.hoverOpacity, scheme: scheme)) < 1.02,
-                "hovered, the open line shows the hover fill")
+        #expect(Contrast.ratio(open.color(x: 8, y: 19), self.over(roles.currentOpacity, scheme: scheme)) < 1.02)
+        #expect(Contrast.ratio(kept.color(x: 8, y: 19), self.over(roles.currentOpacity, scheme: scheme)) < 1.02,
+                "by default the open fill stays under the pointer")
+        #expect(Contrast.ratio(over.color(x: 8, y: 19), self.over(roles.hoverOpacity, scheme: scheme)) < 1.02,
+                "with hoverOverOpenFill the hover fill shows")
+        #expect(Contrast.ratio(closed.color(x: 8, y: 19), self.over(roles.hoverOpacity, scheme: scheme)) < 1.02)
+    }
+
+    @Test func theChevronTransitionIsTheClients() throws {
+        // A transition shows only while the chevron changes: at rest every transition draws the same chevron.
+        let replace = try render(StatusLine(tile: .initial("A"), title: "All", isOpen: true))
+        let none = try render(StatusLine(tile: .initial("A"), title: "All", isOpen: true, chevronTransition: .identity))
+        #expect(replace.matches(none))
     }
 
     @Test func theLineIsAtLeastItsHeightAndGrowsWithItsText() throws {

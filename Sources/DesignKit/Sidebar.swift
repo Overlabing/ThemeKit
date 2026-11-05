@@ -93,7 +93,8 @@ extension View {
     /// The sidebar column around its `List`: the kit's column widths (`sidebarColumnWidth()`), a plain list on the
     /// gradient (no content background, no section separators, no system selection platter: the cells'
     /// `ListRowBackground` is the selection), and `bottomBar` pinned to the column's bottom edge in a `safeAreaBar`, the
-    /// `SpaceRail` for instance. The list scrolls under the bar, and fades out under it before the window's edge. A bar
+    /// `SpaceRail` for instance. The list scrolls under the bar, and fades out under it before the window's edge. Its cells
+    /// track their hover in a `ListHover` of the column's (`sidebarRowCell(state:placement:hoverID:)`). A bar
     /// that draws nothing (`EmptyView()`, or a view that is empty in its current state, a rail with one Space) takes no
     /// height and hides no row, and a bar that empties gives its height back.
     ///
@@ -125,8 +126,14 @@ extension View {
     /// does; the content (a tile, the text, a trailing accessory, with no padding of its own) sits `listCellMargin`
     /// further in on both sides, `listCellMargin + rowInsetHorizontal` from the background's edge. Use it in a
     /// `sidebarColumn`; elsewhere `listRowCell(state:placement:)`.
-    public func sidebarRowCell(state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false)) -> some View {
-        modifier(SidebarRowCell(state: state, placement: placement))
+    ///
+    /// With `hoverID` (the row's id) the cell tracks the pointer itself and draws its hover fill, so `state` needs no
+    /// `isHovered`: in the `ListHover` `sidebarColumn` sets (or yours, `listHover(_:)`), so a hover step re-evaluates the
+    /// row it leaves and the row it enters, never the others.
+    public func sidebarRowCell(
+        state: RowState = RowState(), placement: RowPlacement = .free(firstInSection: false), hoverID: AnyHashable? = nil
+    ) -> some View {
+        modifier(SidebarRowCell(state: state, placement: placement, hoverID: hoverID))
     }
 
     /// The kit's sidebar column widths (`Size.columnMin`, `columnIdeal`, `columnMax`) on a `NavigationSplitView` column.
@@ -164,9 +171,11 @@ private struct SidebarColumn<Field: View, Header: View, BottomBar: View>: ViewMo
     let header: Header
     let bottomBar: BottomBar
     @State private var barHeight: CGFloat = 0
+    @State private var hover = ListHover()
 
     func body(content: Content) -> some View {
         content
+            .environment(hover)
             .listStyle(.plain)
             .listSectionSeparator(.hidden)
             .scrollContentBackground(.hidden)
@@ -229,6 +238,7 @@ private struct SidebarRowCell: ViewModifier {
     @Environment(\.designTokens) private var tokens
     let state: RowState
     let placement: RowPlacement
+    let hoverID: AnyHashable?
 
     func body(content: Content) -> some View {
         let spacing = tokens.spacing
@@ -239,7 +249,11 @@ private struct SidebarRowCell: ViewModifier {
                 top: placement.topInset(spacing) + vertical, leading: side + placement.indent(spacing),
                 bottom: spacing.rowGap / 2 + vertical, trailing: side))
             .listRowSeparator(.hidden)
-            .listRowBackground(ListRowBackground(state: state, placement: placement))
+            .modifier(CellHover(id: hoverID) { [state, placement, hoverID] localHover in
+                var state = state
+                if localHover { state.isHovered = true }
+                return ListRowBackground(state: state, placement: placement, hoverID: hoverID)
+            })
     }
 }
 
