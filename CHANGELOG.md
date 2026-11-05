@@ -38,8 +38,8 @@ Oisillon's Spaces (issue #22).
 ### Deprecated
 
 Neither app draws the kit's column surface: Safira and Oisillon both use a system `NavigationSplitView` sidebar, flush
-with the window's edge (issue #21). These still compile in 0.2.6, with a warning that points at the system sidebar, and
-are removed in 0.3:
+with the window's edge (issue #21). These still compile in 0.2.6, with a warning that points at `SidebarSplitView`
+(below), and are removed in 0.3:
 
 - **`ColumnSurface`**, **`.columnSurface(side:)`** and **`ColumnLayout`**, which is built on it.
 - **`SurfacePlacement.column`**, so **`ColorRoles(…, placement: .column)`**. `SurfacePlacement.allCases` is written
@@ -53,7 +53,8 @@ The kit builds with no deprecation warning of its own, so a client that uses non
 `ColorRoles.railDivider` keeps the column edge's ink (3.65:1 at least on the frame's gradient and the plain
 background), and the legibility audit keeps its column cases (798 legibility cases, the 168 rail cases and 140 + 140
 accent cases) until the column is removed. The docs and the README now show
-the column as a system sidebar: a plain `List` with `.scrollContentBackground(.hidden)`, the kit's views in `.frame`.
+the column as the system sidebar, `SidebarSplitView`: a plain `List` with `.scrollContentBackground(.hidden)`, the kit's
+views in `.frame`.
 
 ### Added
 

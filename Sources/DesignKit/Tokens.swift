@@ -64,11 +64,11 @@ extension DesignTokens {
         public var canvasInset: CGFloat = m
         /// Inset of a list column's surface from the window's edges (top, bottom, outer side). Equal to `canvasInset`,
         /// so the column and the canvas beside it line up and keep the same gap to the window and to each other.
-        @available(*, deprecated, message: "ColumnSurface is deprecated: use a system NavigationSplitView sidebar. Removed in 0.3.")
+        @available(*, deprecated, message: "ColumnSurface is deprecated: use SidebarSplitView, the system sidebar. Removed in 0.3.")
         public var columnInset: CGFloat = m
         /// From the window's top edge (the top of the layout, when the content runs under the title bar) to the
         /// column's first row: `columnInset`, then the column's own margin (`listMargin`) inside its surface.
-        @available(*, deprecated, message: "ColumnSurface is deprecated: use a system NavigationSplitView sidebar. Removed in 0.3.")
+        @available(*, deprecated, message: "ColumnSurface is deprecated: use SidebarSplitView, the system sidebar. Removed in 0.3.")
         public var columnTop: CGFloat = xl
         /// Between two icon buttons in a pill, and between two groups of buttons.
         public var pillActionGap: CGFloat = s
@@ -149,7 +149,7 @@ extension DesignTokens {
         public var canvas: CGFloat = 12
         /// A list column's surface: `row` plus the 4 pt from the surface's edge to a row's background
         /// (`listMargin - rowInsetHorizontal`), so the rows' backgrounds stay concentric to it.
-        @available(*, deprecated, message: "ColumnSurface is deprecated: use a system NavigationSplitView sidebar. Removed in 0.3.")
+        @available(*, deprecated, message: "ColumnSurface is deprecated: use SidebarSplitView, the system sidebar. Removed in 0.3.")
         public var column: CGFloat = 12
 
         public init() {}

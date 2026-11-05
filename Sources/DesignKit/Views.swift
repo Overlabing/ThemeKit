@@ -33,7 +33,7 @@ public enum ColumnSide: String, Sendable, CaseIterable {
 /// A list column beside a detail, on the window background. The column sits on its own surface (`ColumnSurface`),
 /// `Size.columnIdeal` wide; the detail sits in a content canvas, on the gradient. `.right` mirrors the layout without
 /// mirroring what is inside the column. Deprecated with `ColumnSurface`, which it is built on.
-@available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+@available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
 public struct ColumnLayout<Column: View, Detail: View>: View {
     @Environment(\.designTokens) private var tokens
     private let side: ColumnSide
@@ -69,7 +69,7 @@ public struct ColumnLayout<Column: View, Detail: View>: View {
 /// 0.2.6, removed in 0.3: neither client draws a column surface. The column is a system `NavigationSplitView` sidebar,
 /// flush with the window's edge, its list plain with `.scrollContentBackground(.hidden)`, the kit's views in it in
 /// `.frame`.
-@available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+@available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
 public struct ColumnSurface<Content: View>: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -110,7 +110,7 @@ public struct ColumnSurface<Content: View>: View {
 
 extension View {
     /// Sets the view on a list column's own surface (`ColumnSurface`), on `side` of the window.
-    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
     public func columnSurface(side: ColumnSide = .left) -> some View {
         ColumnSurface(side: side) { self }
     }

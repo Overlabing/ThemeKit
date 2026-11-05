@@ -25,7 +25,7 @@ extension DesignTokens {
     /// The same inside a list column (`ColumnSurface`): every surface sits on the column's own fill, the plain
     /// background at `Emphasis.column(isDark:)` over the gradient, or on the plain background alone (Reduce
     /// Transparency).
-    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
     public func columnSurfaces(in appearance: Appearance) -> Surfaces { columnFillSurfaces(in: appearance) }
 
     /// `columnSurfaces(in:)`, for the kit's own use until it is removed: the legibility audit keeps its column cases
@@ -47,7 +47,7 @@ public enum SurfacePlacement: String, Sendable, CaseIterable, Hashable {
     /// On the window's gradient. A system `NavigationSplitView` sidebar, a popover and a sheet take this one too.
     case frame
     /// Inside a list column's own surface (`ColumnSurface`).
-    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
     case column
 
     /// Written out: a deprecated case keeps Swift from synthesizing it. The legibility audit walks both until 0.3.
@@ -176,14 +176,14 @@ public struct ColorRoles: Sendable {
     }
 
     /// The column's own fill: the plain background at this opacity over the gradient (1 under Reduce Transparency).
-    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
     public var columnFillOpacity: Double { emphasis.column(isDark: appearance.isDark) }
 
     /// The edge of the column's surface: the label's ink at the alpha that reaches 3:1 against the gradient around
     /// the column and against the column's own fill, at every height, with or without Reduce Transparency.
-    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
     public var columnEdge: Color { Color(rgba: edgeRGBA) }
-    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
     public var columnEdgeRGBA: RGBA { edgeRGBA }
 
     /// `columnEdgeRGBA`, for the rail's divider until the column is removed.
@@ -195,7 +195,7 @@ public struct ColorRoles: Sendable {
 
     /// The smallest alpha of the ink (to 1/1000) at which the edge, drawn over the column's fill, reaches `minimum`
     /// against the bare gradient beside it and against that fill; 1 when even the opaque ink falls short.
-    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
     public static func columnEdgeAlpha(
         colors: ResolvedColors, frame: Surfaces, column: Surfaces, hueScale: Double, minimum: Double
     ) -> Double {
@@ -218,7 +218,7 @@ public struct ColorRoles: Sendable {
     /// Each place along the column's edge: the column's fill there (the edge is drawn over it) and the bare gradient
     /// just outside, sampled top to bottom; then the plain background (Reduce Transparency) beside every gradient
     /// sample.
-    @available(*, deprecated, message: "Use a system NavigationSplitView sidebar (a plain List, .scrollContentBackground(.hidden)), with the kit's roles in .frame. Removed in 0.3.")
+    @available(*, deprecated, message: "Use SidebarSplitView, the system NavigationSplitView sidebar, with the kit's roles in .frame. Removed in 0.3.")
     public static func columnEdgeNeighbours(
         colors: ResolvedColors, frame: Surfaces, column: Surfaces, hueScale: Double
     ) -> [(fill: RGBA, outside: RGBA)] {

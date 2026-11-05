@@ -184,8 +184,8 @@ immediate.
 | `SidebarDetail` | the detail beside a sidebar: a card inset 12 pt, from the window's top edge, with an optional floating bottom bar |
 | `.sidebarWindowChrome()` | the window of a sidebar app: transparent toolbar, no title shown, toolbar on hover in full screen |
 | `NSSplitViewItem.sidebar(hosting:)` | AppKit: the system's sidebar split item hosting a `sidebarColumn`, at the column widths; `sidebarToolbarItems` for the window's toolbar |
-| `ColumnLayout(side:)` | **deprecated in 0.2.6, removed in 0.3**: use a system sidebar (see "The column" below). A list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
-| `ColumnSurface(side:)`, `.columnSurface(side:)` | **deprecated in 0.2.6, removed in 0.3**: use a system sidebar (see "The column" below). A list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`, deprecated with it) |
+| `ColumnLayout(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
+| `ColumnSurface(side:)`, `.columnSurface(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`, deprecated with it) |
 | `ContentCanvas` | content inset 12 pt, rounded 12 pt, 1 pt separator line |
 | `Tile` | a rounded square: a symbol on a colour (white, or black where white stays under 3:1), a tinted symbol, or an initial on the tile fill; four sizes |
 | `ListRow` | tile, title and detail lines, trailing accessory; hover, current, selection fills; the selection's marker bar (outside Increase Contrast); focus ring; `RowPlacement` free or inside a panel |
@@ -208,11 +208,11 @@ immediate.
 
 ## The column
 
-The list column is a system sidebar, flush with the window's edge, as both clients draw it: a `NavigationSplitView`
-sidebar whose `List` is plain (`.listStyle(.plain)`) with `.scrollContentBackground(.hidden)`, its rows as List cells
-(below), the Space rail at its bottom. The kit's views in it stay in `.frame`, the default `surfacePlacement`, so their
-inks are the frame's; so do the Space rail's popovers, which inherit it. `ColumnSurface` and `ColumnLayout`, the kit's
-own inset column surface with its fill and edge, have no client: they, `SurfacePlacement.column`,
+The list column is the system's sidebar, flush with the window's edge, as both clients draw it: `SidebarSplitView`
+and `.sidebarColumn` (see "Sidebar" below), a `NavigationSplitView` whose `List` is plain with
+`.scrollContentBackground(.hidden)`, the Space rail at its bottom. The kit's views in it stay in `.frame`, the default
+`surfacePlacement`, so their inks are the frame's; so do the Space rail's popovers, which inherit it. `ColumnSurface`
+and `ColumnLayout`, the kit's own inset column surface with its fill and edge, have no client: they, `SurfacePlacement.column`,
 `ColorRoles(…placement: .column)`, `columnEdge*`, `columnFillOpacity`, `Spacing.columnInset` and `columnTop`,
 `Radius.column` and `DesignTokens.columnSurfaces(in:)` are deprecated in 0.2.6 and removed in 0.3. The legibility audit
 keeps its column cases until then.
