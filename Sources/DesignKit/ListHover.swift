@@ -17,7 +17,18 @@ public final class ListHover {
     public private(set) var hoveredID: AnyHashable?
     /// `hoveredID`, unobserved: what a row's body reads when it first asks, so that it observes its own row alone.
     @ObservationIgnored private var current: AnyHashable?
-    @ObservationIgnored private var rows: [AnyHashable: Row] = [:]
+    /// The rows asked about lately, in two generations: a row asked about goes into `recent`; when `recent` is full it
+    /// becomes `older` and the `older` before it is dropped, so the store holds at most `capacity` rows however many ids
+    /// a long scroll asks about (issue #48). A row asked about again while in `older` comes back into `recent`, and the
+    /// hovered row is never dropped.
+    @ObservationIgnored private var recent: [AnyHashable: Row] = [:]
+    @ObservationIgnored private var older: [AnyHashable: Row] = [:]
+
+    /// How many rows the store holds at most: two generations of `capacity / 2`, many times the rows a column shows.
+    static let capacity = 512
+
+    /// How many rows the store holds now, for the tests.
+    var storedRows: Int { recent.count + older.count }
 
     public init() {}
 
@@ -35,20 +46,38 @@ public final class ListHover {
         }
     }
 
-    /// Makes `id` the hovered row (none when nil).
+    /// Makes `id` the hovered row (none when nil). Touches the row left and the row entered alone, and stores neither:
+    /// a row not asked about yet starts hovered when it asks.
     public func move(to id: AnyHashable?) {
         guard id != current else { return }
-        if let old = current { rows[old]?.isHovered = false }
+        if let old = current { stored(old)?.isHovered = false }
         current = id
         hoveredID = id
-        if let id { row(id).isHovered = true }
+        if let id { stored(id)?.isHovered = true }
     }
 
+    private func stored(_ id: AnyHashable) -> Row? { recent[id] ?? older[id] }
+
     private func row(_ id: AnyHashable) -> Row {
-        if let known = rows[id] { return known }
-        let made = Row(isHovered: id == current)
-        rows[id] = made
-        return made
+        if let known = recent[id] { return known }
+        let row = older.removeValue(forKey: id) ?? Row(isHovered: id == current)
+        recent[id] = row
+        if recent.count >= Self.capacity / 2 { rotate() }
+        return row
+    }
+
+    /// `recent` becomes `older`, and the `older` before it is dropped, keeping the hovered row. A dropped row that a view
+    /// still shows (one asked about long ago and not since) re-evaluates that view, once, after this update, so that it
+    /// asks again and observes the row that is stored: its hover is never missed.
+    private func rotate() {
+        var dropped = older
+        older = recent
+        recent = [:]
+        if let current, let row = dropped.removeValue(forKey: current) { recent[current] = row }
+        guard !dropped.isEmpty else { return }
+        Task { @MainActor in
+            for row in dropped.values { row.retire() }
+        }
     }
 
     /// One row's hover, observed on its own.
@@ -58,6 +87,11 @@ public final class ListHover {
 
         init(isHovered: Bool) {
             self.isHovered = isHovered
+        }
+
+        /// Tells the views that observe this row that it is no longer stored, so that they ask again.
+        func retire() {
+            withMutation(keyPath: \.isHovered) {}
         }
     }
 }

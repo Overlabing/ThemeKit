@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.9
+
+What Oisillon's adoption of 0.2.8 found.
+
+### Fixed
+
+- **`ListHover` keeps a bounded store** (issue #48): it kept an entry for every row id ever asked about, so its memory
+  grew over a long scroll. It now keeps the rows asked about lately in two generations of 256: when the newer is full
+  it becomes the older, and the older before it is dropped, the hovered row kept. However long the list, it holds at
+  most 512 rows, many times what a column shows, at a constant cost per row asked about. A row dropped while a view
+  still shows it (asked about long ago and not since) re-evaluates that view once, after the update that dropped it,
+  so that it asks again: its hover is never missed. `move(to:)` no longer stores the rows it touches. A hover step
+  still re-evaluates at most 2 rows. Tested in a real `List` of 5,000 rows hosted in a window that is never shown,
+  with `listRowCell` and with `sidebarRowCell` in a `sidebarColumn`, scrolled from top to bottom: at most 511 rows are
+  stored (0.2.8 kept all 5,000 drawn), and at the end entering a row re-evaluates 1 background and moving to the next
+  2. Without a list: 5,000 ids asked about in turn leave at most 512, the hovered row is kept, a dropped row asked
+  about again reads the hover as it is, and an observer of a dropped row is told. A scroll step in the 400-row hosted
+  list of the hover tests costs the same (debug, median of 854 and 653 steps of 36 pt, 3 runs each,
+  `THEMEKIT_TIMING=1 swift test --filter ListScrollTimingTests`): 1.07 to 1.09 ms before and 1.06 ms after with
+  `listRowCell`, 0.91 to 0.93 ms before and 0.89 to 0.91 ms after with `sidebarRowCell`.
+
 ## 0.2.8
 
 What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
