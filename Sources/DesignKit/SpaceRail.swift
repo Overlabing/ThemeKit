@@ -76,6 +76,28 @@ public struct SpaceRail: View {
                 .frame(height: tokens.size.railHeight)
             }
             .padding(.bottom, tokens.spacing.switcherBottom)
+            .overlay(alignment: .top) {
+                // A strip with no height along the rail's top edge: the panel hangs above it, its bottom on it.
+                Color.clear.frame(maxWidth: .infinity).frame(height: 0)
+                    .overlay(alignment: .bottomTrailing) { previewPanel }
+            }
+        }
+    }
+
+    /// The panel `spaceRailPreviewState` opens, drawn in place above the rail rather than in a popover: a popover draws
+    /// neither in an offscreen render nor in a capture of the window alone.
+    @ViewBuilder
+    private var previewPanel: some View {
+        if let panel = preview?.panel {
+            SpaceRailPanel(
+                model: model, commands: commands, showsSpaces: panel == .spaces, focus: preview?.panelFocus,
+                showsFocusRing: preview?.panelFocus != nil, selectSpace: selectSpace, perform: perform)
+                .drawnWithoutScrolling()
+                .environment(\.spaceRailContextMenus, menus)
+                .surface(.glass(tint: 0), in: RoundedRectangle(cornerRadius: tokens.radius.banner, style: .continuous))
+                .fixedSize()
+                .padding(.trailing, tokens.spacing.listMargin)
+                .padding(.bottom, tokens.spacing.railCaption)
         }
     }
 
@@ -352,6 +374,8 @@ public struct SpaceRailPanel: View {
     private let selectSpace: (String) -> Void
     private let perform: (String) -> Void
     private let initialFocus: String?
+    /// False for the rail's preview state: the rows are drawn without a scroll view.
+    var scrolls = true
 
     /// `focus` (a Space's or a command's id) is for previews and renders; the panel otherwise starts on the selected
     /// Space, or on its first row. `showsFocusRing` false is for a panel opened with the pointer: no focus ring until
@@ -389,19 +413,7 @@ public struct SpaceRailPanel: View {
     }
 
     public var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                content
-            }
-            .scrollBounceBehavior(.basedOnSize)
-            .frame(maxHeight: tokens.size.railPanelMaxHeight)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(width: tokens.size.columnMin)
-            .onChange(of: focus.row) { _, id in
-                guard let entry = entries.first(where: { $0.id == id }) else { return }
-                proxy.scrollTo(entry, anchor: nil)
-            }
-        }
+        scrolling
         .focusable()
         .focused($isFocused)
         .focusEffectDisabled()
@@ -435,6 +447,29 @@ public struct SpaceRailPanel: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(model.accessibilityGroupLabel)
+    }
+
+    /// The rows in a scroll view that follows the focused row; drawn without it (all its rows, no scrolling) for the
+    /// rail's preview state, since an offscreen render draws no scroll view's content.
+    @ViewBuilder
+    private var scrolling: some View {
+        if scrolls {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    content
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .frame(maxHeight: tokens.size.railPanelMaxHeight)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: tokens.size.columnMin)
+                .onChange(of: focus.row) { _, id in
+                    guard let entry = entries.first(where: { $0.id == id }) else { return }
+                    proxy.scrollTo(entry, anchor: nil)
+                }
+            }
+        } else {
+            content.frame(width: tokens.size.columnMin)
+        }
     }
 
     private var content: some View {
@@ -491,15 +526,34 @@ public struct SpaceRailPanel: View {
     }
 }
 
-/// Hover and keyboard focus forced on the rail's items, for previews and offscreen renders (`ImageRenderer` has no
-/// pointer and no focus). Never in shipping UI.
+/// Hover and keyboard focus forced on the rail's items, and one of its panels opened, for previews, offscreen renders
+/// and captures (`ImageRenderer` has no pointer and no focus, and neither it nor a capture of the window draws a
+/// popover). Never in shipping UI.
 public struct SpaceRailPreviewState: Sendable, Equatable {
+    /// A panel of the rail.
+    public enum Panel: Sendable, Equatable {
+        /// The "+n" panel: every Profile and Space, then the commands.
+        case spaces
+        /// The `+` panel: the commands alone.
+        case commands
+    }
+
     public var hovered: SpaceRailItem.Key?
     public var focused: SpaceRailItem.Key?
+    /// The panel shown open, drawn in place above the rail's trailing end (on the kit's glass surface, rounded like a
+    /// banner) rather than in a popover, whether or not its item shows in the row.
+    public var panel: Panel?
+    /// The panel's row (a Space's or a command's id) shown with the focus ring; none when nil.
+    public var panelFocus: String?
 
-    public init(hovered: SpaceRailItem.Key? = nil, focused: SpaceRailItem.Key? = nil) {
+    public init(
+        hovered: SpaceRailItem.Key? = nil, focused: SpaceRailItem.Key? = nil, panel: Panel? = nil,
+        panelFocus: String? = nil
+    ) {
         self.hovered = hovered
         self.focused = focused
+        self.panel = panel
+        self.panelFocus = panelFocus
     }
 }
 
@@ -508,7 +562,8 @@ extension EnvironmentValues {
 }
 
 extension View {
-    /// Draws the Space rails below with `state` hovered and focused, for previews and renders.
+    /// Draws the Space rails below with `state` hovered and focused, and its panel open, for previews, renders and
+    /// captures.
     public func spaceRailPreviewState(_ state: SpaceRailPreviewState) -> some View {
         environment(\.spaceRailPreviewState, state)
     }
@@ -567,5 +622,14 @@ extension View {
         } else {
             self
         }
+    }
+}
+
+extension SpaceRailPanel {
+    /// The panel with its rows drawn without a scroll view (the rail's preview state).
+    func drawnWithoutScrolling() -> SpaceRailPanel {
+        var panel = self
+        panel.scrolls = false
+        return panel
     }
 }

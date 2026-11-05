@@ -91,6 +91,15 @@ What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
   placement moves the first row only; in a real `List` hosted in a window that is never shown, 5 rows with
   `.listCells` and with `.sidebarCells` in a `sidebarColumn` are 5 table rows of one height, taller than 50 pt with 3
   lines.
+- **The rail's panels open in previews and captures** (issue #37): `spaceRailPreviewState` forced a hover and a
+  focus only, so neither the "+n" panel nor the `+` panel could be seen in a preview or a background capture (Oisillon
+  kept a Debug flag of its own). **`SpaceRailPreviewState(hovered:focused:panel:panelFocus:)`**: `panel`
+  (**`SpaceRailPreviewState.Panel`**, `.spaces` for "+n", `.commands` for `+`) draws that panel open, in place above the
+  rail's trailing end on the kit's glass surface rounded like a banner, rather than in a popover, which neither an
+  offscreen render nor a capture of the window draws; `panelFocus` (a Space's or a command's id) shows the focus ring
+  on that row. The panel is drawn whole there, without its scroll view (an offscreen render draws none). The old
+  initialiser is unchanged. Tested on an offscreen render, light and dark: closed, only the rail draws; the `+` panel
+  draws above it and the "+n" panel higher still, the rail's rows the same under either; a focused row draws its ring.
 - **A context menu per Space and per Profile in the `SpaceRail`** (issue #36): the rail had no menu of its own per
   item, so a client's `contextMenu` on the whole rail could only act on the current Space (Safira's Edit, Move and
   Delete, Oisillon's Edit and Delete). **`.spaceRailContextMenu(space:profile:)`**, or `space:` alone, gives the rails
