@@ -11,6 +11,7 @@ import Testing
 struct StandardTokensTests {
     let tokens = DesignTokens.standard
 
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     @Test func spacing() {
         let spacing = tokens.spacing
         #expect(DesignTokens.Spacing.scale == [2, 4, 8, 12, 16, 24])
@@ -39,6 +40,7 @@ struct StandardTokensTests {
         #expect(spacing.columnTop == spacing.columnInset + spacing.listMargin)
     }
 
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     @Test func radii() {
         let radius = tokens.radius
         #expect(radius.tile == 8)
@@ -174,6 +176,7 @@ struct SurfacesTests {
     }
 
     /// Inside a column every surface is the frame's, under the column's backdrop.
+    @available(*, deprecated, message: "Tests the deprecated column surface.")
     @Test(arguments: Appearance.allCases)
     func theColumnIsTheFrameUnderABackdrop(_ appearance: Appearance) {
         var expected = DesignTokens.standard.surfaces(in: appearance)
@@ -240,6 +243,7 @@ struct ColorRolesTests {
     /// Inside a column the roles are solved on the column's surfaces, at the frame's share of the hue, so the
     /// gradient under the column and the fills in it are drawn alike.
     @Test(arguments: Palette.standard.themes)
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func columnRolesAreSolvedOnTheColumnFill(_ theme: Theme) {
         for appearance in Appearance.allCases {
             let frame = ColorRoles(theme: theme, tokens: .standard, appearance: appearance)
@@ -262,6 +266,7 @@ struct ColorRolesTests {
     /// The column's edge: the label's ink, translucent, at 3:1 against the gradient beside the column and against the
     /// column's fill, with or without Reduce Transparency.
     @Test(arguments: Palette.standard.themes)
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func theColumnEdgeReachesThreeToOne(_ theme: Theme) {
         for appearance in Appearance.allCases {
             let roles = ColorRoles(theme: theme, tokens: .standard, appearance: appearance, placement: .column)
@@ -316,6 +321,7 @@ struct LegibilityCaseTests {
 
     /// 818 on the frame (as 0.2.2), 798 in the column: 27 per Theme and appearance, plus the marker (light, dark) or
     /// the two outlines (Increase Contrast).
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     @Test func everyCaseIsRecorded() {
         #expect(Self.computed.count == 1616)
         #expect(Self.computed.values.filter { $0.placement == .column }.count == 798)
@@ -349,6 +355,7 @@ struct LegibilityInvariantTests {
     /// Inside a column: the frame's roles on the column's fill instead of the frame, no text or symbol on the opaque
     /// hue (nothing under it changes), and the column's edge against the gradient and against the fill.
     @Test(arguments: Appearance.allCases)
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func theColumnHasItsOwnCases(_ appearance: Appearance) {
         let cases = DesignTokens.standard.legibilityCases(for: Palette.standard.themes[0], in: appearance, placement: .column)
         #expect(cases.count == (appearance.isIncreasedContrast ? 29 : 28))
@@ -372,6 +379,7 @@ struct LegibilityInvariantTests {
     }
 
     /// The thresholds: 4.5:1 for text, 3:1 for glyphs, focus rings, outlines and the selection marker.
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     @Test func thresholds() {
         let cases = DesignTokens.standard.legibilityCases(for: Palette.standard.themes[0], in: .darkIncreasedContrast)
         let column = DesignTokens.standard.legibilityCases(
@@ -518,6 +526,7 @@ struct RenderedViewsTests {
         #expect(Contrast.ratio(pixels.color(x: 7, y: middle), pixels.color(x: 10, y: middle)) < 1.05)
     }
 
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func layout(_ side: ColumnSide, _ theme: Theme, _ scheme: ColorScheme, reduceTransparency: Bool = false) throws -> Pixels {
         let view = ColumnLayout(side: side) { Color.clear.frame(height: 10) } detail: { Color.clear }
             .frame(width: 600, height: 400)
@@ -532,6 +541,7 @@ struct RenderedViewsTests {
     /// beside it and against the column's fill, on either side; the fill differs from the gradient. 8-bit pixels may
     /// take up to 0.05 off a ratio solved to 3.00.
     @Test(arguments: [Palette.standard.themes[0], Palette.standard.themes[2]], [ColorScheme.light, .dark])
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func theColumnStandsOnItsOwnSurface(_ theme: Theme, _ scheme: ColorScheme) throws {
         for side in ColumnSide.allCases {
             let pixels = try layout(side, theme, scheme)
@@ -550,6 +560,7 @@ struct RenderedViewsTests {
 
     /// Under Reduce Transparency the column is the plain window background, opaque: nothing of the gradient shows.
     @Test(arguments: [ColorScheme.light, .dark])
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func reduceTransparencyMakesTheColumnOpaque(_ scheme: ColorScheme) throws {
         let pixels = try layout(.left, Palette.standard.themes[0], scheme, reduceTransparency: true)
         let background = ResolvedColors(Palette.standard.themes[0], in: scheme == .dark ? .dark : .light).background
@@ -559,6 +570,7 @@ struct RenderedViewsTests {
 
     /// A row inside the column solves on the column's fill: its marker reaches 3:1 on its own fill there.
     @Test(arguments: [Palette.standard.themes[0], Palette.standard.themes[2]], [ColorScheme.light, .dark])
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func theMarkerReachesThreeToOneInTheColumn(_ theme: Theme, _ scheme: ColorScheme) throws {
         let view = ColumnSurface {
             ListRow("Title", details: ["Detail"], state: RowState(isSelected: true)) { Tile(.initial("T")) }

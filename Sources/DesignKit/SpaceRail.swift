@@ -203,7 +203,7 @@ public struct SpaceRail: View {
             .help(help(item))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(model.accessibilityLabel(for: item))
-            .accessibilityHint(hint(item))
+            .accessibilityHint(model.accessibilityHint(for: item))
             .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             .accessibilityAction { run(model.action(for: item), fromKeyboard: true) }
         switch item {
@@ -278,18 +278,13 @@ public struct SpaceRail: View {
         case .overflow, .add: model.accessibilityLabel(for: item)
         }
     }
-
-    private func hint(_ item: SpaceRailItem) -> String {
-        guard case .profile(let profile, _, _) = item, let landing = profile.landingSpace else { return "" }
-        return String(localized: "opens \(landing.name)", table: "DesignKit", bundle: .module)
-    }
 }
 
 /// A Space's glyph in the rail. The selected Space is its Theme's hue in a circle (`Size.glyphCircle`), with its symbol
 /// or initial in white, or black where white falls short (ThemeGlyph's rule); under Increase Contrast the circle is
 /// outlined in `ColorRoles.outline`. Every other Space is quiet: its symbol or initial alone in the secondary ink. An
-/// emoji keeps its own colours either way, at its own size (`DesignTokens.glyphEmojiSize(textSize:)`), so that it
-/// fills the circle the way an initial does.
+/// emoji keeps its own colours either way, at its own size (`DesignTokens.glyphEmojiSize(textSize:circle:)`, the size
+/// `ThemeGlyph` draws one at too), so that it fills the circle the way an initial does.
 struct SpaceRailGlyphView: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.colorScheme) private var scheme
@@ -307,8 +302,7 @@ struct SpaceRailGlyphView: View {
             Group {
                 switch space.glyph {
                 case .emoji(let emoji):
-                    Text(emoji).font(.system(size: tokens.glyphEmojiSize(
-                        textSize: tokens.type.glyphCircle.pointSize(dynamicTypeSize))))
+                    Text(emoji).font(.system(size: GlyphSize.standard.emojiSize(tokens, dynamicTypeSize)))
                 case .symbol(let name):
                     Image(systemName: name).foregroundStyle(isSelected ? symbolInk : roles.secondaryText)
                 case .initial:
@@ -337,7 +331,8 @@ struct SpaceRailGlyphView: View {
 /// With `showsSpaces` false it lists the commands alone (the rail's `+`). One focus stop: ↑ and ↓ move between rows
 /// (scrolling the focused one into view), Return or Space picks, Escape closes. Opened with the pointer it shows no
 /// focus ring until the first arrow or Tab key (`SpaceRailPanelFocus`). Taller than `Size.railPanelMaxHeight`
-/// it scrolls; shorter it is as tall as its rows. Its colours are solved like the column's, on the plain background.
+/// it scrolls; shorter it is as tall as its rows. Its colours are solved like the rail's, in the placement it
+/// inherits: `.frame` by default, which holds in the popover (no column is forced on it).
 public struct SpaceRailPanel: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.dismiss) private var dismiss
@@ -399,7 +394,6 @@ public struct SpaceRailPanel: View {
                 proxy.scrollTo(entry, anchor: nil)
             }
         }
-        .environment(\.surfacePlacement, .column)
         .focusable()
         .focused($isFocused)
         .focusEffectDisabled()

@@ -116,7 +116,7 @@ struct RailView: View {
     }
 }
 
-/// One state of the rail: the bottom of a list column on its surface, over the window's gradient, with a caption.
+/// One state of the rail: the bottom of a sidebar, on the window's gradient (`.frame`), with a caption.
 struct RailCell<Extra: View>: View {
     @Environment(\.designTokens) private var tokens
     let title: String
@@ -132,16 +132,15 @@ struct RailCell<Extra: View>: View {
             Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.m) {
                 extra
-                ColumnSurface {
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        sample.rail
-                    }
-                    .frame(width: width)
+                // On the frame, as in a system sidebar: the rail and its panels inherit `.frame` (issue #21).
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    sample.rail
                 }
+                .frame(width: width)
                 .frame(height: 132, alignment: .bottom)
             }
-            .padding(.trailing, tokens.spacing.columnInset)
+            .padding(.trailing, tokens.spacing.canvasInset)
             .background { WindowBackground() }
             .spaceRailPreviewState(preview)
             .accessibilityOverrides(increaseContrast: increaseContrast, reduceTransparency: increaseContrast)
@@ -171,7 +170,7 @@ struct PanelLookalike: View {
                        selectSpace: { _ in }, perform: { _ in })
             .surface(.glass(tint: 0), in: RoundedRectangle(cornerRadius: tokens.radius.layer, style: .continuous))
             .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.top, tokens.spacing.columnInset)
+            .padding(.top, tokens.spacing.canvasInset)
     }
 }
 

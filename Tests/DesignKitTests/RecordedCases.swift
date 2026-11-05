@@ -8,6 +8,12 @@ import DesignKit
 // cases against what 0.2.0 drew, 0.2.3 the column's. Regenerate with `swift run --package-path Gallery DesignKitGallery
 // audit`.
 
+/// A recorded case's placement, by name: `.column` here is not the deprecated `SurfacePlacement.column`, so the
+/// recordings compile without a warning per line until 0.3 removes the column and its cases.
+enum RecordedPlacement: String, Sendable {
+    case frame, column
+}
+
 struct RecordedCase: Sendable, CustomTestStringConvertible {
     let theme: String
     let appearance: Appearance
@@ -20,11 +26,11 @@ struct RecordedCase: Sendable, CustomTestStringConvertible {
 
     init(
         _ theme: String, _ appearance: Appearance, _ role: LegibilityCase.Role, _ surface: LegibilityCase.SurfaceKind,
-        in placement: SurfacePlacement = .frame, before: Double, after: Double, threshold: Double
+        in placement: RecordedPlacement = .frame, before: Double, after: Double, threshold: Double
     ) {
         self.theme = theme
         self.appearance = appearance
-        self.placement = placement
+        self.placement = SurfacePlacement(rawValue: placement.rawValue)!
         self.role = role
         self.surface = surface
         self.before = before

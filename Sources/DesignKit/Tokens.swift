@@ -64,9 +64,11 @@ extension DesignTokens {
         public var canvasInset: CGFloat = m
         /// Inset of a list column's surface from the window's edges (top, bottom, outer side). Equal to `canvasInset`,
         /// so the column and the canvas beside it line up and keep the same gap to the window and to each other.
+        @available(*, deprecated, message: "ColumnSurface is deprecated: use SidebarSplitView, the system sidebar. Removed in 0.3.")
         public var columnInset: CGFloat = m
         /// From the window's top edge (the top of the layout, when the content runs under the title bar) to the
         /// column's first row: `columnInset`, then the column's own margin (`listMargin`) inside its surface.
+        @available(*, deprecated, message: "ColumnSurface is deprecated: use SidebarSplitView, the system sidebar. Removed in 0.3.")
         public var columnTop: CGFloat = xl
         /// Between two icon buttons in a pill, and between two groups of buttons.
         public var pillActionGap: CGFloat = s
@@ -147,6 +149,7 @@ extension DesignTokens {
         public var canvas: CGFloat = 12
         /// A list column's surface: `row` plus the 4 pt from the surface's edge to a row's background
         /// (`listMargin - rowInsetHorizontal`), so the rows' backgrounds stay concentric to it.
+        @available(*, deprecated, message: "ColumnSurface is deprecated: use SidebarSplitView, the system sidebar. Removed in 0.3.")
         public var column: CGFloat = 12
 
         public init() {}
@@ -295,9 +298,10 @@ extension DesignTokens {
         public var initial = TextRole(.callout, .bold)
         public var glyphCircle = TextRole(.caption, .bold)
         public var glyphCircleSmall = TextRole(.caption2, .bold)
-        /// An emoji glyph (a Space's, in the rail and its panel) is drawn at `glyphCircle`'s size times this, so that
-        /// it fills its circle the way an initial does instead of sitting small in it. Capped by
-        /// `DesignTokens.glyphEmojiSize(textSize:)` so its artwork stays inside `Size.glyphCircle`.
+        /// An emoji glyph (a Space's, in the rail and its panel, and `ThemeGlyph`'s) is drawn at its circle's text size
+        /// (`glyphCircle`, or `glyphCircleSmall` in a small `ThemeGlyph`) times this, so that it fills its circle the
+        /// way an initial does instead of sitting small in it. Capped by `DesignTokens.glyphEmojiSize(textSize:circle:)`
+        /// so its artwork stays inside the circle.
         public var glyphEmojiScale: CGFloat = 1.3
         public var switcherLabel = TextRole(.callout, .semibold)
         public var banner = TextRole(.callout)
@@ -332,7 +336,13 @@ extension DesignTokens {
     /// The point size of an emoji glyph when `glyphCircle`'s text style is `textSize` points: `textSize` times
     /// `TypeScale.glyphEmojiScale`, at most `glyphEmojiMaxShare` of `Size.glyphCircle`. On macOS, 10 pt caption: 13 pt.
     public func glyphEmojiSize(textSize: CGFloat) -> CGFloat {
-        min(textSize * type.glyphEmojiScale, size.glyphCircle * Self.glyphEmojiMaxShare)
+        glyphEmojiSize(textSize: textSize, circle: size.glyphCircle)
+    }
+
+    /// The same in a circle `circle` points wide (`Size.glyphCircleSmall` for a small `ThemeGlyph`): the scale is the
+    /// same, the cap is `glyphEmojiMaxShare` of that circle. On macOS, 10 pt caption2 in the 16 pt circle: 8.8 pt.
+    public func glyphEmojiSize(textSize: CGFloat, circle: CGFloat) -> CGFloat {
+        min(textSize * type.glyphEmojiScale, circle * Self.glyphEmojiMaxShare)
     }
 }
 

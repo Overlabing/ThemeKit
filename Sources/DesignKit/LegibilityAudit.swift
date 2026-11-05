@@ -106,7 +106,7 @@ extension DesignTokens {
         let frameSolved = Legibility.fit(colors: colors, surfaces: surfaces(in: appearance))
         let solved = placement == .frame
             ? frameSolved
-            : Legibility.solve(colors: colors, surfaces: columnSurfaces(in: appearance), hueScale: frameSolved.hueScale)
+            : Legibility.solve(colors: colors, surfaces: columnFillSurfaces(in: appearance), hueScale: frameSolved.hueScale)
         let described = surfaces(in: appearance, placement: placement).scaled(by: solved.hueScale)
         let spec = described.gradient
         func place(at t: Double) -> RGBA {
@@ -191,12 +191,12 @@ extension DesignTokens {
                     Contrast.worst(foreground: secondaryInk, on: around), nonText)
             }
         }
-        if placement == .column {
-            let neighbours = ColorRoles.columnEdgeNeighbours(
-                colors: colors, frame: surfaces(in: appearance), column: columnSurfaces(in: appearance),
+        if placement != .frame {
+            let neighbours = ColorRoles.edgeNeighbours(
+                colors: colors, frame: surfaces(in: appearance), column: columnFillSurfaces(in: appearance),
                 hueScale: solved.hueScale)
-            let alpha = ColorRoles.columnEdgeAlpha(
-                colors: colors, frame: surfaces(in: appearance), column: columnSurfaces(in: appearance),
+            let alpha = ColorRoles.edgeAlpha(
+                colors: colors, frame: surfaces(in: appearance), column: columnFillSurfaces(in: appearance),
                 hueScale: solved.hueScale, minimum: nonText)
             func worst(_ line: RGBA?, against side: (RGBA, RGBA) -> RGBA) -> Double {
                 neighbours.map { fill, outside in
@@ -230,8 +230,8 @@ extension DesignTokens {
     ) -> [LegibilityCase] {
         let frameSolved = Legibility.fit(colors: colors, surfaces: surfaces(in: appearance))
         let solved = Legibility.solve(
-            colors: colors, surfaces: columnSurfaces(in: appearance), hueScale: frameSolved.hueScale)
-        let described = columnSurfaces(in: appearance).scaled(by: solved.hueScale)
+            colors: colors, surfaces: columnFillSurfaces(in: appearance), hueScale: frameSolved.hueScale)
+        let described = columnFillSurfaces(in: appearance).scaled(by: solved.hueScale)
         let (top, content) = described.samples(colors)
         let fill = top + content
         let hovered = fill.map { colors.primary.opacity(described.fills[0]).composited(over: $0) }
@@ -250,7 +250,7 @@ extension DesignTokens {
         func add(_ role: LegibilityCase.Role, _ kind: LegibilityCase.SurfaceKind, _ before: Double, _ after: Double,
                  _ threshold: Double) {
             cases.append(LegibilityCase(
-                themeID: themeID, appearance: appearance, placement: .column, role: role, surface: kind,
+                themeID: themeID, appearance: appearance, placement: .deprecatedColumn, role: role, surface: kind,
                 before: before, after: after, threshold: threshold))
         }
         for (kind, surfaces) in [(LegibilityCase.SurfaceKind.columnFill, fill), (.hoveredRow, hovered)] {
@@ -263,8 +263,8 @@ extension DesignTokens {
             add(.railDot, kind, worst(dotHues.map(opaque), on: surfaces), worst(dotHues.map(solvedMark), on: surfaces),
                 nonText)
         }
-        let edge = ink.opacity(ColorRoles.columnEdgeAlpha(
-            colors: colors, frame: surfaces(in: appearance), column: columnSurfaces(in: appearance),
+        let edge = ink.opacity(ColorRoles.edgeAlpha(
+            colors: colors, frame: surfaces(in: appearance), column: columnFillSurfaces(in: appearance),
             hueScale: solved.hueScale, minimum: nonText))
         add(.railDivider, .columnFill,
             fill.map { place in Contrast.ratio(separator.map { $0.composited(over: place) } ?? place, place) }.min() ?? 1,
@@ -294,7 +294,7 @@ extension DesignTokens {
         let solved = placement == .frame
             ? frameSolved
             : Legibility.solve(
-                colors: withAccents, surfaces: columnSurfaces(in: appearance), hueScale: frameSolved.hueScale)
+                colors: withAccents, surfaces: columnFillSurfaces(in: appearance), hueScale: frameSolved.hueScale)
         let described = surfaces(in: appearance, placement: placement).scaled(by: solved.hueScale)
         let (top, content) = described.samples(colors)
         let panels = described.neutralFills.flatMap { opacity in
@@ -345,4 +345,10 @@ extension DesignTokens {
                 threshold: emphasis.nonTextContrast)
         }
     }
+}
+
+extension SurfacePlacement {
+    /// `.column`, named by its raw value so that the audit's column cases compile without a deprecation warning
+    /// until the case is removed.
+    static let deprecatedColumn = SurfacePlacement(rawValue: "column")!
 }

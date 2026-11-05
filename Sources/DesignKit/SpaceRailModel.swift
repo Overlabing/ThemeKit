@@ -325,8 +325,15 @@ public struct SpaceRailModel: Sendable, Equatable {
         case .overflow(let hidden):
             String(localized: "All Spaces, \(hidden) more", table: "DesignKit", bundle: .module)
         case .add:
-            String(localized: "Add", table: "DesignKit", bundle: .module)
+            String(localized: "Add or Edit a Space or Profile", table: "DesignKit", bundle: .module)
         }
+    }
+
+    /// What VoiceOver reads after `item`'s label: for a folded Profile, the Space a click lands on, as a sentence
+    /// ("Opens Home."); nothing for the other items.
+    public func accessibilityHint(for item: SpaceRailItem) -> String {
+        guard case .profile(let profile, _, _) = item, let landing = profile.landingSpace else { return "" }
+        return String(localized: "Opens \(landing.name).", table: "DesignKit", bundle: .module)
     }
 
     /// The name VoiceOver gives the whole row.

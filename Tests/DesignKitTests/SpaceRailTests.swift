@@ -244,10 +244,38 @@ struct SpaceRailWordingTests {
         let layout = model.layout(width: 360, hasCommands: true)
         #expect(layout.items.map(model.accessibilityLabel(for:)) == [
             "Space Work 1, 1 of 3", "Space Work 2, 2 of 3", "Space Work 3, 3 of 3",
-            "Profile Personal, 3 Spaces", "Profile Solo, 1 Space", "Add",
+            "Profile Personal, 3 Spaces", "Profile Solo, 1 Space", "Add or Edit a Space or Profile",
         ])
         #expect(model.accessibilityLabel(for: .overflow(hidden: 2)) == "All Spaces, 2 more")
         #expect(model.accessibilityGroupLabel == "Spaces and Profiles")
+    }
+
+    /// Issue #27: the `+` says what it opens, and a folded Profile's hint is a sentence, not a fragment after its label.
+    /// The caption keeps its lowercase "opens Home" after the Space count.
+    @Test func voiceOverHintsAreSentences() {
+        let layout = model.layout(width: 360, hasCommands: true)
+        #expect(layout.items.map(model.accessibilityHint(for:)) == ["", "", "", "Opens Reading.", "Opens Home.", ""])
+        #expect(model.accessibilityHint(for: .overflow(hidden: 2)) == "")
+    }
+
+    /// Both strings of issue #27 in the string catalog, English and French.
+    @Test func theCatalogPinsTheRailsVoiceOverStrings() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Sources/DesignKit/Resources/DesignKit.xcstrings")
+        let catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let strings = try #require(catalog?["strings"] as? [String: Any])
+        func value(_ key: String, _ language: String) -> String? {
+            let entry = strings[key] as? [String: Any]
+            let localization = (entry?["localizations"] as? [String: Any])?[language] as? [String: Any]
+            return (localization?["stringUnit"] as? [String: Any])?["value"] as? String
+        }
+        #expect(value("Add or Edit a Space or Profile", "en") == "Add or Edit a Space or Profile")
+        #expect(value("Add or Edit a Space or Profile", "fr") == "Ajouter ou modifier un espace ou un profil")
+        #expect(value("Opens %@.", "en") == "Opens %@.")
+        #expect(value("Opens %@.", "fr") == "Ouvre %@.")
+        #expect(strings["Add"] == nil, "the bare \"Add\" is gone")
+        #expect(value("opens %@", "fr") == "ouvre %@", "the caption's fragment stays")
     }
 
     @Test func theCaptionSaysWhereAProfileLands() {
@@ -293,6 +321,7 @@ struct SpaceRailLegibilityTests {
 
 struct SpaceRailLegibilityInvariantTests {
     @Test(arguments: Palette.standard.themes)
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func everyRailMarkReachesItsThreshold(_ theme: Theme) {
         for appearance in Appearance.allCases {
             let cases = DesignTokens.standard.railCases(for: theme, in: appearance)
@@ -317,6 +346,7 @@ struct SpaceRailLegibilityInvariantTests {
 
     /// A dot in any system hue reaches 3:1 on every surface solved in the column, whatever the column's Theme.
     @Test(arguments: Palette.standard.themes)
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func aDotOfAnyHueReachesThreeToOne(_ theme: Theme) {
         for appearance in Appearance.allCases {
             let roles = ColorRoles(theme: theme, tokens: .standard, appearance: appearance, placement: .column)
@@ -336,6 +366,7 @@ struct SpaceRailLegibilityInvariantTests {
 struct SpaceRailRenderTests {
     static let yellow = Theme(id: "yellow-orange", primary: .yellow, secondary: .orange)
 
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func pixels(_ theme: Theme, _ scheme: ColorScheme) throws -> (width: Int, height: Int, data: [UInt8]) {
         let profiles = [
             RailSample.work(3),
@@ -371,6 +402,7 @@ struct SpaceRailRenderTests {
     /// the row's top, the marker 28…31 under it. Three Spaces (84) and the divider (9) put Yellow's one-dot target at
     /// 103…131, its dot at 113…121.
     @Test(arguments: [Palette.standard.themes[0], Palette.standard.themes[2], Palette.standard.themes[5]], [ColorScheme.light, .dark])
+    @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func theMarkerAndTheDotsReachThreeToOne(_ theme: Theme, _ scheme: ColorScheme) throws {
         let (width, height, data) = try pixels(theme, scheme)
         func color(_ x: Int, _ y: Int) -> RGBA {
