@@ -318,7 +318,8 @@ private struct ListSelectionPlatterOff: NSViewRepresentable {
 /// The detail beside a sidebar: the content in a card on the plain background, inset `Spacing.canvasInset` from the
 /// column's edges and from the window's top edge on the Mac (under its transparent toolbar), rounded `Radius.canvas`,
 /// with a 1 pt `.separator` line centred on its edge. `bottomBar` floats over the card's bottom, `Spacing.pillFloat`
-/// from its edges: the detail's actions on glass, say.
+/// from its edges: the detail's actions on glass, say. For several cards in the detail (a canvas and a reply card under
+/// it), lay them out yourself with `sidebarDetailCard()` on each and `sidebarDetailInset()` round them all.
 public struct SidebarDetail<Content: View, BottomBar: View>: View {
     @Environment(\.designTokens) private var tokens
     private let content: Content
@@ -330,17 +331,59 @@ public struct SidebarDetail<Content: View, BottomBar: View>: View {
     }
 
     public var body: some View {
-        let shape = RoundedRectangle(cornerRadius: tokens.radius.canvas, style: .continuous)
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(.background, in: shape)
-            .clipShape(shape)
-            .overlay { shape.stroke(.separator, lineWidth: tokens.size.stroke).accessibilityHidden(true) }
+            .sidebarDetailCard()
             .overlay(alignment: .bottom) {
                 bottomBar
                     .padding(.horizontal, tokens.spacing.pillFloat)
                     .padding(.bottom, tokens.spacing.pillFloat)
             }
+            .sidebarDetailInset()
+    }
+}
+
+extension View {
+    /// The card of `SidebarDetail` alone: the view on the plain background, clipped to `Radius.canvas`, with a 1 pt
+    /// `.separator` line centred on its edge, and no padding, no size and no inset of its own. For a detail made of
+    /// several cards: give each one this, space them by `Spacing.canvasInset`, and put `sidebarDetailInset()` round
+    /// the whole.
+    ///
+    /// ```swift
+    /// VStack(spacing: tokens.spacing.canvasInset) {
+    ///     Canvas().frame(maxHeight: .infinity).sidebarDetailCard()
+    ///     ReplyCard().sidebarDetailCard()
+    /// }
+    /// .sidebarDetailInset()
+    /// ```
+    public func sidebarDetailCard() -> some View {
+        modifier(SidebarDetailCard())
+    }
+
+    /// Where `SidebarDetail` sets its card: `Spacing.canvasInset` from the column's edges, and from the window's top edge
+    /// on the Mac, under its transparent toolbar. Put it round the cards of a detail made with `sidebarDetailCard()`.
+    public func sidebarDetailInset() -> some View {
+        modifier(SidebarDetailInset())
+    }
+}
+
+private struct SidebarDetailCard: ViewModifier {
+    @Environment(\.designTokens) private var tokens
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.canvas, style: .continuous)
+        content
+            .background(.background, in: shape)
+            .clipShape(shape)
+            .overlay { shape.stroke(.separator, lineWidth: tokens.size.stroke).accessibilityHidden(true) }
+    }
+}
+
+private struct SidebarDetailInset: ViewModifier {
+    @Environment(\.designTokens) private var tokens
+
+    func body(content: Content) -> some View {
+        content
             .padding(tokens.spacing.canvasInset)
             #if os(macOS)
             .ignoresSafeArea(.container, edges: .top)

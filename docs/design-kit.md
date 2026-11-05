@@ -184,6 +184,7 @@ immediate.
 | `.listSelectionPlatterOff()` | no AppKit selection platter behind a selected `List` row, without the rest of `sidebarColumn`; nothing on iOS |
 | `.sidebarRowCell(state:placement:)` | a sidebar `List` cell: `ListRowBackground` behind it, the `List`'s own margin kept round its content |
 | `SidebarDetail` | the detail beside a sidebar: a card inset 12 pt, from the window's top edge, with an optional floating bottom bar |
+| `.sidebarDetailCard()`, `.sidebarDetailInset()` | `SidebarDetail`'s card alone (no padding, no size) and its inset alone, for a detail of several cards: each card gets `sidebarDetailCard()`, spaced `canvasInset`, with `sidebarDetailInset()` round them |
 | `.sidebarWindowChrome()` | the window of a sidebar app: transparent toolbar, no title shown, toolbar on hover in full screen |
 | `NSSplitViewItem.sidebar(hosting:)` | AppKit: the system's sidebar split item hosting a `sidebarColumn`, at the column widths; `sidebarToolbarItems` for the window's toolbar |
 | `ColumnLayout(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
@@ -193,7 +194,7 @@ immediate.
 | `ListRow` | tile, title and detail lines, trailing accessory; hover, current, selection fills; the selection's marker bar (outside Increase Contrast); focus ring; `RowPlacement` free or inside a panel |
 | `ListRowBackground`, `ListRowContent`, `.listRowCell(state:)` | a `ListRow` as a `List` cell: the background for `listRowBackground`, the content without it, and the modifier that sets both with the cell's insets (see "Rows as List cells") |
 | `ListHover`, `.listHover(_:)`, `.listHoverTracking(id:)` | the hovered row, observed row by row: a cell given its `hoverID` (`listRowCell`, `sidebarRowCell`, `ListRowBackground`) tracks and draws its own hover, and a hover step re-evaluates only the two rows it touches; `sidebarColumn` sets one |
-| `.tileFill(_:)`, `.badgeFill()` | the kit's tile and badge fills behind a client view, which is set in the tinted ink (4.5:1 on them) |
+| `.tileFill(_:shape:)`, `.badgeFill()` | the kit's tile and badge fills behind a client view, which is set in the tinted ink (4.5:1 on them); a tile is a rounded square or a `.circle`, at a kit `TileSize`, a `.side(_:)` of the client's, or `.fitting(minimum:)` its content (it grows with the text) |
 | `FolderRow` + `LayerPanel` | a folder as a row with a count and a turning chevron; its children on a continuous panel, first level not indented |
 | `SectionHeader` | a section title, or a small uppercase group header |
 | `ColumnSeparator` | a hairline on the column margin, between groups that have no header |

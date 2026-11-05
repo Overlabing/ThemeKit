@@ -88,10 +88,79 @@ struct StatusLine028Sheet: View {
     }
 }
 
+/// A detail made of two cards (issue #31): a canvas and a reply card under it, each `sidebarDetailCard()`, in one
+/// `sidebarDetailInset()`; beside it `SidebarDetail`'s single card for comparison.
+struct DetailCards028Sheet: View {
+    @Environment(\.designTokens) private var tokens
+
+    var body: some View {
+        HStack(spacing: 0) {
+            SidebarDetail {
+                Text("SidebarDetail: one card").font(.callout).foregroundStyle(.secondary)
+            }
+            VStack(spacing: tokens.spacing.canvasInset) {
+                Text("sidebarDetailCard(): the canvas").font(.callout).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .sidebarDetailCard()
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
+                    Text("Reply").font(.headline)
+                    Text("A second card under it, in the same inset.").font(.callout).foregroundStyle(.secondary)
+                }
+                .padding(tokens.spacing.canvasInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .sidebarDetailCard()
+            }
+            .sidebarDetailInset()
+        }
+        .background { WindowBackground() }
+    }
+}
+
+/// `tileFill`'s shapes and sizes (issue #35).
+struct TileFill028Sheet: View {
+    @Environment(\.designTokens) private var tokens
+
+    var body: some View {
+        let gap = DesignTokens.Spacing.m
+        Sheet028 {
+            Labelled("Kit sizes, rounded square then circle: standard, compact, small, status") {
+                HStack(spacing: gap) {
+                    ForEach([TileSize.standard, .compact, .small, .status], id: \.self) { size in
+                        Text("A").font(tokens.type.initial.font).tileFill(size)
+                    }
+                    ForEach([TileSize.standard, .compact, .small, .status], id: \.self) { size in
+                        Text("A").font(tokens.type.initial.font).tileFill(size, shape: .circle)
+                    }
+                }
+                .padding(.horizontal, tokens.spacing.listMargin)
+            }
+            Labelled("A side of the client's: 48 pt, rounded in proportion, and round") {
+                HStack(spacing: gap) {
+                    Image(systemName: "person.fill").font(.title2).tileFill(.side(48))
+                    Image(systemName: "person.fill").font(.title2).tileFill(.side(48), shape: .circle)
+                }
+                .padding(.horizontal, tokens.spacing.listMargin)
+            }
+            Labelled("Following the text, at least small (22 pt): A, AB, 128, then larger type") {
+                HStack(spacing: gap) {
+                    Text("A").font(.caption.bold()).tileFill(.fitting(minimum: .small), shape: .circle)
+                    Text("AB").font(.caption.bold()).tileFill(.fitting(minimum: .small), shape: .circle)
+                    Text("128").font(.caption.bold()).tileFill(.fitting(minimum: .small))
+                    Text("AB").font(.title.bold()).tileFill(.fitting(minimum: .small), shape: .circle)
+                    Text("AB").font(.largeTitle.bold()).tileFill(.fitting(minimum: .small))
+                }
+                .padding(.horizontal, tokens.spacing.listMargin)
+            }
+        }
+    }
+}
+
 @MainActor
 func run028(output: URL) {
     let sheets: [(name: String, size: CGSize, view: AnyView)] = [
         ("status-line", CGSize(width: 360, height: 560), AnyView(StatusLine028Sheet())),
+        ("detail-cards", CGSize(width: 760, height: 420), AnyView(DetailCards028Sheet())),
+        ("tile-fill", CGSize(width: 360, height: 300), AnyView(TileFill028Sheet())),
     ]
     do {
         for theme in [Palette.standard.themes[0], Palette.standard.themes[1]] {
