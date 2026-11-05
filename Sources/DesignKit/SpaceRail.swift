@@ -13,12 +13,16 @@ import SwiftUI
 /// (`themeChange`, immediate under Reduce Motion). Changing Profile folds one group while the other opens
 /// (`profileSwap`, a fade under Reduce Motion). The rail draws no glass, so Reduce Transparency changes nothing in it.
 /// Under Increase Contrast the selected glyph is outlined in `ColorRoles.outline`.
+///
+/// A secondary click on a Space or a folded Profile opens the menu the client gives it with
+/// `spaceRailContextMenu(space:profile:)`, for that item whichever is current; VoiceOver lists it as the item's menu.
 public struct SpaceRail: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.kitContrast) private var contrast
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.spaceRailPreviewState) private var preview
+    @Environment(\.spaceRailContextMenus) private var menus
     @Namespace private var namespace
     @FocusState private var isFocused: Bool
     @State private var hovered: SpaceRailItem.Key?
@@ -216,6 +220,7 @@ public struct SpaceRail: View {
                     showsPanel = false
                     perform(id)
                 })
+                .environment(\.spaceRailContextMenus, menus)
             }
         case .add:
             base.popover(isPresented: $showsCommands, arrowEdge: .top) {
@@ -226,8 +231,8 @@ public struct SpaceRail: View {
                     perform(id)
                 })
             }
-        default:
-            base
+        case .space, .profile:
+            base.spaceRailItemMenu(menus.menu(for: item))
         }
     }
 
@@ -332,10 +337,13 @@ struct SpaceRailGlyphView: View {
 /// (scrolling the focused one into view), Return or Space picks, Escape closes. Opened with the pointer it shows no
 /// focus ring until the first arrow or Tab key (`SpaceRailPanelFocus`). Taller than `Size.railPanelMaxHeight`
 /// it scrolls; shorter it is as tall as its rows. Its colours are solved like the rail's, in the placement it
-/// inherits: `.frame` by default, which holds in the popover (no column is forced on it).
+/// inherits: `.frame` by default, which holds in the popover (no column is forced on it). A secondary click on a Space's
+/// row opens the client's Space menu, on a Profile's header its Profile menu (`spaceRailContextMenu(space:profile:)`):
+/// there every Profile has one, the active one too.
 public struct SpaceRailPanel: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.spaceRailContextMenus) private var menus
     @FocusState private var isFocused: Bool
     @State private var focus: SpaceRailPanelFocus
     private let model: SpaceRailModel
@@ -438,6 +446,7 @@ public struct SpaceRailPanel: View {
                         SectionHeader(
                             [profile.emoji, profile.name].compactMap { $0 }.joined(separator: " "), isGroupHeader: true)
                             .padding(.top, tokens.spacing.sectionHeaderBottom)
+                            .spaceRailItemMenu(menus.profile?(profile))
                     }
                     ForEach(Array(profile.spaces.enumerated()), id: \.element.id) { index, space in
                         WithColorRoles { roles in
@@ -456,6 +465,7 @@ public struct SpaceRailPanel: View {
                         .id(Entry.space(space.id))
                         .onTapGesture { selectSpace(space.id) }
                         .accessibilityAction { selectSpace(space.id) }
+                        .spaceRailItemMenu(menus.space?(space))
                     }
                 }
             }
@@ -501,5 +511,61 @@ extension View {
     /// Draws the Space rails below with `state` hovered and focused, for previews and renders.
     public func spaceRailPreviewState(_ state: SpaceRailPreviewState) -> some View {
         environment(\.spaceRailPreviewState, state)
+    }
+}
+
+/// The context menus the client gives a Space rail's items (`spaceRailContextMenu(space:profile:)`): one built for a
+/// Space, one for a Profile. Nil leaves the item without a menu.
+public struct SpaceRailContextMenus {
+    public var space: ((SpaceRailSpace) -> AnyView)?
+    public var profile: ((SpaceRailProfile) -> AnyView)?
+
+    public init(space: ((SpaceRailSpace) -> AnyView)? = nil, profile: ((SpaceRailProfile) -> AnyView)? = nil) {
+        self.space = space
+        self.profile = profile
+    }
+
+    /// The menu of `item`: its Space's for a Space, its Profile's for a folded Profile, none for the "+n" and the `+`.
+    public func menu(for item: SpaceRailItem) -> AnyView? {
+        switch item {
+        case .space(let space, _, _, _): self.space?(space)
+        case .profile(let profile, _, _): self.profile?(profile)
+        case .overflow, .add: nil
+        }
+    }
+}
+
+extension EnvironmentValues {
+    @Entry public var spaceRailContextMenus = SpaceRailContextMenus()
+}
+
+extension View {
+    /// Gives the Space rails below a context menu per Space and per Profile: a secondary click on a Space (in the row
+    /// or in the "+n" panel) opens `space` built for that Space, on a folded Profile or a Profile's header in the panel
+    /// `profile` built for that Profile, whichever is current. So Edit, Delete and the like reach any Space and
+    /// Profile, not only the current ones. Build the menu as for `contextMenu` (buttons, dividers, submenus).
+    public func spaceRailContextMenu<SpaceMenu: View, ProfileMenu: View>(
+        @ViewBuilder space: @escaping (SpaceRailSpace) -> SpaceMenu,
+        @ViewBuilder profile: @escaping (SpaceRailProfile) -> ProfileMenu
+    ) -> some View {
+        environment(\.spaceRailContextMenus, SpaceRailContextMenus(
+            space: { AnyView(space($0)) }, profile: { AnyView(profile($0)) }))
+    }
+
+    /// The same with a menu for the Spaces alone: the Profiles get none.
+    public func spaceRailContextMenu<SpaceMenu: View>(
+        @ViewBuilder space: @escaping (SpaceRailSpace) -> SpaceMenu
+    ) -> some View {
+        environment(\.spaceRailContextMenus, SpaceRailContextMenus(space: { AnyView(space($0)) }))
+    }
+
+    /// `menu` as the view's context menu; nothing when it is nil.
+    @ViewBuilder
+    func spaceRailItemMenu(_ menu: AnyView?) -> some View {
+        if let menu {
+            contextMenu { menu }
+        } else {
+            self
+        }
     }
 }

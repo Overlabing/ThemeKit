@@ -2,7 +2,7 @@
 
 ## 0.2.8
 
-What Oisillon's adoption of 0.2.7 asked for.
+What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
 
 ### Changed
 
@@ -23,6 +23,17 @@ What Oisillon's adoption of 0.2.7 asked for.
 
 ### Added
 
+- **A context menu per Space and per Profile in the `SpaceRail`** (issue #36): the rail had no menu of its own per
+  item, so a client's `contextMenu` on the whole rail could only act on the current Space (Safira's Edit, Move and
+  Delete, Oisillon's Edit and Delete). **`.spaceRailContextMenu(space:profile:)`**, or `space:` alone, gives the rails
+  below it a menu the client builds for each item: a secondary click on a Space, in the row or in the "+n" panel, opens
+  the menu built for that Space; on a folded Profile, or on a Profile's header in the panel (the active Profile's
+  included), the one built for that Profile. The "+n" and the `+` have none. VoiceOver offers it as the item's menu.
+  The menus are in the environment (**`SpaceRailContextMenus`**, `EnvironmentValues.spaceRailContextMenus`), so
+  `SpaceRail`'s initialisers are unchanged; the rail hands them to its "+n" popover. Tested in a window that is never
+  shown: a secondary click on the second Space opens its menu, not the current Space's; one on the folded Profile opens
+  that Profile's; in the panel, top to bottom, each header and each row opens its own (Work, its three Spaces,
+  Personal, its three); the rail draws the same with the menus and without.
 - `DesignTokens.Emphasis` and `DesignTokens.WindowGradient` are `Hashable` (they key the cache).
 
 ### Unchanged

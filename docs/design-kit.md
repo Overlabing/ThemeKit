@@ -369,6 +369,20 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   header, every Space as a row with its glyph and shortcut, then the commands. A panel is as tall as its rows up to
   `Size.railPanelMaxHeight` (480), then scrolls (↑ and ↓ scroll the focused row into view); 8 + 8 Spaces scrolls. 8 Spaces and a folded Profile of 3 fit
   the ideal column (360, 301 pt of 340); at `columnMin` (300) the last two Spaces fold into "+2". 8 + 8 fits at 360.
+- **Context menus**: `.spaceRailContextMenu(space:profile:)` (or `space:` alone) on the rail or above it gives each
+  Space and each Profile a menu the app builds for it: a secondary click on a Space, in the row or in the "+n" panel,
+  opens `space(thatSpace)`; on a folded Profile, or on a Profile's header in the panel (the active Profile's too),
+  `profile(thatProfile)`. So Edit and Delete reach any Space and Profile, not only the current ones. The "+n" and the
+  `+` have none.
+  ```swift
+  SpaceRail(profiles: profiles, selection: current, …)
+      .spaceRailContextMenu { space in
+          Button("Edit Space…") { edit(space.id) }
+          Button("Delete Space…") { delete(space.id) }
+      } profile: { profile in
+          Button("Edit Profile…") { editProfile(profile.id) }
+      }
+  ```
 - **No Profiles**: `SpaceRail(spaces:…)`. The row is the Spaces alone: no divider, nothing folded, no panel headers.
 - **Keyboard**: the row is one focus stop. ← and → move the focus ring across its items (mirrored right to left),
   Return or Space activates. The `+` and the "+n" open their panel, itself one focus stop: ↑ and ↓ move, Return or Space
