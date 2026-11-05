@@ -347,6 +347,36 @@ struct ClientViewTests {
         _ = try raster(column(VStack { original; empty; titled }.frame(width: 320)))
     }
 
+    /// #30: a message that takes three lines shows all three, and the banner grows with it; `messageLineLimit` cuts it.
+    static let threeLineMessage = "Your changes could not be saved: the server refused the connection. Check the network, then try again."
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func aBannerShowsAThreeLineMessageInFull(_ scheme: ColorScheme) throws {
+        func height(_ limit: Int?, title: String? = nil, _ message: String = Self.threeLineMessage) throws -> Int {
+            try raster(column(
+                Banner(systemImage: "exclamationmark.triangle", title: title, message: message, messageLineLimit: limit)
+                    .frame(width: 320), scheme: scheme)).height
+        }
+        let one = try height(1), two = try height(2), three = try height(3), four = try height(4), full = try height(nil)
+        let line = two - one
+        #expect(line > 10, "one line of the message: \(line) pt")
+        #expect(three == two + line, "the message takes a third line: \(one), \(two), \(three)")
+        #expect(four == three, "and no fourth: \(four)")
+        #expect(full == three, "unlimited by default, the whole message: \(full) against \(three)")
+        #expect(try height(nil, "Saved") == one, "a one-line message stays one line")
+        let titled = try height(nil, title: "Not saved"), titledTwo = try height(2, title: "Not saved")
+        #expect(titled == titledTwo + line, "under a title too: \(titled) against \(titledTwo)")
+        let actions = try raster(column(
+            Banner(systemImage: "wifi", message: Self.threeLineMessage) { EmptyView() }.frame(width: 320), scheme: scheme))
+        #expect(actions.height == full, "the client's actions take the default too: \(actions.height)")
+        let close = try raster(column(
+            Banner(systemImage: "wifi", message: Self.threeLineMessage, onClose: {}).frame(width: 320), scheme: scheme))
+        let closeCapped = try raster(column(
+            Banner(systemImage: "wifi", message: Self.threeLineMessage, messageLineLimit: 2, onClose: {})
+                .frame(width: 320), scheme: scheme))
+        #expect(close.height > closeCapped.height, "beside the close button: \(close.height) against \(closeCapped.height)")
+    }
+
     // #10
     @Test func aLabelOnlyIconButtonIsATargetWithItsTitle() throws {
         let short = try raster(column(IconButton("OK") {}))

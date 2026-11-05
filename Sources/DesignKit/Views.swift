@@ -1004,25 +1004,35 @@ public struct BannerAction {
 /// either the client's own actions or, from `init(systemImage:title:message:action:onClose:)`, the kit's: one action
 /// button and a close button. The title is in the label colour and semibold, the message under it in the secondary ink,
 /// the action in the label colour and semibold (all 4.5:1 on glass), the close button a plain `xmark` named "Close".
+/// The message shows in full by default, on as many lines as it takes, and the banner grows with it; `messageLineLimit`
+/// caps it (the end is then cut with an ellipsis). The title takes 2 lines at most.
 public struct Banner<Actions: View>: View {
     @Environment(\.designTokens) private var tokens
     private let systemImage: String
     private let title: String?
     private let message: String
+    private let messageLineLimit: Int?
     private let actions: Actions
 
-    public init(systemImage: String, message: String, @ViewBuilder actions: () -> Actions) {
+    public init(
+        systemImage: String, message: String, messageLineLimit: Int? = nil, @ViewBuilder actions: () -> Actions
+    ) {
         self.systemImage = systemImage
         self.title = nil
         self.message = message
+        self.messageLineLimit = messageLineLimit
         self.actions = actions()
     }
 
     /// A banner with a title over its message, and the client's own actions.
-    public init(systemImage: String, title: String, message: String, @ViewBuilder actions: () -> Actions) {
+    public init(
+        systemImage: String, title: String, message: String, messageLineLimit: Int? = nil,
+        @ViewBuilder actions: () -> Actions
+    ) {
         self.systemImage = systemImage
         self.title = title
         self.message = message
+        self.messageLineLimit = messageLineLimit
         self.actions = actions()
     }
 
@@ -1037,7 +1047,7 @@ public struct Banner<Actions: View>: View {
                     Text(message)
                         .role(tokens.type.banner)
                         .foregroundStyle(title == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(roles.secondaryText))
-                        .lineLimit(2)
+                        .lineLimit(messageLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -1105,12 +1115,13 @@ extension Banner where Actions == BannerButtons {
     /// A banner with the kit's own buttons: an `action` and a close button that calls `onClose`; each is left out when
     /// nil.
     public init(
-        systemImage: String, title: String? = nil, message: String, action: BannerAction? = nil,
-        onClose: (() -> Void)? = nil
+        systemImage: String, title: String? = nil, message: String, messageLineLimit: Int? = nil,
+        action: BannerAction? = nil, onClose: (() -> Void)? = nil
     ) {
         self.systemImage = systemImage
         self.title = title
         self.message = message
+        self.messageLineLimit = messageLineLimit
         self.actions = BannerButtons(action: action, onClose: onClose)
     }
 }

@@ -179,7 +179,9 @@ immediate.
 |---|---|
 | `WindowBackground` | `.background`, then the Theme's vertical gradient, behind the whole window |
 | `SidebarSplitView` | a system `NavigationSplitView` on the gradient, with `sidebarWindowChrome()` (see "Sidebar" below) |
-| `.sidebarColumn(field:header:bottomBar:)` | the sidebar's `List`: the column widths, a plain list on the gradient, no system selection platter, an optional head field and header, the bottom bar in a `safeAreaBar` with the list faded out under it |
+| `.sidebarColumn(field:header:bottomBar:)` | the sidebar's `List`: the column widths, a plain list on the gradient, no system selection platter, an optional head field and header, the bottom bar in a `safeAreaBar` with the list faded out under it; `.sidebarColumn()` with no bar |
+| `.sidebarColumnWidth()` | the column widths (`columnMin`, `columnIdeal`, `columnMax`) on a `NavigationSplitView` column; it counts only on the column's root |
+| `.listSelectionPlatterOff()` | no AppKit selection platter behind a selected `List` row, without the rest of `sidebarColumn`; nothing on iOS |
 | `.sidebarRowCell(state:placement:)` | a sidebar `List` cell: `ListRowBackground` behind it, the `List`'s own margin kept round its content |
 | `SidebarDetail` | the detail beside a sidebar: a card inset 12 pt, from the window's top edge, with an optional floating bottom bar |
 | `.sidebarWindowChrome()` | the window of a sidebar app: transparent toolbar, no title shown, toolbar on hover in full screen |
@@ -201,7 +203,7 @@ immediate.
 | `SpaceRail`, `SpaceRailPanel` | the Space selector at the bottom of a column (see "Space rail" below) |
 | `ThemeGlyph` | a themed item's glyph: its flat hue with an emoji (`emoji:`, in its own colours, at the rail's emoji size for the circle), or a white or black symbol or initial; `size: .standard` (24 pt) or `.small` (16 pt). Hidden from VoiceOver: the item carries the name, never the emoji's description |
 | `GlassSwitcher` | **deprecated in 0.2.4, removed in 0.3**: use `SpaceRail`. The glass bar of themed items at the bottom of a column; an item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`) |
-| `Banner` | a discreet message on glass: a symbol, an optional title, the message, and the client's actions or the kit's (`action:` and `onClose:`) |
+| `Banner` | a discreet message on glass: a symbol, an optional title, the message, and the client's actions or the kit's (`action:` and `onClose:`). The message shows in full and the banner grows with it; `messageLineLimit:` caps it |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label |
 | `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control |
 | `.surface(_:in:)` | glass or a layer fill, with the accessibility fallbacks below |
@@ -286,10 +288,15 @@ SidebarSplitView {
   content starts 20 pt from the column's edge and ends 21 pt from it: 16 pt inside the background, where `listRowCell`
   leaves 8. The cell's insets carry the row's vertical padding, so the content has none of its own.
 - **Selection.** `sidebarColumn` turns off the platter AppKit draws behind a selected row. The cell's background is the
-  only selection.
+  only selection. A `List` outside a sidebar column turns it off alone with `listSelectionPlatterOff()`.
+- **Widths.** A `NavigationSplitView` reads a column's widths only from the column's root. `SidebarSplitView` sets the
+  kit's there, so `sidebarColumn` can sit anywhere in its sidebar, in a view or a container of the app's. In a
+  `NavigationSplitView` of the app's, put `sidebarColumn` on the column's root, or `sidebarColumnWidth()` there when the
+  list sits deeper: under a container the split ignores them and opens the column at 144 pt.
 - **Bottom bar.** Pinned to the column's bottom edge in a `safeAreaBar` (no spacing): the `SpaceRail`. The list scrolls
   under the bar and fades out over the bar's first `barFade` points, so no row shows between the bar's controls and the
-  window's edge. The rail draws no glass, so a row under it would otherwise stay readable under its glyphs.
+  window's edge. The rail draws no glass, so a row under it would otherwise stay readable under its glyphs. A bar that
+  draws nothing (`EmptyView()`, the rail with one Space) takes no height and hides no row; `sidebarColumn()` has none.
 - **Detail.** `SidebarDetail` sets its content on the plain background in a card inset `canvasInset` from the detail's
   edges and from the window's top edge (under the transparent toolbar), rounded `Radius.canvas`, with a 1 pt
   `.separator` line centred on its edge. Its optional bottom bar floats `pillFloat` from the card's edges.
