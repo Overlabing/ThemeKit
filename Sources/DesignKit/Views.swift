@@ -342,16 +342,21 @@ public struct RowState: Sendable, Equatable {
     }
 }
 
-/// Where a row sits: free in the column (after a section header or not), or inside a nested panel.
+/// Where a row sits: free in the column (after a section header or not), inside a nested panel, or stacked against the
+/// rows above and below it.
 public enum RowPlacement: Sendable, Equatable {
     case free(firstInSection: Bool)
     /// Inside a `LayerPanel`; `level` 1 has no indent, level 2 is indented by `Spacing.layerIndent`.
     case layer(level: Int)
+    /// Compact rows stacked without gaps (a zone's tabs, say): on the column's margin like a free row, with no row gap
+    /// above or below, so two backgrounds touch.
+    case stacked
 }
 
 /// The background of a `ListRow`, on its own: hover, current and selection fills in the Theme's colour, the outline
 /// under Increase Contrast or the bar at the leading edge otherwise, and the focus ring. It fills the row minus half the
-/// row gap above and below and stays inside the column's margin, so two backgrounds never touch. For a row that is a
+/// row gap above and below and stays inside the column's margin, so two backgrounds never touch; in `.stacked` rows it
+/// fills the whole height, so they do. For a row that is a
 /// `List` cell (`listRowBackground(ListRowBackground(state:))`), whose content is a `ListRowContent` or any view with
 /// the row's padding; the cell's insets must cancel the `List`'s own margin (`Spacing.listCellMargin`) so the background lines up as it
 /// does behind a `ListRow` in a stack (`listRowCell(state:placement:)` does both). Hidden from VoiceOver.
@@ -415,7 +420,7 @@ public struct ListRowBackground: View {
                 .focusRing(state.isFocused, in: shape)
                 .padding(.horizontal, placement.sideInset(spacing))
                 .padding(.top, placement.topInset(spacing))
-                .padding(.bottom, spacing.rowGap / 2)
+                .padding(.bottom, placement.bottomInset(spacing))
                 .animation(MotionRole.hoverFill.animation(reduceMotion: reduceMotion), value: state)
                 .accessibilityHidden(true)
         }
@@ -437,14 +442,21 @@ extension RowPlacement {
 
     func sideInset(_ spacing: DesignTokens.Spacing) -> CGFloat {
         switch self {
-        case .free: spacing.listMargin - spacing.rowInsetHorizontal
+        case .free, .stacked: spacing.listMargin - spacing.rowInsetHorizontal
         case .layer: spacing.layerInset
         }
     }
 
     func topInset(_ spacing: DesignTokens.Spacing) -> CGFloat {
-        if case .free(true) = self { return spacing.sectionHeaderBottom }
-        return spacing.rowGap / 2
+        switch self {
+        case .free(true): spacing.sectionHeaderBottom
+        case .stacked: 0
+        default: spacing.rowGap / 2
+        }
+    }
+
+    func bottomInset(_ spacing: DesignTokens.Spacing) -> CGFloat {
+        self == .stacked ? 0 : spacing.rowGap / 2
     }
 }
 
@@ -525,7 +537,7 @@ public struct ListRowContent<Leading: View, Trailing: View>: View {
             .padding(.leading, placement.indent(spacing))
             .padding(.horizontal, placement.sideInset(spacing))
             .padding(.top, placement.topInset(spacing))
-            .padding(.bottom, spacing.rowGap / 2)
+            .padding(.bottom, placement.bottomInset(spacing))
             .contentShape(.rect)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(state.isSelected ? [.isSelected, .isButton] : .isButton)
@@ -797,32 +809,110 @@ extension StatusLine where Leading == Tile {
     }
 }
 
+/// How `SkeletonRows` lays its rows out.
+public enum SkeletonRowsStyle: Sendable, Equatable {
+    /// One view: the rows in a stack, each a `ListRow`. Outside a `List`.
+    case stack
+    /// One `List` cell per row, each a `ListRowContent` with `listRowCell(placement:)`.
+    case listCells
+    /// One sidebar `List` cell per row, its content with `sidebarRowCell(placement:)`, in a `sidebarColumn`.
+    case sidebarCells
+}
+
 /// The shape of rows still loading: a tile and placeholder text lines per row, static (nothing shimmers), read by
 /// VoiceOver as one label. Show it only after the `placeholderFade` delay.
+///
+/// `lines` is the number of text lines per row, 1 to 3 (a title, then details; 3 for a mail row's sender, subject and
+/// preview). `placement` is the rows' (`.free(firstInSection: true)` counts for the first row only). With `style`
+/// `.listCells` or `.sidebarCells` each row is a real `List` cell, placed and drawn like the rows that replace it; the
+/// first cell carries the label and the others are hidden from VoiceOver.
 public struct SkeletonRows: View {
     @Environment(\.designTokens) private var tokens
     private let count: Int
     private let label: String
-    private static let lines = ["Placeholder title of a row", "A shorter title", "A rather longer placeholder title"]
+    private let lines: Int
+    private let placement: RowPlacement
+    private let style: SkeletonRowsStyle
+    private static let titles = ["Placeholder title of a row", "A shorter title", "A rather longer placeholder title"]
 
-    public init(count: Int, label: String) {
+    public init(
+        count: Int, label: String, lines: Int = 2, placement: RowPlacement = .free(firstInSection: false),
+        style: SkeletonRowsStyle = .stack
+    ) {
         self.count = count
         self.label = label
+        self.lines = min(max(lines, 1), 3)
+        self.placement = placement
+        self.style = style
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            ForEach(0..<count, id: \.self) { index in
-                ListRow(Self.lines[index % Self.lines.count], details: [Self.lines[(index + 1) % Self.lines.count]]) {
-                    RoundedRectangle(cornerRadius: tokens.radius.tile, style: .continuous)
-                        .fill(.quaternary)
-                        .frame(width: tokens.size.tile, height: tokens.size.tile)
+        switch style {
+        case .stack:
+            VStack(spacing: 0) {
+                ForEach(0..<count, id: \.self) { index in
+                    ListRow(Self.title(index), details: details(index), placement: placement(index)) { tile }
+                        .redacted(reason: .placeholder)
                 }
-                .redacted(reason: .placeholder)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(label)
+        case .listCells:
+            ForEach(0..<count, id: \.self) { index in
+                labelled(
+                    ListRowContent(Self.title(index), details: details(index), placement: placement(index)) { tile },
+                    index: index)
+                    .listRowCell(placement: placement(index))
+            }
+        case .sidebarCells:
+            ForEach(0..<count, id: \.self) { index in
+                labelled(sidebarContent(index), index: index)
+                    .sidebarRowCell(placement: placement(index))
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
+    }
+
+    private static func title(_ index: Int) -> String { titles[index % titles.count] }
+
+    private func details(_ index: Int) -> [String] {
+        (1..<lines).map { Self.titles[(index + $0) % Self.titles.count] }
+    }
+
+    /// `.free(firstInSection: true)` for the first row only; any other placement for every row.
+    private func placement(_ index: Int) -> RowPlacement {
+        if case .free(true) = placement, index > 0 { return .free(firstInSection: false) }
+        return placement
+    }
+
+    private var tile: some View {
+        RoundedRectangle(cornerRadius: tokens.radius.tile, style: .continuous)
+            .fill(.quaternary)
+            .frame(width: tokens.size.tile, height: tokens.size.tile)
+    }
+
+    /// A sidebar cell's content: the tile and the text with no padding of their own (`sidebarRowCell` sets it).
+    private func sidebarContent(_ index: Int) -> some View {
+        HStack(alignment: lines == 1 ? .center : .top, spacing: tokens.spacing.tileToText) {
+            tile
+            VStack(alignment: .leading, spacing: tokens.spacing.textLines) {
+                Text(Self.title(index)).role(tokens.type.rowTitle).lineLimit(1)
+                ForEach(details(index), id: \.self) { line in
+                    Text(line).role(tokens.type.rowDetail).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// A cell, redacted: the first carries the label, the others are hidden from VoiceOver.
+    @ViewBuilder
+    private func labelled(_ cell: some View, index: Int) -> some View {
+        let redacted = cell.redacted(reason: .placeholder)
+        if index == 0 {
+            redacted.accessibilityElement(children: .ignore).accessibilityLabel(label)
+        } else {
+            redacted.accessibilityHidden(true)
+        }
     }
 }
 
