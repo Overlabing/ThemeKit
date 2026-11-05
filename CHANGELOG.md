@@ -35,8 +35,30 @@ What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
   hands out (6496 of them, `THEMEKIT_ROLES_DUMP=<file> swift test --filter RolesDumpTests`) is the same, to the last
   digit, as in 0.2.7.
 
+- **A `StatusLine` grows with its text** (issue #32): it was `Size.statusLine` (38 pt) tall exactly, and a larger type
+  size clipped its title. It is now at least that tall, with the row's vertical inset round its content: 38 pt at the
+  standard sizes, as before, taller when the text needs it.
+
 ### Added
 
+- **`StatusLine` options** (issue #32), each a parameter with a default, on both initialisers:
+  - **`chevron: StatusLineChevron?`** (`.up`, `.down`): the chevron's direction apart from `isOpen`. Nil, the default,
+    points it up while open and down while closed. A line being pulled open turns its chevron without being opened,
+    so it is not filled before it opens (Oisillon passed `isOpen: true` to turn it, which filled the line).
+  - **`countPlacement: StatusLineCountPlacement`** (`.afterTitle`, the default, or `.trailing`): the count at the end
+    of the line, before the chevron.
+  - **`truncationMode: Text.TruncationMode`** (`.tail` by default): `.middle` keeps both ends of a long title.
+  - **`chevronTransition: ContentTransition`** (`.symbolEffect(.replace)` by default): what a change of direction
+    runs, on `indicatorRotation` (immediate under Reduce Motion); `.identity` swaps the symbol at once, as 0.2.7 did.
+  - **`hoverOverOpenFill: Bool`** (false by default): an open line with `fillsWhenOpen` keeps its open fill under the
+    pointer, as before; true shows the hover fill over it instead (Oisillon passed `fillsWhenOpen: !hovered` for that).
+    The outline under Increase Contrast stays while the line is open.
+  Tested on an offscreen render, light and dark: a closed line with `chevron: .up` draws as an open unfilled one, an
+  open one with `.down` as a closed one, and a pulled line asking for the open fill stays unfilled; the trailing count
+  draws between 240 pt and the chevron where the default draws it under 120 pt; a long title draws differently cut in
+  the middle, one that fits the same; hovered, an open filled line keeps the open fill, and has the hover fill with
+  `hoverOverOpenFill`; the line is 38 pt tall at the standard sizes and taller with a large title. Gallery:
+  `swift run --package-path Gallery DesignKitGallery 0.2.8 <dir>`.
 - **A context menu per Space and per Profile in the `SpaceRail`** (issue #36): the rail had no menu of its own per
   item, so a client's `contextMenu` on the whole rail could only act on the current Space (Safira's Edit, Move and
   Delete, Oisillon's Edit and Delete). **`.spaceRailContextMenu(space:profile:)`**, or `space:` alone, gives the rails

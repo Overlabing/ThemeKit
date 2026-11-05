@@ -605,24 +605,51 @@ public struct ColumnSeparator: View {
     }
 }
 
+/// Which way a `StatusLine`'s chevron points.
+public enum StatusLineChevron: Sendable, Equatable {
+    case up, down
+}
+
+/// Where a `StatusLine` shows its count: right after the title, or at the end of the line, before the chevron.
+public enum StatusLineCountPlacement: Sendable, Equatable {
+    case afterTitle, trailing
+}
+
 /// The status line at the top of a column: what the list shows now, in one row a little taller than a compact row.
 /// A small tile, the state ("Personal · Inbox"), a count, and a chevron that says whether the zone under it is open.
 /// With `fillsWhenOpen` the row is also filled while open, in the current-row fill (outlined under Increase Contrast),
-/// so it reads as the start of the zone under it. The tile is the kit's (`TileContent`) or any view of the client's,
-/// drawn in a `Size.statusTile` square.
+/// so it reads as the start of the zone under it; under the pointer it keeps that fill, or with `hoverOverOpenFill`
+/// shows the hover fill instead. The tile is the kit's (`TileContent`) or any view of the client's, drawn in a
+/// `Size.statusTile` square.
+///
+/// The chevron points up while open and down while closed, unless `chevron` says otherwise (a line being pulled open
+/// turns its chevron before it opens, and is not filled until then); a change of direction runs `chevronTransition`
+/// (`.symbolEffect(.replace)` by default, `.identity` for none) on `indicatorRotation`, immediate under Reduce Motion. The count sits after the title or, with `countPlacement`
+/// `.trailing`, at the end of the line. A title too long for the line is cut at `truncationMode` (`.middle` keeps both
+/// ends of "Personal · A long folder name · Inbox"). The line is at least `Size.statusLine` tall and grows with its text
+/// (larger type sizes).
 public struct StatusLine<Leading: View>: View {
     @Environment(\.designTokens) private var tokens
     @Environment(\.kitContrast) private var contrast
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let leading: Leading
     private let title: String
     private let count: Int?
     private let isOpen: Bool
     private let fillsWhenOpen: Bool
     private let state: RowState
+    private let chevron: StatusLineChevron
+    private let countPlacement: StatusLineCountPlacement
+    private let truncationMode: Text.TruncationMode
+    private let chevronTransition: ContentTransition
+    private let hoverOverOpenFill: Bool
 
+    /// `chevron` nil points it up while open, down while closed.
     public init(
         title: String, count: Int? = nil, isOpen: Bool, fillsWhenOpen: Bool = false, state: RowState = RowState(),
-        @ViewBuilder tile: () -> Leading
+        chevron: StatusLineChevron? = nil, countPlacement: StatusLineCountPlacement = .afterTitle,
+        truncationMode: Text.TruncationMode = .tail, chevronTransition: ContentTransition = .symbolEffect(.replace),
+        hoverOverOpenFill: Bool = false, @ViewBuilder tile: () -> Leading
     ) {
         self.leading = tile()
         self.title = title
@@ -630,6 +657,11 @@ public struct StatusLine<Leading: View>: View {
         self.isOpen = isOpen
         self.fillsWhenOpen = fillsWhenOpen
         self.state = state
+        self.chevron = chevron ?? (isOpen ? .up : .down)
+        self.countPlacement = countPlacement
+        self.truncationMode = truncationMode
+        self.chevronTransition = chevronTransition
+        self.hoverOverOpenFill = hoverOverOpenFill
     }
 
     public var body: some View {
@@ -640,18 +672,20 @@ public struct StatusLine<Leading: View>: View {
                 leading
                     .frame(width: tokens.size.statusTile, height: tokens.size.statusTile)
                     .accessibilityHidden(true)
-                Text(title).role(tokens.type.rowTitleEmphasized).lineLimit(1)
-                if let count {
-                    Text(count, format: .number).role(tokens.type.count).foregroundStyle(roles.secondaryText)
-                }
+                Text(title).role(tokens.type.rowTitleEmphasized).lineLimit(1).truncationMode(truncationMode)
+                if countPlacement == .afterTitle { countText(roles) }
                 Spacer(minLength: 0)
-                Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                if countPlacement == .trailing { countText(roles) }
+                Image(systemName: chevron == .up ? "chevron.up" : "chevron.down")
                     .font(tokens.type.accessory.font)
                     .foregroundStyle(roles.secondaryText)
+                    .contentTransition(chevronTransition)
+                    .animation(MotionRole.indicatorRotation.animation(reduceMotion: reduceMotion), value: chevron)
             }
             .padding(.horizontal, tokens.spacing.rowInsetHorizontal)
-            .frame(height: tokens.size.statusLine)
-            .background { shape.fill(isFilled ? roles.currentFill : state.isHovered ? roles.hoverFill : .clear) }
+            .padding(.vertical, tokens.spacing.rowInsetVertical)
+            .frame(minHeight: tokens.size.statusLine)
+            .background { shape.fill(fill(roles, isFilled: isFilled)) }
             .overlay {
                 if isFilled && contrast == .increased {
                     shape.strokeBorder(roles.outline, lineWidth: tokens.size.stroke).accessibilityHidden(true)
@@ -663,14 +697,33 @@ public struct StatusLine<Leading: View>: View {
             .accessibilityAddTraits(.isButton)
         }
     }
+
+    /// The open fill wins over the hover, unless `hoverOverOpenFill`.
+    private func fill(_ roles: ColorRoles, isFilled: Bool) -> Color {
+        if isFilled && !(hoverOverOpenFill && state.isHovered) { return roles.currentFill }
+        return state.isHovered ? roles.hoverFill : .clear
+    }
+
+    @ViewBuilder
+    private func countText(_ roles: ColorRoles) -> some View {
+        if let count {
+            Text(count, format: .number).role(tokens.type.count).foregroundStyle(roles.secondaryText)
+        }
+    }
 }
 
 extension StatusLine where Leading == Tile {
     public init(
         tile: TileContent, title: String, count: Int? = nil, isOpen: Bool, fillsWhenOpen: Bool = false,
-        state: RowState = RowState()
+        state: RowState = RowState(), chevron: StatusLineChevron? = nil,
+        countPlacement: StatusLineCountPlacement = .afterTitle, truncationMode: Text.TruncationMode = .tail,
+        chevronTransition: ContentTransition = .symbolEffect(.replace), hoverOverOpenFill: Bool = false
     ) {
-        self.init(title: title, count: count, isOpen: isOpen, fillsWhenOpen: fillsWhenOpen, state: state) {
+        self.init(
+            title: title, count: count, isOpen: isOpen, fillsWhenOpen: fillsWhenOpen, state: state, chevron: chevron,
+            countPlacement: countPlacement, truncationMode: truncationMode, chevronTransition: chevronTransition,
+            hoverOverOpenFill: hoverOverOpenFill
+        ) {
             Tile(tile, size: .status)
         }
     }
