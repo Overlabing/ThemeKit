@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.2.8
+
+What Oisillon's adoption of 0.2.7 asked for.
+
+### Changed
+
+- **`ColorRoles` is solved once per key** (issue #38): every `ListRowBackground`, `tileFill`, `badgeFill` and every
+  other view built on `WithColorRoles` built its `ColorRoles` in its body and solved its inks again, so a hover that
+  re-evaluated the visible rows solved them once per row. What the roles hand out (the legibility, the resolved system
+  colours, the secondary and tint inks, every accent ink, the selection marker, the focus ring, the column edge and
+  rail divider, every hue's rail dot, the band and glyph inks) is now solved once per Theme, colour tokens
+  (`emphasis`, `gradient`, `accents`), appearance (Increase Contrast included) and placement, and shared by every
+  `ColorRoles` of that key, from any thread (a `Mutex`). Tokens that differ outside the colours (spacing, sizes, type)
+  share the solve. `ColorRoles(theme:tokens:appearance:placement:)` is unchanged and caches by itself. Measured in a
+  debug build: the roles of 50 rows' backgrounds (each row's fill, the selected row's marker, the focused row's ring)
+  took 1.24 to 1.72 ms in 0.2.7 and take about 67 µs (`THEMEKIT_TIMING=1 swift test --filter RolesTimingTests`).
+  Tested: two lookups share one solve, a lookup from 32 threads at once agrees, each part of the key gives its own
+  solve, and for every Theme, appearance and placement, with the standard tokens and with others, the cached values
+  equal a fresh solve. Every value `ColorRoles` hands out (6496 of them, `THEMEKIT_ROLES_DUMP=<file> swift test
+  --filter RolesDumpTests`) is the same, to the last digit, as in 0.2.7.
+
+### Added
+
+- `DesignTokens.Emphasis` and `DesignTokens.WindowGradient` are `Hashable` (they key the cache).
+
+### Unchanged
+
+- The 2344 legibility cases: the audit's output is the same, line for line, all at their threshold.
+- No source-breaking change. `ColorRoles.legibility` is now a computed property, read-only as before.
+
 ## 0.2.7
 
 Three fixes Oisillon's adoption of 0.2.6 found: a `Banner` cut its message at two lines (issue #30), the sidebar column's
