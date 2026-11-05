@@ -17,6 +17,13 @@ struct Raster {
 
     var alphaSum: Int { stride(from: 3, to: data.count, by: 4).reduce(0) { $0 + Int(data[$1]) } }
 
+    /// Whether `other` is the same render to within `tolerance` 255ths on every byte: two renders of one view differ
+    /// now and then by 1/255 on a few bytes (as in issue #19).
+    func matches(_ other: Raster, tolerance: Int = 1) -> Bool {
+        width == other.width && height == other.height
+            && zip(data, other.data).allSatisfy { abs(Int($0) - Int($1)) <= tolerance }
+    }
+
     /// The ratio between two pixels, `RGBA` rounded to 8 bits as the render has it.
     func contrast(_ a: (Int, Int), _ b: (Int, Int)) -> Double {
         Contrast.ratio(color(x: a.0, y: a.1), color(x: b.0, y: b.1))

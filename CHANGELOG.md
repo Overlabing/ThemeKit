@@ -44,6 +44,22 @@ What Oisillon's adoption of 0.2.7 asked for, and Safira's rail too.
   draws between 240 pt and the chevron where the default draws it under 120 pt; a long title draws differently cut in
   the middle, one that fits the same; hovered, an open filled line has the hover fill; the line is 38 pt tall at the
   standard sizes and taller with a large title. Gallery: `swift run --package-path Gallery DesignKitGallery 0.2.8 <dir>`.
+- **`.sidebarDetailCard()` and `.sidebarDetailInset()`** (issue #31): `SidebarDetail` drew one padded card, so a detail
+  of several cards (Oisillon's canvas and its in-place reply card) could not use it. `sidebarDetailCard()` is its card
+  alone: the view on the plain background, clipped to `Radius.canvas`, the `.separator` line on its edge, and no
+  padding, size or inset. `sidebarDetailInset()` is where `SidebarDetail` sets its card: `canvasInset` from the column's
+  edges and from the window's top edge on the Mac, under the transparent toolbar. `SidebarDetail` is now those two
+  round its content and draws as before. Tested on an offscreen render, light and dark: `SidebarDetail` draws as its
+  content in `sidebarDetailCard()` and `sidebarDetailInset()`; the card alone is the view's own size on the plain
+  background, its corners rounded; two cards in one inset sit 12 pt from the edges and 12 pt apart.
+- **`tileFill` takes a shape and any size** (issue #35): `tileFill(_:shape:)` takes **`TileShape`** (`.roundedSquare`,
+  the default, or `.circle`), and **`tileFill(_ size: TileFillSize, shape:)`** any size: `.tile(TileSize)`, a
+  `.side(CGFloat)` of the client's (rounded in the kit's proportion, 8 for 32), or **`.fitting(minimum: TileSize)`**, a
+  square round its content with `Spacing.tileFillPadding` (new, 4 pt) each side and never under the minimum, so a
+  tile follows its text: an account's initials, a count, a larger type size. `tileFill()` and `tileFill(.compact)`
+  draw as before. Tested on an offscreen render: the default draws the same as `.tile(.standard)`; a circle leaves the
+  corners a rounded square fills; a 48 pt side keeps its proportional radius; a fitting tile is 22 pt for "A" at
+  caption size and a larger square for "ABC" in a title font; the tint text's fill is the tile fill in a circle too.
 - **A context menu per Space and per Profile in the `SpaceRail`** (issue #36): the rail had no menu of its own per
   item, so a client's `contextMenu` on the whole rail could only act on the current Space (Safira's Edit, Move and
   Delete, Oisillon's Edit and Delete). **`.spaceRailContextMenu(space:profile:)`**, or `space:` alone, gives the rails

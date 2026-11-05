@@ -106,6 +106,8 @@ extension DesignTokens {
         public var railDotGap: CGFloat = xs
         public var railCaption: CGFloat = xs
         public var railFoldPadding: CGFloat = xs
+        /// A tile fill that follows its content (`TileFillSize.fitting`): from the content to the tile's edge.
+        public var tileFillPadding: CGFloat = xs
         /// A badge's fill around its text: sideways and up and down.
         public var badgeHorizontal: CGFloat = s
         public var badgeVertical: CGFloat = xxs

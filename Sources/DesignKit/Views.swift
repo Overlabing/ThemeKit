@@ -214,12 +214,36 @@ public struct Tile: View {
     }
 }
 
+/// The shape of a tile fill: the kit's rounded square (a tile's radius for its side), or a circle (an avatar).
+public enum TileShape: Sendable, Equatable {
+    case roundedSquare, circle
+}
+
+/// How big a tile fill is.
+public enum TileFillSize: Sendable, Equatable {
+    /// One of the kit's tile sizes.
+    case tile(TileSize)
+    /// A square `side` points wide; a rounded square keeps the kit's tile radius in proportion (8 for 32).
+    case side(CGFloat)
+    /// Follows its content: a square around it with `Spacing.tileFillPadding` each side, never under `minimum`'s side.
+    /// A text in it (an account's initials, a count) grows the tile with it, with the type size included; the
+    /// radius stays in proportion.
+    case fitting(minimum: TileSize)
+}
+
 extension View {
     /// Draws the kit's tile fill behind the view: a rounded square of `size` filled with the Theme's tile fill, the view
     /// centred in it in `ColorRoles.tintText` (4.5:1 on it). For a client's own tile content (a logo, an account's
-    /// initial) that `TileContent` has no case for. Hide it from VoiceOver yourself if it is decorative.
-    public func tileFill(_ size: TileSize = .standard) -> some View {
-        modifier(TileFillModifier(size: size))
+    /// initial) that `TileContent` has no case for. Hide it from VoiceOver yourself if it is decorative. `shape`
+    /// `.circle` draws it round.
+    public func tileFill(_ size: TileSize = .standard, shape: TileShape = .roundedSquare) -> some View {
+        modifier(TileFillModifier(size: .tile(size), shape: shape))
+    }
+
+    /// The same at any size: a kit size, a side of the client's, or a tile that follows its content
+    /// (`TileFillSize.fitting(minimum:)`).
+    public func tileFill(_ size: TileFillSize, shape: TileShape = .roundedSquare) -> some View {
+        modifier(TileFillModifier(size: size, shape: shape))
     }
 
     /// Draws the kit's badge fill behind the view: a capsule in the Theme's badge fill, the view padded in it and set
@@ -231,16 +255,60 @@ extension View {
 
 private struct TileFillModifier: ViewModifier {
     @Environment(\.designTokens) private var tokens
-    let size: TileSize
+    let size: TileFillSize
+    let shape: TileShape
 
     func body(content: Content) -> some View {
-        let side = size.side(tokens.size)
         WithColorRoles { roles in
-            content
-                .foregroundStyle(roles.tintText)
-                .frame(width: side, height: side)
-                .background(roles.tileFill, in: RoundedRectangle(cornerRadius: size.radius(tokens.radius), style: .continuous))
+            sized(content.foregroundStyle(roles.tintText))
+                .background(roles.tileFill, in: fillShape)
         }
+    }
+
+    @ViewBuilder
+    private func sized(_ content: some View) -> some View {
+        switch size {
+        case .tile(let tile):
+            content.frame(width: tile.side(tokens.size), height: tile.side(tokens.size))
+        case .side(let side):
+            content.frame(width: side, height: side)
+        case .fitting(let minimum):
+            FittingSquare(minimum: minimum.side(tokens.size), padding: tokens.spacing.tileFillPadding) { content }
+        }
+    }
+
+    private var fillShape: AnyShape {
+        switch (shape, size) {
+        case (.circle, _): AnyShape(Circle())
+        case (.roundedSquare, .tile(let tile)):
+            AnyShape(RoundedRectangle(cornerRadius: tile.radius(tokens.radius), style: .continuous))
+        case (.roundedSquare, _): AnyShape(ProportionalRoundedSquare(share: tokens.radius.tile / tokens.size.tile))
+        }
+    }
+}
+
+/// A rounded rectangle whose radius is `share` of its shorter side, so a tile of any size keeps the kit's proportion.
+private struct ProportionalRoundedSquare: Shape {
+    let share: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        RoundedRectangle(cornerRadius: min(rect.width, rect.height) * share, style: .continuous).path(in: rect)
+    }
+}
+
+/// A square round its content at its ideal size: its larger side plus `padding` each side, `minimum` at least.
+private struct FittingSquare: Layout {
+    let minimum: CGFloat
+    let padding: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let content = subviews.first?.sizeThatFits(.unspecified) ?? .zero
+        let side = max(minimum, max(content.width, content.height) + 2 * padding)
+        return CGSize(width: side, height: side)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center, proposal: .unspecified)
     }
 }
 

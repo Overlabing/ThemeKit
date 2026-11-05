@@ -63,10 +63,7 @@ struct RailContextMenuTests {
                 .theme(RailSample.themes[0])
                 .environment(\.colorScheme, scheme)
         }
-        let with = try raster(rail(true)).data, without = try raster(rail(false)).data
-        // Two renders of one view differ now and then by 1/255 on a few bytes (as in issue #19): allow that, no more.
-        #expect(with.count == without.count)
-        #expect(zip(with, without).allSatisfy { abs(Int($0) - Int($1)) <= 1 })
+        #expect(try raster(rail(true)).matches(raster(rail(false))))
     }
 
     #if os(macOS)

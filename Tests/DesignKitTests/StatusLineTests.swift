@@ -46,13 +46,13 @@ struct StatusLineTests {
         let open = try render(StatusLine(tile: .initial("A"), title: "All", isOpen: true), scheme: scheme)
         let pulled = try render(StatusLine(tile: .initial("A"), title: "All", isOpen: false, chevron: .up), scheme: scheme)
         let openDown = try render(StatusLine(tile: .initial("A"), title: "All", isOpen: true, chevron: .down), scheme: scheme)
-        #expect(closed.data != open.data, "the chevron follows isOpen by default")
-        #expect(pulled.data == open.data, "a closed line can point its chevron up")
-        #expect(openDown.data == closed.data, "an open line can point it down")
+        #expect(!closed.matches(open), "the chevron follows isOpen by default")
+        #expect(pulled.matches(open), "a closed line can point its chevron up")
+        #expect(openDown.matches(closed), "an open line can point it down")
         // Pulled with the open fill asked for: the chevron is up, the line stays unfilled until it is open.
         let pulledFilled = try render(
             StatusLine(tile: .initial("A"), title: "All", isOpen: false, fillsWhenOpen: true, chevron: .up), scheme: scheme)
-        #expect(pulledFilled.data == open.data)
+        #expect(pulledFilled.matches(open))
     }
 
     @Test func theCountCanSitAtTheEndOfTheLine() throws {
@@ -72,10 +72,10 @@ struct StatusLineTests {
         let title = "Personal · A folder whose name is far too long for the line · Inbox"
         let tail = try render(StatusLine(tile: .initial("P"), title: title, isOpen: false))
         let middle = try render(StatusLine(tile: .initial("P"), title: title, isOpen: false, truncationMode: .middle))
-        #expect(tail.data != middle.data)
+        #expect(!tail.matches(middle))
         let short = try render(StatusLine(tile: .initial("P"), title: "Inbox", isOpen: false))
         let shortMiddle = try render(StatusLine(tile: .initial("P"), title: "Inbox", isOpen: false, truncationMode: .middle))
-        #expect(short.data == shortMiddle.data, "a title that fits is not cut")
+        #expect(short.matches(shortMiddle), "a title that fits is not cut")
     }
 
     @Test(arguments: [ColorScheme.light, .dark])
