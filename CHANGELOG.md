@@ -3,8 +3,8 @@
 ## 0.2.6
 
 The Space rail's emoji and its popovers' focus ring (issue #20), both seen when Safira adopted the rail. Then the column
-surface deprecated, since Safira takes Oisillon's system sidebar as it is (issue #21), and `ThemeGlyph`'s emoji, for
-Oisillon's Spaces (issue #22).
+surface deprecated, since Safira takes Oisillon's system sidebar as it is (issue #21), `ThemeGlyph`'s emoji, for
+Oisillon's Spaces (issue #22), and two of the rail's VoiceOver strings (issue #27).
 
 ### Changed
 
@@ -31,6 +31,11 @@ Oisillon's Spaces (issue #22).
   (the material cannot be drawn without a window), the panels' text reaches 4.72:1 at worst in light (4.62 before),
   5.86 in dark (4.81), 4.70 and 5.51 under Increase Contrast (4.61, 4.73); the focus ring and the marker 3.36:1. So
   `.frame` holds there, and no placement of its own is needed.
+- **The rail's VoiceOver strings** (issue #27, from Safira's accessibility pass): the `+` read only "Add" ("Ajouter"),
+  not what it opens. It now reads **"Add or Edit a Space or Profile"** ("Ajouter ou modifier un espace ou un profil"),
+  also its help. A folded Profile's hint, "opens Home" ("ouvre Home"), read as a fragment after "Profile Default, 1
+  Space"; it is now a sentence, **"Opens Home."** ("Ouvre Home."). The caption keeps "1 Space · opens Home". The
+  catalog's "Add" entry is replaced, "Opens %@." is new.
 - **`DesignTokens.glyphEmojiSize(textSize:circle:)`**: the emoji size for any glyph circle, the same scale with the cap
   a share of that circle. `glyphEmojiSize(textSize:)` is it for `Size.glyphCircle`. The rail and `ThemeGlyph` both
   size their emoji through it, one helper for both.
@@ -62,6 +67,8 @@ views in `.frame`.
   ↑, ↓, Tab, Return or Space and Escape do), testable without a window.
 - **`SpaceRailPanel(…, showsFocusRing:)`**: `false` for a panel opened with the pointer. The default, `true`, draws what
   0.2.5 drew, so a client that builds a panel itself is unchanged.
+- **`SpaceRailModel.accessibilityHint(for:)`**: the hint VoiceOver reads after an item's label ("Opens Home." for a
+  folded Profile, empty otherwise), which the rail uses, so it can be tested without a window.
 - **`ThemeGlyph(name:symbol:emoji:theme:size:)`** (issue #22): a glyph can be an emoji, at both sizes. It wins over the
   symbol and the initial, keeps its own colours (no ink, no tint) and is drawn at the rail's emoji size for its circle:
   13 pt in the 24 pt circle, 8.8 pt (the cap) in the small 16 pt one. Measured on an offscreen render, light and dark:

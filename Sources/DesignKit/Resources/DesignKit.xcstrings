@@ -42,19 +42,19 @@
         }
       }
     },
-    "Add" : {
-      "comment" : "VoiceOver label and help of the Space rail's + button, which opens the app's commands.",
+    "Add or Edit a Space or Profile" : {
+      "comment" : "VoiceOver label and help of the Space rail's + button, which opens the app's commands (New Space, New Profile, Edit Space, Edit Profile).",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add"
+            "value" : "Add or Edit a Space or Profile"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ajouter"
+            "value" : "Ajouter ou modifier un espace ou un profil"
           }
         }
       }
@@ -130,6 +130,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Déplié"
+          }
+        }
+      }
+    },
+    "Opens %@." : {
+      "comment" : "VoiceOver hint of a folded Profile in the Space rail, read after its label: the Space a click lands on. A full sentence.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre %@."
           }
         }
       }
@@ -227,7 +244,7 @@
       }
     },
     "opens %@" : {
-      "comment" : "Detail of a folded Profile in the Space rail's caption, and its VoiceOver hint: the Space a click lands on.",
+      "comment" : "Detail of a folded Profile in the Space rail's caption, after its Space count: the Space a click lands on.",
       "localizations" : {
         "en" : {
           "stringUnit" : {

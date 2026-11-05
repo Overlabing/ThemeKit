@@ -203,7 +203,7 @@ public struct SpaceRail: View {
             .help(help(item))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(model.accessibilityLabel(for: item))
-            .accessibilityHint(hint(item))
+            .accessibilityHint(model.accessibilityHint(for: item))
             .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             .accessibilityAction { run(model.action(for: item), fromKeyboard: true) }
         switch item {
@@ -277,11 +277,6 @@ public struct SpaceRail: View {
         case .profile(let profile, _, _): profile.shortcut.map { "\(profile.name) (\($0))" } ?? profile.name
         case .overflow, .add: model.accessibilityLabel(for: item)
         }
-    }
-
-    private func hint(_ item: SpaceRailItem) -> String {
-        guard case .profile(let profile, _, _) = item, let landing = profile.landingSpace else { return "" }
-        return String(localized: "opens \(landing.name)", table: "DesignKit", bundle: .module)
     }
 }
 

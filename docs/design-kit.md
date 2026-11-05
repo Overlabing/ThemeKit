@@ -323,7 +323,8 @@ and has no sidebar button.
 One quiet row at the bottom of a list column: the active Profile's Spaces as glyphs, the selected one in its Theme's
 hue with a marker bar under it; a hairline; each other Profile folded into dots; a trailing `+` for the app's commands.
 The app supplies every word and key: names, shortcuts ("⌃1", "⌘1"), command titles. The kit says only "Space",
-"Profile" and "Add" (in its string catalog).
+"Profile", the `+`'s "Add or Edit a Space or Profile" and a folded Profile's "Opens Home." (in its string catalog,
+English and French).
 
 ```swift
 SpaceRail(
@@ -369,7 +370,8 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   shows it there without moving it, as macOS draws a focus ring for keyboard navigation only. Until then Return picks
   nothing (`SpaceRailPanelFocus`; `SpaceRailPanel(showsFocusRing:)`). The app keeps its own shortcuts (⌃1…9, say) working from anywhere.
 - **VoiceOver**: the row is a named group. A Space reads "Space Research, 2 of 3", plus "selected" on the selected one;
-  a folded Profile "Profile Personal, 3 Spaces", hint "opens Home"; the overflow "All Spaces, 2 more"; the `+` "Add".
+  a folded Profile "Profile Personal, 3 Spaces", hint "Opens Home."; the overflow "All Spaces, 2 more"; the `+` "Add or
+  Edit a Space or Profile" (it opens the app's commands).
   Dots, the divider, the marker and the caption are hidden.
 - **Motion**: changing Space slides the marker and recolours the glyph (`themeChange`; immediate under Reduce Motion).
   Changing Profile folds the old group's glyphs while the new group's open, one after the other (`profileSwap`, stagger

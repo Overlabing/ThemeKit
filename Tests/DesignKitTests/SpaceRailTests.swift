@@ -244,10 +244,38 @@ struct SpaceRailWordingTests {
         let layout = model.layout(width: 360, hasCommands: true)
         #expect(layout.items.map(model.accessibilityLabel(for:)) == [
             "Space Work 1, 1 of 3", "Space Work 2, 2 of 3", "Space Work 3, 3 of 3",
-            "Profile Personal, 3 Spaces", "Profile Solo, 1 Space", "Add",
+            "Profile Personal, 3 Spaces", "Profile Solo, 1 Space", "Add or Edit a Space or Profile",
         ])
         #expect(model.accessibilityLabel(for: .overflow(hidden: 2)) == "All Spaces, 2 more")
         #expect(model.accessibilityGroupLabel == "Spaces and Profiles")
+    }
+
+    /// Issue #27: the `+` says what it opens, and a folded Profile's hint is a sentence, not a fragment after its label.
+    /// The caption keeps its lowercase "opens Home" after the Space count.
+    @Test func voiceOverHintsAreSentences() {
+        let layout = model.layout(width: 360, hasCommands: true)
+        #expect(layout.items.map(model.accessibilityHint(for:)) == ["", "", "", "Opens Reading.", "Opens Home.", ""])
+        #expect(model.accessibilityHint(for: .overflow(hidden: 2)) == "")
+    }
+
+    /// Both strings of issue #27 in the string catalog, English and French.
+    @Test func theCatalogPinsTheRailsVoiceOverStrings() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Sources/DesignKit/Resources/DesignKit.xcstrings")
+        let catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let strings = try #require(catalog?["strings"] as? [String: Any])
+        func value(_ key: String, _ language: String) -> String? {
+            let entry = strings[key] as? [String: Any]
+            let localization = (entry?["localizations"] as? [String: Any])?[language] as? [String: Any]
+            return (localization?["stringUnit"] as? [String: Any])?["value"] as? String
+        }
+        #expect(value("Add or Edit a Space or Profile", "en") == "Add or Edit a Space or Profile")
+        #expect(value("Add or Edit a Space or Profile", "fr") == "Ajouter ou modifier un espace ou un profil")
+        #expect(value("Opens %@.", "en") == "Opens %@.")
+        #expect(value("Opens %@.", "fr") == "Ouvre %@.")
+        #expect(strings["Add"] == nil, "the bare \"Add\" is gone")
+        #expect(value("opens %@", "fr") == "ouvre %@", "the caption's fragment stays")
     }
 
     @Test func theCaptionSaysWhereAProfileLands() {
