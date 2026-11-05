@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.2.10
+
+What Oisillon's adoption of 0.2.9 found.
+
+### Changed
+
+- **`RowPlacement.sideBySide` has no row gap above or below** (issue #56): a layout change of a 0.2.9 case. 0.2.9 kept
+  a free row's half row gap at each end of a side-by-side row, which shrank Oisillon's 40 pt "All" account tile to a
+  36 pt fill. A side-by-side row now has none, as `.stacked`: its background fills the row's whole height, and the
+  gap around the line is the client's. Its side insets are unchanged (none), and so is the API. A `ListRow` or
+  `ListRowContent` side by side is now a row gap (4 pt) shorter than a free one, as tall as a stacked one; a client
+  that relied on the 0.2.9 gap pads the line by `Spacing.rowGap / 2` above and below. Tested on an offscreen render,
+  light and dark: a 40 pt side-by-side background fills all 40 pt, top row to bottom, as a stacked one does, where a
+  free one leaves 2 pt clear at each end; two side by side still make one fill 200 pt wide; a `ListRowContent` side by
+  side is as tall as a stacked one, a row gap shorter than a free one, and still twice the side inset narrower.
+  Gallery: `swift run --package-path Gallery DesignKitGallery 0.2.10 <dir>`, `side-by-side-rows`.
+
+### Added
+
+- **`StatusLine(titleToCount:)`** (issue #57): the least space kept between the title and the count, beyond the
+  line's own spacing (`Spacing.compactTileToText`), on both initialisers. A title cut short ends that much before the
+  count, after the title or at the end of the line; without a count it changes nothing. It defaults to 0, which draws
+  as 0.2.9 did: on an offscreen render of a cut title with a count, light and dark, after the title and at the end,
+  the default and 0 match each other and 0.2.9's render byte for byte (one byte off by 1/255 once, as in issue #19).
+  Oisillon passes `Spacing.xs`. Tested on an offscreen render, light and dark, with "Personal · A folder whose name is
+  far too long for the line · Inbox" and a count of 128 in a 320 pt line: the default draws as 0; at 0 the title
+  ends 9 clear columns before the count after the title and 22 at the end, as 0.2.9; at `Spacing.xs` the count after
+  the title stands 4 pt further (13), and at the end the gap is at least the line's two spacings and 4 pt (the cut
+  title already left 22); a line without a count draws the same at 0 and at `Spacing.xs`. Gallery:
+  `status-line-title-to-count`.
+
 ## 0.2.9
 
 What Oisillon's adoption of 0.2.8 found.

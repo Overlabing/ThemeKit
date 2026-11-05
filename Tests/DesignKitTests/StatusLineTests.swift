@@ -78,6 +78,64 @@ struct StatusLineTests {
         #expect(short.matches(shortMiddle), "a title that fits is not cut")
     }
 
+    /// Across `raster`, the clear runs of at least 4 columns (between glyphs, not inside a word), left to right.
+    func clearRuns(_ raster: Raster) -> [Int] {
+        var runs: [(clear: Bool, length: Int)] = []
+        for x in 0..<raster.width {
+            let clear = (0..<raster.height).allSatisfy { raster.alpha(x: x, y: $0) < 0.15 }
+            if runs.last?.clear == clear { runs[runs.count - 1].length += 1 } else { runs.append((clear, 1)) }
+        }
+        return runs.filter { $0.clear && $0.length >= 4 }.map(\.length)
+    }
+
+    /// The clear columns between a title cut short and the count: from the right, past the trailing margin, the
+    /// chevron and the space before it, then the count.
+    func titleToCountGap(_ raster: Raster) -> Int {
+        let runs = clearRuns(raster)
+        return runs.count >= 3 ? runs[runs.count - 3] : -1
+    }
+
+    /// Issue #57: `titleToCount` keeps more space between a title cut short and its count. At 0, the default, the line
+    /// draws as 0.2.9 did: the gaps are the ones measured on 0.2.9's render of this line (the line's own 8 pt between
+    /// the title and the count, 9 clear columns with the glyphs' side bearings, or 22 with the count at the end).
+    @Test(arguments: [ColorScheme.light, .dark], [StatusLineCountPlacement.afterTitle, .trailing])
+    func aTitleCutShortKeepsItsSpaceToTheCount(_ scheme: ColorScheme, _ placement: StatusLineCountPlacement) throws {
+        let title = "Personal · A folder whose name is far too long for the line · Inbox"
+        func line(_ titleToCount: CGFloat?) throws -> Raster {
+            if let titleToCount {
+                return try raster(
+                    StatusLine(tile: .initial("P"), title: title, count: 128, isOpen: false, countPlacement: placement,
+                               titleToCount: titleToCount)
+                        .frame(width: 320).theme(theme).environment(\.colorScheme, scheme))
+            }
+            return try raster(
+                StatusLine(tile: .initial("P"), title: title, count: 128, isOpen: false, countPlacement: placement)
+                    .frame(width: 320).theme(theme).environment(\.colorScheme, scheme))
+        }
+        let byDefault = try line(nil)
+        let zero = try line(0)
+        let xs = try line(DesignTokens.Spacing.xs)
+        #expect(byDefault.matches(zero))
+        #expect(titleToCountGap(zero) == (placement == .afterTitle ? 9 : 22), "0.2.9's gap: \(clearRuns(zero))")
+        // At `Spacing.xs` the gap is at least the line's own spacing (twice with the count at the end, the spacer between)
+        // and 4 pt more. After the title the count moves 4 pt further; at the end the cut title already left more.
+        let spacing = Int(DesignTokens.standard.spacing.compactTileToText)
+        let floor = (placement == .afterTitle ? spacing : 2 * spacing) + Int(DesignTokens.Spacing.xs)
+        #expect(titleToCountGap(xs) >= floor, "\(titleToCountGap(zero)) → \(titleToCountGap(xs))")
+        if placement == .afterTitle {
+            #expect(titleToCountGap(xs) - titleToCountGap(zero) == Int(DesignTokens.Spacing.xs))
+        } else {
+            #expect(titleToCountGap(xs) >= titleToCountGap(zero))
+        }
+        #expect(byDefault.height == xs.height)
+        // Without a count there is nothing to keep apart: the line draws as before.
+        let bare = try render(StatusLine(tile: .initial("P"), title: title, isOpen: false), scheme: scheme)
+        let bareXS = try render(
+            StatusLine(tile: .initial("P"), title: title, isOpen: false, titleToCount: DesignTokens.Spacing.xs),
+            scheme: scheme)
+        #expect(bare.matches(bareXS))
+    }
+
     @Test(arguments: [ColorScheme.light, .dark])
     func hoverCanShowOverTheOpenFill(_ scheme: ColorScheme) throws {
         let roles = ColorRoles(theme: theme, tokens: .standard, appearance: scheme == .dark ? .dark : .light)
