@@ -249,6 +249,40 @@ struct RailPanels028Sheet: View {
     }
 }
 
+/// A banner at narrow widths (issue #44): at 300 pt the action goes under the message and the host breaks at a dot;
+/// at 560 pt the action stays beside it.
+struct BannerNarrow028Sheet: View {
+    static let message = "Could not reach imap.mail.averyverylonghostname.example.com"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.l) {
+            Labelled("300 pt: the action under the message, the host broken at a dot") {
+                Banner(systemImage: "exclamationmark.triangle", title: "Not connected", message: Self.message,
+                       action: BannerAction("Try Again") {}, onClose: {})
+                    .frame(width: 300)
+                    .padding(.horizontal, DesignTokens.standard.spacing.listMargin)
+            }
+            Labelled("300 pt, no title, the client's own action") {
+                Banner(systemImage: "wifi.exclamationmark", message: Self.message) {
+                    Button("Try Again") {}.controlSize(.small)
+                }
+                .frame(width: 300)
+                .padding(.horizontal, DesignTokens.standard.spacing.listMargin)
+            }
+            Labelled("560 pt: beside the message, as before") {
+                Banner(systemImage: "exclamationmark.triangle", title: "Not connected", message: Self.message,
+                       action: BannerAction("Try Again") {}, onClose: {})
+                    .frame(width: 560)
+                    .padding(.horizontal, DesignTokens.standard.spacing.listMargin)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, DesignTokens.Spacing.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background { WindowBackground() }
+    }
+}
+
 @MainActor
 func run028(output: URL) {
     let sheets: [(name: String, size: CGSize, view: AnyView)] = [
@@ -257,6 +291,7 @@ func run028(output: URL) {
         ("tile-fill", CGSize(width: 360, height: 300), AnyView(TileFill028Sheet())),
         ("stacked-rows", CGSize(width: 360, height: 330), AnyView(StackedRows028Sheet())),
         ("rail-panels", CGSize(width: 660, height: 760), AnyView(RailPanels028Sheet())),
+        ("banner-narrow", CGSize(width: 600, height: 420), AnyView(BannerNarrow028Sheet())),
     ]
     let hosted: [(name: String, size: CGSize, view: AnyView)] = [
         ("skeleton", CGSize(width: 720, height: 420), AnyView(Skeleton028Sheet())),

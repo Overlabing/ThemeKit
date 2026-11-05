@@ -1252,6 +1252,11 @@ public struct BannerAction {
 /// the action in the label colour and semibold (all 4.5:1 on glass), the close button a plain `xmark` named "Close".
 /// The message shows in full by default, on as many lines as it takes, and the banner grows with it; `messageLineLimit`
 /// caps it (the end is then cut with an ellipsis). The title takes 2 lines at most.
+///
+/// The actions sit beside the text while the text keeps `Size.bannerMessageMin` beside them; narrower (a 300 pt column
+/// with "Try Again"), they go under the message, the kit's close button staying at the top trailing corner, so no
+/// action is cut. A word with dots (a host name, "imap.mail.example.com") may break after a dot rather than in the
+/// middle of a word; VoiceOver reads the text as written.
 public struct Banner<Actions: View>: View {
     @Environment(\.designTokens) private var tokens
     private let systemImage: String
@@ -1284,20 +1289,15 @@ public struct Banner<Actions: View>: View {
 
     public var body: some View {
         WithColorRoles { roles in
-            HStack(alignment: title == nil ? .center : .top, spacing: tokens.spacing.pillActionGap) {
-                Image(systemName: systemImage).foregroundStyle(roles.tintText).accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: tokens.spacing.bannerLines) {
-                    if let title {
-                        Text(title).role(tokens.type.bannerTitle).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            Group {
+                if Actions.self == EmptyView.self {
+                    beside(roles, keepingMessage: false)
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        beside(roles, keepingMessage: true)
+                        under(roles)
                     }
-                    Text(message)
-                        .role(tokens.type.banner)
-                        .foregroundStyle(title == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(roles.secondaryText))
-                        .lineLimit(messageLineLimit)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
-                actions
             }
             .padding(.vertical, tokens.spacing.bannerVertical)
             .padding(.horizontal, tokens.spacing.bannerHorizontal)
@@ -1305,13 +1305,94 @@ public struct Banner<Actions: View>: View {
             .accessibilityElement(children: .contain)
         }
     }
+
+    private var icon: some View {
+        WithColorRoles { roles in
+            Image(systemName: systemImage).foregroundStyle(roles.tintText).accessibilityHidden(true)
+        }
+    }
+
+    private func text(_ roles: ColorRoles) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.bannerLines) {
+            if let title {
+                Text(Self.breakingAfterDots(title)).role(tokens.type.bannerTitle).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(title)
+            }
+            Text(Self.breakingAfterDots(message))
+                .role(tokens.type.banner)
+                .foregroundStyle(title == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(roles.secondaryText))
+                .lineLimit(messageLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel(message)
+        }
+    }
+
+    /// The actions beside the text, as before 0.2.8. `keepingMessage`: the text asks for `Size.bannerMessageMin` at
+    /// least, so that this layout does not fit (in `ViewThatFits`) when the actions would leave the text less.
+    private func beside(_ roles: ColorRoles, keepingMessage: Bool) -> some View {
+        HStack(alignment: title == nil ? .center : .top, spacing: tokens.spacing.pillActionGap) {
+            icon
+            if keepingMessage {
+                text(roles).frame(
+                    minWidth: tokens.size.bannerMessageMin, idealWidth: tokens.size.bannerMessageMin, alignment: .leading)
+            } else {
+                text(roles)
+            }
+            Spacer(minLength: 0)
+            actions
+        }
+    }
+
+    /// The actions under the message: the kit's action button there and its close button at the top trailing corner;
+    /// a client's own actions all there.
+    private func under(_ roles: ColorRoles) -> some View {
+        let kit = actions as? BannerButtons
+        return HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.pillActionGap) {
+            icon
+            VStack(alignment: .leading, spacing: tokens.spacing.bannerActionsUnder) {
+                text(roles)
+                Group {
+                    if let kit {
+                        if kit.action != nil { BannerButtons(action: kit.action, onClose: nil) }
+                    } else {
+                        actions
+                    }
+                }
+                // The action's label lines up with the message, not its target's edge.
+                .padding(.leading, kit == nil ? 0 : -tokens.spacing.buttonLabelHorizontal)
+            }
+            Spacer(minLength: 0)
+            if let kit, kit.onClose != nil {
+                BannerButtons(action: nil, onClose: kit.onClose)
+            }
+        }
+    }
+
+    /// `text` with a line break allowed after each dot inside a word (a zero-width space before the letter after it):
+    /// "imap.mail.example.com" breaks at a dot rather than in the middle of a word. A dot before a digit (a version, a
+    /// number) or at a word's end is left as it is.
+    static func breakingAfterDots(_ text: String) -> String {
+        var result = ""
+        var previous: Character?
+        var beforePrevious: Character?
+        for character in text {
+            if previous == ".", character.isLetter, let before = beforePrevious, !before.isWhitespace {
+                result.append("\u{200B}")
+            }
+            result.append(character)
+            beforePrevious = previous
+            previous = character
+        }
+        return result
+    }
 }
 
 /// The kit's banner actions: an optional action button, then an optional close button.
 public struct BannerButtons: View {
     @Environment(\.designTokens) private var tokens
-    private let action: BannerAction?
-    private let onClose: (() -> Void)?
+    let action: BannerAction?
+    let onClose: (() -> Void)?
 
     init(action: BannerAction?, onClose: (() -> Void)?) {
         self.action = action
