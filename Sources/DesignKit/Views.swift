@@ -353,16 +353,17 @@ public enum RowPlacement: Sendable, Equatable {
     case stacked
     /// Rows laid next to each other in one line (an accounts row, say): with no side inset of their own, the background
     /// fills the row's own width, so two neighbours stand as far apart as the client lays them (touching with no
-    /// spacing), and the line's outer edges are the client's. Above and below, half the row gap, like a free row, so a
-    /// line of them sits among free rows as a row does. To set the line on the column's margin like a free row, pad it
-    /// by a free row's side inset, `Spacing.listMargin - Spacing.rowInsetHorizontal`.
+    /// spacing), and the line's outer edges are the client's. No row gap above or below either, as in `.stacked`: the
+    /// background fills the row's whole height, and the gap around the line is the client's. To set the line on the
+    /// column's margin like a free row, pad it by a free row's side inset, `Spacing.listMargin -
+    /// Spacing.rowInsetHorizontal`.
     case sideBySide
 }
 
 /// The background of a `ListRow`, on its own: hover, current and selection fills in the Theme's colour, the outline
 /// under Increase Contrast or the bar at the leading edge otherwise, and the focus ring. It fills the row minus half the
-/// row gap above and below and stays inside the column's margin, so two backgrounds never touch; in `.stacked` rows it
-/// fills the whole height, so they do. For a row that is a
+/// row gap above and below and stays inside the column's margin, so two backgrounds never touch; in `.stacked` and
+/// `.sideBySide` rows it fills the whole height, so they do. For a row that is a
 /// `List` cell (`listRowBackground(ListRowBackground(state:))`), whose content is a `ListRowContent` or any view with
 /// the row's padding; the cell's insets must cancel the `List`'s own margin (`Spacing.listCellMargin`) so the background lines up as it
 /// does behind a `ListRow` in a stack (`listRowCell(state:placement:)` does both). Hidden from VoiceOver.
@@ -457,13 +458,16 @@ extension RowPlacement {
     func topInset(_ spacing: DesignTokens.Spacing) -> CGFloat {
         switch self {
         case .free(true): spacing.sectionHeaderBottom
-        case .stacked: 0
+        case .stacked, .sideBySide: 0
         default: spacing.rowGap / 2
         }
     }
 
     func bottomInset(_ spacing: DesignTokens.Spacing) -> CGFloat {
-        self == .stacked ? 0 : spacing.rowGap / 2
+        switch self {
+        case .stacked, .sideBySide: 0
+        default: spacing.rowGap / 2
+        }
     }
 }
 
@@ -713,7 +717,9 @@ public enum StatusLineCountPlacement: Sendable, Equatable {
 /// turns its chevron before it opens, and is not filled until then); a change of direction runs `chevronTransition`
 /// (`.symbolEffect(.replace)` by default, `.identity` for none) on `indicatorRotation`, immediate under Reduce Motion. The count sits after the title or, with `countPlacement`
 /// `.trailing`, at the end of the line. A title too long for the line is cut at `truncationMode` (`.middle` keeps both
-/// ends of "Personal · A long folder name · Inbox"). The line is at least `Size.statusLine` tall and grows with its text
+/// ends of "Personal · A long folder name · Inbox"). `titleToCount` is the least space kept between the title and the
+/// count beyond the line's own spacing (`Spacing.compactTileToText`): a title cut short ends that much before the count.
+/// At 0, the default, the line draws as before. The line is at least `Size.statusLine` tall and grows with its text
 /// (larger type sizes).
 public struct StatusLine<Leading: View>: View {
     @Environment(\.designTokens) private var tokens
@@ -730,13 +736,14 @@ public struct StatusLine<Leading: View>: View {
     private let truncationMode: Text.TruncationMode
     private let chevronTransition: ContentTransition
     private let hoverOverOpenFill: Bool
+    private let titleToCount: CGFloat
 
     /// `chevron` nil points it up while open, down while closed.
     public init(
         title: String, count: Int? = nil, isOpen: Bool, fillsWhenOpen: Bool = false, state: RowState = RowState(),
         chevron: StatusLineChevron? = nil, countPlacement: StatusLineCountPlacement = .afterTitle,
         truncationMode: Text.TruncationMode = .tail, chevronTransition: ContentTransition = .symbolEffect(.replace),
-        hoverOverOpenFill: Bool = false, @ViewBuilder tile: () -> Leading
+        hoverOverOpenFill: Bool = false, titleToCount: CGFloat = 0, @ViewBuilder tile: () -> Leading
     ) {
         self.leading = tile()
         self.title = title
@@ -749,6 +756,7 @@ public struct StatusLine<Leading: View>: View {
         self.truncationMode = truncationMode
         self.chevronTransition = chevronTransition
         self.hoverOverOpenFill = hoverOverOpenFill
+        self.titleToCount = titleToCount
     }
 
     public var body: some View {
@@ -760,6 +768,7 @@ public struct StatusLine<Leading: View>: View {
                     .frame(width: tokens.size.statusTile, height: tokens.size.statusTile)
                     .accessibilityHidden(true)
                 Text(title).role(tokens.type.rowTitleEmphasized).lineLimit(1).truncationMode(truncationMode)
+                    .padding(.trailing, count == nil ? 0 : titleToCount)
                 if countPlacement == .afterTitle { countText(roles) }
                 Spacer(minLength: 0)
                 if countPlacement == .trailing { countText(roles) }
@@ -804,12 +813,13 @@ extension StatusLine where Leading == Tile {
         tile: TileContent, title: String, count: Int? = nil, isOpen: Bool, fillsWhenOpen: Bool = false,
         state: RowState = RowState(), chevron: StatusLineChevron? = nil,
         countPlacement: StatusLineCountPlacement = .afterTitle, truncationMode: Text.TruncationMode = .tail,
-        chevronTransition: ContentTransition = .symbolEffect(.replace), hoverOverOpenFill: Bool = false
+        chevronTransition: ContentTransition = .symbolEffect(.replace), hoverOverOpenFill: Bool = false,
+        titleToCount: CGFloat = 0
     ) {
         self.init(
             title: title, count: count, isOpen: isOpen, fillsWhenOpen: fillsWhenOpen, state: state, chevron: chevron,
             countPlacement: countPlacement, truncationMode: truncationMode, chevronTransition: chevronTransition,
-            hoverOverOpenFill: hoverOverOpenFill
+            hoverOverOpenFill: hoverOverOpenFill, titleToCount: titleToCount
         ) {
             Tile(tile, size: .status)
         }
