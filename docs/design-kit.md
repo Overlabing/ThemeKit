@@ -468,6 +468,7 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
 `ImageRenderer` does not draw Liquid Glass. For previews, snapshots and offscreen renders set
 `.environment(\.glassRendering, .material)`: glass surfaces become a system material in the same shapes, with the same
 tints and lines. `swift run --package-path Gallery DesignKitGallery <folder>` renders the gallery that way;
-`DesignKitGallery audit` prints the legibility cases. A `List`, a scroll view or a popover's content is drawn by a view
+`DesignKitGallery audit` prints the legibility cases, and `DesignKitGallery audit Tests/DesignKitTests/Resources` rewrites
+the tests' JSON recordings of them. A `List`, a scroll view or a popover's content is drawn by a view
 hosted in a window that is never shown (`NSHostingView`, `cacheDisplay`), as the gallery's `client` and `rail` commands and
 the List tests do: `ImageRenderer` draws neither a `List` nor a scroll view.

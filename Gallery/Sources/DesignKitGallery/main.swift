@@ -126,10 +126,13 @@ func run(output: URL, themes: [Theme]) {
     }
 }
 
-/// Prints every legibility case of the standard tokens, one tab-separated row each: Theme (or hue), appearance,
-/// placement, role, surface, the system default's ratio, the kit's ratio, the threshold. Then the accent cases with the
-/// Theme's own hues first, their Theme id suffixed with the list.
-func audit() {
+/// Computes every legibility case of the standard tokens. With no directory, prints them one tab-separated row each:
+/// Theme (or hue), appearance, placement, role, surface, the system default's ratio, the kit's ratio, the threshold;
+/// then the accent cases with the Theme's own hues first, their Theme id suffixed with the list. With a directory
+/// (`Tests/DesignKitTests/Resources`), writes the test recordings there instead: `RecordedCases.json`,
+/// `RecordedRailCases.json` (roles that start with `rail`), `RecordedAccentCases.json` (role `accentText`) and
+/// `RecordedThemeAccentCases.json` (the Theme's own hues first), one case per line, ratios to two decimals.
+func audit(writingTo directory: URL? = nil) {
     let tokens = DesignTokens.standard
     var cases: [LegibilityCase] = []
     for placement in SurfacePlacement.allCases {
@@ -168,15 +171,49 @@ func audit() {
             }
         }
     }
-    func emit(_ item: LegibilityCase, themeID: String) {
-        print([themeID, "\(item.appearance)", item.placement.rawValue, item.role.rawValue, item.surface.rawValue,
-               "\(item.before)", "\(item.after)",
-               String(format: "%.1f", item.threshold)].joined(separator: "\t"))
+    guard let directory else {
+        func emit(_ item: LegibilityCase, themeID: String) {
+            print([themeID, "\(item.appearance)", item.placement.rawValue, item.role.rawValue, item.surface.rawValue,
+                   "\(item.before)", "\(item.after)",
+                   String(format: "%.1f", item.threshold)].joined(separator: "\t"))
+        }
+        for item in cases { emit(item, themeID: item.themeID) }
+        for item in themeFirstCases { emit(item, themeID: "\(item.themeID)[primary,secondary,mint,yellow]") }
+        return
     }
-    for item in cases { emit(item, themeID: item.themeID) }
-    for item in themeFirstCases { emit(item, themeID: "\(item.themeID)[primary,secondary,mint,yellow]") }
+    // One JSON object per line, keys in a fixed order and ratios as the tests' recordings write them, so a
+    // regeneration diffs line by line.
+    func line(_ item: LegibilityCase) -> String {
+        "  {\"theme\": \"\(item.themeID)\", \"appearance\": \"\(item.appearance)\", "
+            + "\"placement\": \"\(item.placement.rawValue)\", \"role\": \"\(item.role.rawValue)\", "
+            + "\"surface\": \"\(item.surface.rawValue)\", \"before\": \(String(format: "%.2f", item.before)), "
+            + "\"after\": \(String(format: "%.2f", item.after)), \"threshold\": \(String(format: "%.1f", item.threshold))}"
+    }
+    let isRail = { (item: LegibilityCase) in item.role.rawValue.hasPrefix("rail") }
+    let isAccent = { (item: LegibilityCase) in item.role == .accentText }
+    let files: [(String, [LegibilityCase])] = [
+        ("RecordedCases", cases.filter { !isRail($0) && !isAccent($0) }),
+        ("RecordedRailCases", cases.filter(isRail)),
+        ("RecordedAccentCases", cases.filter(isAccent)),
+        ("RecordedThemeAccentCases", themeFirstCases),
+    ]
+    do {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for (name, items) in files {
+            let text = "[\n" + items.map(line).joined(separator: ",\n") + "\n]\n"
+            try text.write(to: directory.appending(path: "\(name).json"), atomically: true, encoding: .utf8)
+            print("OK: \(name).json, \(items.count) cases")
+        }
+    } catch {
+        print("FAILED: \(error)")
+        exit(1)
+    }
 }
 
+if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "audit" {
+    audit(writingTo: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory))
+    exit(0)
+}
 if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "audit" {
     audit()
     exit(0)
@@ -202,7 +239,7 @@ if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "rail" {
     exit(0)
 }
 guard CommandLine.arguments.count >= 2 else {
-    print("usage: DesignKitGallery <output directory> [Theme id…] | rail <output directory> | client <output directory> | 0.2.8 <output directory> | 0.2.9 <output directory> | 0.2.10 <output directory> | audit")
+    print("usage: DesignKitGallery <output directory> [Theme id…] | rail <output directory> | client <output directory> | 0.2.8 <output directory> | 0.2.9 <output directory> | 0.2.10 <output directory> | audit [recordings directory]")
     exit(2)
 }
 let named = CommandLine.arguments.dropFirst(2).map { id in
