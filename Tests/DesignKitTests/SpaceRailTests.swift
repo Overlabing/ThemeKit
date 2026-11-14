@@ -39,8 +39,14 @@ struct SpaceRailTokenTests {
     let tokens = DesignTokens.standard
 
     @Test func railTokensComeFromTheScale() {
-        #expect(tokens.size.railHeight == 36)
-        #expect(tokens.size.railHeight == tokens.size.minTarget + DesignTokens.Spacing.s)
+        #expect(tokens.size.railHeight == 40)
+        #expect(tokens.size.railHeight == tokens.size.railTarget + DesignTokens.Spacing.s)
+        #expect(tokens.size.railTarget == 32)
+        #expect(tokens.size.railGlyph == 28)
+        #expect(SpaceRailModel.target(tokens) == 32)
+        // The glyph's edge lies on the column's 12 pt margin: a 10 pt inset, then 2 pt of target around the circle.
+        #expect(SpaceRailModel.inset(tokens) == 10)
+        #expect(SpaceRailModel.inset(tokens) + (tokens.size.railTarget - tokens.size.railGlyph) / 2 == tokens.spacing.listMargin)
         #expect(tokens.size.railMarker == 12)
         #expect(tokens.size.railDivider == 16)
         #expect(tokens.size.railCount == 16)
@@ -127,10 +133,10 @@ struct SpaceRailFoldingTests {
     @Test func aFoldedTargetIsNeverUnderTheMinimumTarget() {
         let one = SpaceRailProfile(id: "one", name: "One", spaces: [RailSample.personal.spaces[0]])
         let model = SpaceRailModel(profiles: [RailSample.work(3), one], selection: "w1")
-        #expect(model.itemWidth(.profile(one, dots: [one.spaces[0].theme], more: 0)) == 28)
+        #expect(model.itemWidth(.profile(one, dots: [one.spaces[0].theme], more: 0)) == 32)
         #expect(model.itemWidth(.profile(RailSample.personal, dots: RailSample.personal.spaces.map(\.theme), more: 0)) == 40)
-        #expect(model.itemWidth(.add) == 28)
-        #expect(model.itemWidth(.overflow(hidden: 3)) == 28)
+        #expect(model.itemWidth(.add) == 32)
+        #expect(model.itemWidth(.overflow(hidden: 3)) == 32)
     }
 }
 
@@ -141,24 +147,27 @@ struct SpaceRailOverflowTests {
         let layout = model.layout(width: 360, hasCommands: true)
         #expect(layout.spaces.count == 8)
         #expect(layout.overflow == nil)
-        // 8 targets of 28, the divider (4 + 1 + 4), Personal's 40, the + 28.
-        #expect(layout.width == 301)
+        // 8 targets of 32, the divider (4 + 1 + 4), Personal's 40, the + 32.
+        #expect(layout.width == 337)
     }
 
-    @Test func eightAndEightStillFitTheIdealColumn() {
+    /// Since 0.2.11's 32 pt targets, eight Spaces and a folded Profile of eight (its 72 pt of dots and count) are 29 pt
+    /// too wide for the ideal column: the last two Spaces go behind a "+n".
+    @Test func eightAndEightFoldTwoSpacesInTheIdealColumn() {
         let model = SpaceRailModel(profiles: [RailSample.work(8), RailSample.eight("hobby")], selection: "w1")
+        #expect(model.layout(width: 360, hasCommands: false).width == 337)
         let layout = model.layout(width: 360, hasCommands: true)
-        #expect(layout.width == 333)
-        #expect(layout.spaces.count == 8)
-        #expect(layout.overflow == nil)
+        #expect(layout.width == 337)
+        #expect(layout.spaces.count == 6)
+        #expect(layout.overflow == .overflow(hidden: 2))
     }
 
-    /// The proposal's case: at the narrowest column the row is 21 pt too wide, so the last Spaces go behind a "+n".
+    /// The proposal's case: at the narrowest column the row is 57 pt too wide, so the last Spaces go behind a "+n".
     @Test func theNarrowestColumnFoldsTheLastSpacesIntoATrailingCount() {
         let model = SpaceRailModel(profiles: [RailSample.work(8), RailSample.personal], selection: "w1")
         let layout = model.layout(width: 300, hasCommands: true)
-        #expect(layout.spaces.map(\.id) == (1...6).map { .space("w\($0)") })
-        #expect(layout.overflow == .overflow(hidden: 2))
+        #expect(layout.spaces.map(\.id) == (1...5).map { .space("w\($0)") })
+        #expect(layout.overflow == .overflow(hidden: 3))
         #expect(layout.profiles.count == 1)
         #expect(layout.width == 273)
         #expect(layout.items.last == .add)
@@ -166,14 +175,14 @@ struct SpaceRailOverflowTests {
 
     @Test func theThresholdIsTheRowsWidth() {
         let model = SpaceRailModel(profiles: [RailSample.work(8), RailSample.personal], selection: "w1")
-        #expect(model.layout(width: 321, hasCommands: true).overflow == nil)
-        #expect(model.layout(width: 320.5, hasCommands: true).overflow == .overflow(hidden: 2))
+        #expect(model.layout(width: 357, hasCommands: true).overflow == nil)
+        #expect(model.layout(width: 356.5, hasCommands: true).overflow == .overflow(hidden: 2))
     }
 
     @Test func theSelectedSpaceAlwaysShows() {
         let model = SpaceRailModel(profiles: [RailSample.work(8), RailSample.personal], selection: "w8")
         let layout = model.layout(width: 300, hasCommands: true)
-        #expect(layout.spaces.map(\.id) == [1, 2, 3, 4, 5, 8].map { .space("w\($0)") })
+        #expect(layout.spaces.map(\.id) == [1, 2, 3, 4, 8].map { .space("w\($0)") })
         #expect(layout.selectedKey == .space("w8"))
         guard case .space(_, let position, let count, true) = layout.spaces.last else {
             Issue.record("the selected Space is not last")
@@ -211,12 +220,17 @@ struct SpaceRailWithoutProfilesTests {
         #expect(model.caption(for: .space("w2")) == SpaceRailCaption(title: "Work 2", shortcut: "⌘2"))
     }
 
-    @Test func eightSpacesFitTheNarrowestColumn() {
+    /// Eight Spaces and the + take 288 pt, 8 more than the narrowest column's row (280): six show there. The ideal
+    /// column's row (340) holds all eight.
+    @Test func eightSpacesFitTheIdealColumn() {
         let model = SpaceRailModel(spaces: spaces, selection: "w1")
-        let layout = model.layout(width: 300, hasCommands: true)
-        #expect(layout.spaces.count == 8)
-        #expect(layout.width == 252)
-        #expect(model.layout(width: 200, hasCommands: true).overflow == .overflow(hidden: 4))
+        let ideal = model.layout(width: 360, hasCommands: true)
+        #expect(ideal.spaces.count == 8)
+        #expect(ideal.width == 288)
+        let narrowest = model.layout(width: 300, hasCommands: true)
+        #expect(narrowest.spaces.count == 6)
+        #expect(narrowest.overflow == .overflow(hidden: 2))
+        #expect(model.layout(width: 200, hasCommands: true).overflow == .overflow(hidden: 5))
     }
 }
 
@@ -398,9 +412,9 @@ struct SpaceRailRenderTests {
         return try render()
     }
 
-    /// The row is the bottom 36 pt above an 8 pt margin; the first target spans 10…38, its glyph's circle 2…26 from
-    /// the row's top, the marker 28…31 under it. Three Spaces (84) and the divider (9) put Yellow's one-dot target at
-    /// 103…131, its dot at 113…121.
+    /// The row is the bottom 40 pt above an 8 pt margin; the first target spans 10…42, its glyph's circle 2…30 from
+    /// the row's top, the marker 32…35 under it. Three Spaces (96) and the divider (9) put Yellow's one-dot target at
+    /// 115…147, its dot at 127…135.
     @Test(arguments: [Palette.standard.themes[0], Palette.standard.themes[2], Palette.standard.themes[5]], [ColorScheme.light, .dark])
     @available(*, deprecated, message: "Tests the deprecated column surface, kept until 0.3.")
     func theMarkerAndTheDotsReachThreeToOne(_ theme: Theme, _ scheme: ColorScheme) throws {
@@ -410,10 +424,12 @@ struct SpaceRailRenderTests {
             return RGBA(red: Double(data[offset]) / 255, green: Double(data[offset + 1]) / 255, blue: Double(data[offset + 2]) / 255)
         }
         #expect(width == 360)
-        let top = height - 8 - 36
-        let fill = color(24, top + 34)
-        #expect(Contrast.ratio(color(24, top + 29), fill) >= 2.95, "marker \(theme.id) \(scheme)")
-        #expect(Contrast.ratio(color(117, top + 14), color(117, top + 34)) >= 2.95, "dot \(theme.id) \(scheme)")
-        #expect(Contrast.ratio(color(98, top + 14), color(98, top + 34)) >= 2.95, "divider \(theme.id) \(scheme)")
+        let top = height - 8 - 40
+        let fill = color(26, top + 38)
+        #expect(Contrast.ratio(color(26, top + 33), fill) >= 2.95, "marker \(theme.id) \(scheme)")
+        #expect(Contrast.ratio(color(131, top + 16), color(131, top + 38)) >= 2.95, "dot \(theme.id) \(scheme)")
+        #expect(Contrast.ratio(color(110, top + 16), color(110, top + 38)) >= 2.95, "divider \(theme.id) \(scheme)")
+        // The current Space's circle (the first target's, 10…42, its circle 12…40) on the column's fill.
+        #expect(Contrast.ratio(color(14, top + 16), color(14, top + 38)) >= 2.95, "current \(theme.id) \(scheme)")
     }
 }

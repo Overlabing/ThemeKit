@@ -23,6 +23,7 @@ public struct SpaceRail: View {
     @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.spaceRailPreviewState) private var preview
     @Environment(\.spaceRailContextMenus) private var menus
+    @Environment(\.focusInputTracker) private var focusInput
     @Namespace private var namespace
     @FocusState private var isFocused: Bool
     @State private var hovered: SpaceRailItem.Key?
@@ -144,9 +145,18 @@ public struct SpaceRail: View {
 
     // MARK: Caption
 
+    /// Whether the rail's keyboard focus shows: it has the focus, and the focus came from the keyboard (or VoiceOver
+    /// runs). A click focuses the rail too, but then neither the ring nor the focused item's caption shows.
+    private var showsKeyboardFocus: Bool {
+        let fromKeyboard = (focusInput ?? .shared).showsFocusRing
+        if let preview { return preview.focused != nil && fromKeyboard }
+        return isFocused && fromKeyboard
+    }
+
+    /// The hovered item, else the one focused from the keyboard, else the current Space (`SpaceRailModel.captionKey`).
     private var captionKey: SpaceRailItem.Key? {
-        if let preview { return preview.hovered ?? preview.focused }
-        return hovered ?? (isFocused ? focused : nil)
+        let focusKey = showsKeyboardFocus ? (preview != nil ? preview?.focused : focused) : nil
+        return model.captionKey(hovered: preview != nil ? preview?.hovered : hovered, focused: focusKey)
     }
 
     private func caption(_ roles: ColorRoles) -> some View {
@@ -172,14 +182,16 @@ public struct SpaceRail: View {
     // MARK: Row
 
     private func row(_ layout: SpaceRailLayout, _ roles: ColorRoles) -> some View {
-        let showsFocus = preview?.focused != nil || isFocused
-        let focusKey = preview?.focused ?? focused
+        // The ring itself hides after a click (`focusRing`, `FocusInputTracker`); the caption follows the same rule. A
+        // preview state decides the focus alone, as it does the caption: a window's own focus does not leak into it.
+        let showsFocus = preview.map { $0.focused != nil } ?? isFocused
+        let focusKey = preview != nil ? preview?.focused : focused
         let profileAnimation = MotionRole.profileSwap.animation(reduceMotion: reduceMotion)
         return HStack(alignment: .top, spacing: 0) {
             ForEach(Array(layout.spaces.enumerated()), id: \.element.id) { index, item in
                 itemView(item, roles, isFocused: showsFocus && focusKey == item.id)
                     .transition(MotionRole.profileSwap.transition(
-                        AnyTransition.scale(scale: tokens.size.dot / tokens.size.glyphCircle).combined(with: .opacity),
+                        AnyTransition.scale(scale: tokens.size.dot / tokens.size.railGlyph).combined(with: .opacity),
                         reduceMotion: reduceMotion)
                         .animation(profileAnimation?.delay(MotionRole.profileSwap.spec.stagger * Double(index))))
             }
@@ -187,7 +199,7 @@ public struct SpaceRail: View {
                 Rectangle()
                     .fill(roles.railDivider)
                     .frame(width: tokens.size.stroke, height: tokens.size.railDivider)
-                    .frame(height: tokens.size.minTarget)
+                    .frame(height: SpaceRailModel.target(tokens))
                     .padding(.horizontal, tokens.spacing.railGroupGap)
                     .accessibilityHidden(true)
             }
@@ -246,11 +258,15 @@ public struct SpaceRail: View {
     private func itemView(_ item: SpaceRailItem, _ roles: ColorRoles, isFocused: Bool) -> some View {
         let isHovered = (preview?.hovered ?? hovered) == item.id
         let isSelected = if case .space(_, _, _, true) = item { true } else { false }
-        let target = tokens.size.minTarget
-        let glyph = tokens.size.glyphCircle
+        let target = SpaceRailModel.target(tokens)
+        let glyph = tokens.size.railGlyph
+        // The ring lies inside the target, its outer edge on the target's: the tooltip's host and the focusable row
+        // clip to their bounds, so a ring outside the target (0.2.10) lost its sides and top. A circular capsule, so
+        // that around a glyph it is a circle like the glyph's, not a continuous capsule's rounded square.
+        let ringInset = tokens.spacing.focusRingOffset + tokens.size.focusRing
         let base = itemContent(item, roles, isHovered: isHovered)
-            .focusRing(isFocused, in: Capsule(style: .continuous))
             .frame(width: model.itemWidth(item, tokens: tokens), height: target)
+            .focusRing(isFocused, in: Capsule(style: .circular).inset(by: ringInset))
             .frame(height: tokens.size.railHeight, alignment: .top)
             .overlay(alignment: .top) {
                 if isSelected {
@@ -266,7 +282,11 @@ public struct SpaceRail: View {
             .onHover { inside in
                 if inside { hovered = item.id } else if hovered == item.id { hovered = nil }
             }
-            .onTapGesture { run(model.action(for: item), fromKeyboard: false) }
+            .onTapGesture {
+                // Arrows go on from the clicked item; the click itself shows no ring and no focused caption.
+                focused = item.id
+                run(model.action(for: item), fromKeyboard: false)
+            }
             .help(help(item))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(model.accessibilityLabel(for: item))
@@ -302,18 +322,18 @@ public struct SpaceRail: View {
 
     @ViewBuilder
     private func itemContent(_ item: SpaceRailItem, _ roles: ColorRoles, isHovered: Bool) -> some View {
-        let glyph = tokens.size.glyphCircle
+        let glyph = tokens.size.railGlyph
         let hover = isHovered ? roles.hoverFill : .clear
         switch item {
         case .space(let space, _, _, let isSelected):
-            SpaceRailGlyphView(space: space, isSelected: isSelected)
+            SpaceRailGlyphView(space: space, isSelected: isSelected, inRail: true)
                 .background { Circle().fill(isSelected ? .clear : hover) }
                 .frame(width: glyph, height: glyph)
         case .profile(let profile, let dots, let more):
             HStack(spacing: tokens.spacing.railDotGap) {
                 if dots.isEmpty {
                     Text(profile.name.first.map { String($0).uppercased() } ?? "")
-                        .role(tokens.type.glyphCircle).foregroundStyle(roles.secondaryText)
+                        .role(tokens.type.railGlyph).foregroundStyle(roles.secondaryText)
                 }
                 ForEach(Array(dots.enumerated()), id: \.offset) { _, theme in
                     Circle().fill(roles.railDot(theme.primary)).frame(width: tokens.size.dot, height: tokens.size.dot)
@@ -333,7 +353,7 @@ public struct SpaceRail: View {
                 .background { Capsule(style: .continuous).fill(hover) }
         case .add:
             Image(systemName: "plus")
-                .font(tokens.type.rowTitle.font)
+                .font(tokens.type.railGlyph.font)
                 .foregroundStyle(roles.secondaryText)
                 .frame(width: glyph, height: glyph)
                 .background { Circle().fill(hover) }
@@ -349,40 +369,44 @@ public struct SpaceRail: View {
     }
 }
 
-/// A Space's glyph in the rail. The selected Space is its Theme's hue in a circle (`Size.glyphCircle`), with its symbol
-/// or initial in white, or black where white falls short (ThemeGlyph's rule); under Increase Contrast the circle is
-/// outlined in `ColorRoles.outline`. Every other Space is quiet: its symbol or initial alone in the secondary ink. An
-/// emoji keeps its own colours either way, at its own size (`DesignTokens.glyphEmojiSize(textSize:circle:)`, the size
-/// `ThemeGlyph` draws one at too), so that it fills the circle the way an initial does.
+/// A Space's glyph in the rail (`inRail`: a `Size.railGlyph` circle, `TypeScale.railGlyph`) or in its panel (a
+/// `Size.glyphCircle` circle, `TypeScale.glyphCircle`). The selected Space is a filled circle in its Theme's hue, solved
+/// to 3:1 on the column (`ColorRoles.railCurrentFill`), with its symbol or initial in white, or black where white falls
+/// short (3:1 for a symbol, 4.5:1 for an initial); under Increase Contrast the circle is outlined in
+/// `ColorRoles.outline`. Every other Space is quiet: its symbol or initial alone in the secondary ink. An emoji keeps its
+/// own colours either way, at its own size (`DesignTokens.glyphEmojiSize(textSize:circle:)`, the size `ThemeGlyph`
+/// draws one at too), so that it fills the circle the way an initial does.
 struct SpaceRailGlyphView: View {
     @Environment(\.designTokens) private var tokens
-    @Environment(\.colorScheme) private var scheme
     @Environment(\.kitContrast) private var contrast
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let space: SpaceRailSpace
     let isSelected: Bool
+    var inRail = false
 
     var body: some View {
         WithColorRoles { roles in
-            let appearance = Appearance(isDark: scheme == .dark, isIncreasedContrast: contrast == .increased)
             let hue = space.theme.primary
-            let symbolInk = ColorRoles.ink(on: hue, in: appearance, minimum: tokens.emphasis.nonTextContrast)
-            let letterInk = ColorRoles.ink(on: hue, in: appearance, minimum: tokens.emphasis.textContrast)
+            let circle = inRail ? tokens.size.railGlyph : tokens.size.glyphCircle
+            let text = inRail ? tokens.type.railGlyph : tokens.type.glyphCircle
             Group {
                 switch space.glyph {
                 case .emoji(let emoji):
-                    Text(emoji).font(.system(size: GlyphSize.standard.emojiSize(tokens, dynamicTypeSize)))
+                    let textSize = text.pointSize(dynamicTypeSize)
+                    Text(emoji).font(.system(size: tokens.glyphEmojiSize(textSize: textSize, circle: circle)))
                 case .symbol(let name):
-                    Image(systemName: name).foregroundStyle(isSelected ? symbolInk : roles.secondaryText)
+                    Image(systemName: name).foregroundStyle(
+                        isSelected ? roles.railCurrentInk(hue, minimum: tokens.emphasis.nonTextContrast) : roles.secondaryText)
                 case .initial:
-                    Text(space.initial).foregroundStyle(isSelected ? letterInk : roles.secondaryText)
+                    Text(space.initial).foregroundStyle(
+                        isSelected ? roles.railCurrentInk(hue, minimum: tokens.emphasis.textContrast) : roles.secondaryText)
                 }
             }
-            .font(tokens.type.glyphCircle.font)
-            .frame(width: tokens.size.glyphCircle, height: tokens.size.glyphCircle)
+            .font(text.font)
+            .frame(width: circle, height: circle)
             .background {
                 if isSelected {
-                    Circle().fill(hue.color)
+                    Circle().fill(roles.railCurrentFill(hue))
                         .overlay {
                             if contrast == .increased {
                                 Circle().strokeBorder(roles.outline, lineWidth: tokens.size.stroke)

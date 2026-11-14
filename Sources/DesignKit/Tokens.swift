@@ -264,10 +264,14 @@ extension DesignTokens {
         public var columnMin: CGFloat = 300
         public var columnIdeal: CGFloat = 360
         public var columnMax: CGFloat = 480
+        /// The Space rail: an item's hit target (each side; at least `minTarget`) and its glyph's circle, `railTarget`
+        /// less 2 pt each side so that a glyph's edge lies on the column's margin (`SpaceRailModel.inset`).
+        public var railTarget: CGFloat = Self.platformRailTarget
+        public var railGlyph: CGFloat = 28
         /// The Space rail: its row (a target, plus room for the marker under it), the active Space's marker length (its
         /// thickness is `selectionMarker`), the divider's height, the width kept for a folded Profile's "+n" count, and
         /// how many dots a folded Profile shows before that count.
-        public var railHeight: CGFloat = Self.platformMinTarget + Spacing.s
+        public var railHeight: CGFloat = Self.platformRailTarget + Spacing.s
         public var railMarker: CGFloat = Spacing.m
         public var railDivider: CGFloat = Spacing.l
         public var railCount: CGFloat = Spacing.l
@@ -288,6 +292,15 @@ extension DesignTokens {
             28
             #endif
         }
+
+        /// The Space rail's target: 32 pt for a pointer (a 28 pt glyph and 2 pt around it), 44 pt for a finger.
+        public static var platformRailTarget: CGFloat {
+            #if os(iOS)
+            44
+            #else
+            32
+            #endif
+        }
     }
 
     /// Type roles on the system font: a text style and a weight, never a point size, so the system's sizes and
@@ -304,6 +317,8 @@ extension DesignTokens {
         public var initial = TextRole(.callout, .bold)
         public var glyphCircle = TextRole(.caption, .bold)
         public var glyphCircleSmall = TextRole(.caption2, .bold)
+        /// A Space's symbol or initial in the rail's circle (`Size.railGlyph`): 15 pt on macOS.
+        public var railGlyph = TextRole(.title3, .semibold)
         /// An emoji glyph (a Space's, in the rail and its panel, and `ThemeGlyph`'s) is drawn at its circle's text size
         /// (`glyphCircle`, or `glyphCircleSmall` in a small `ThemeGlyph`) times this, so that it fills its circle the
         /// way an initial does instead of sitting small in it. Capped by `DesignTokens.glyphEmojiSize(textSize:circle:)`

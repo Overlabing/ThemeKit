@@ -233,6 +233,19 @@ public struct ColorRoles: Sendable {
                                                       minimum: emphasis.nonTextContrast)
     }
 
+    /// The circle behind the Space rail's current Space: its Theme's hue (`hue`), opaque, mixed with ink until it
+    /// reaches 3:1 on every surface solved here, as a rail dot is. The raw hue alone falls short (yellow on a light
+    /// column is about 1.5:1), so the current Space would not stand out at a glance. Under Increase Contrast it is
+    /// outlined in `outline` too.
+    public func railCurrentFill(_ hue: Hue) -> Color { Color(rgba: railCurrentFillRGBA(hue)) }
+    public func railCurrentFillRGBA(_ hue: Hue) -> RGBA { railDotRGBA(hue) }
+
+    /// The symbol or initial on `railCurrentFill(hue)`: white, or black where white stays under `minimum` (3:1 for a
+    /// symbol, 4.5:1 for an initial). One of the two always reaches 4.5:1.
+    public func railCurrentInk(_ hue: Hue, minimum: Double) -> Color {
+        Contrast.ink(on: railCurrentFillRGBA(hue), minimum: minimum) == .white ? .white : .black
+    }
+
     /// The hairline between the Space rail's groups. It uses the column edge's ink, so it reaches 3:1 on the column's
     /// fill. The system separator stays near 1.3:1 there.
     public var railDivider: Color { Color(rgba: edgeRGBA) }

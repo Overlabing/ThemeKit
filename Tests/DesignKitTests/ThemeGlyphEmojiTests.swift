@@ -79,7 +79,7 @@ struct ThemeGlyphEmojiRenderTests {
     }
 
     /// At each size the emoji and the initial stay inside their circle and the emoji is never the smaller. In the
-    /// standard circle the emoji spans what the rail's selected emoji spans (one helper, issue #20); in the small one
+    /// standard circle the emoji is the rail's selected one at 13 / 15.4 of its size (one helper, issue #20); in the small one
     /// it spans the same share of the circle (16/24 of it, to a pixel). Measured on macOS 27: 📚 is 13×14 in 24 pt and
     /// 9×10 in 16 pt; the initial H is 7×8 in both, since caption and caption2 are both 10 pt there.
     @Test(arguments: [ColorScheme.light, .dark])
@@ -87,9 +87,17 @@ struct ThemeGlyphEmojiRenderTests {
         let rail = RailEmojiRenderTests()
         let railSelected = rail.selectedInk(2, try rail.rail(scheme)).0
         let standard = ink(try glyph(.standard, emoji: "📖", scheme))
-        #expect(abs(standard.box.width - railSelected.width) <= 1 && abs(standard.box.height - railSelected.height) <= 1,
-                "ThemeGlyph \(standard.box), the rail \(railSelected)")
+        // Since 0.2.11 the rail draws its emoji in its own 28 pt circle at its 15 pt text size: 15.4 pt (the circle's
+        // cap), against ThemeGlyph's 13 pt in 24 pt. One helper still sizes both, so the rail's artwork is ThemeGlyph's
+        // scaled by up to 15.4 / 13: never smaller, at most that and 3 pixels more (an emoji's artwork does not scale
+        // exactly; 📖 measures 14×13 in ThemeGlyph and 19×15 in the rail).
         let tokens = DesignTokens.standard
+        let railScale = tokens.glyphEmojiSize(textSize: 15, circle: tokens.size.railGlyph) / tokens.glyphEmojiSize(textSize: 10)
+        #expect(abs(railScale - 15.4 / 13) < 1e-9)
+        #expect(railSelected.width >= standard.box.width && railSelected.height >= standard.box.height
+                    && Double(railSelected.width) <= Double(standard.box.width) * railScale + 3
+                    && Double(railSelected.height) <= Double(standard.box.height) * railScale + 3,
+                "ThemeGlyph \(standard.box), the rail \(railSelected)")
         let share = tokens.size.glyphCircleSmall / tokens.size.glyphCircle
         let large = ink(try glyph(.standard, emoji: "📚", scheme))
         let small = ink(try glyph(.small, emoji: "📚", scheme))

@@ -23,5 +23,7 @@ let package = Package(
         .target(
             name: "DesignKit", dependencies: ["ColorCore", "ColorPlatform", "ColorUI"],
             resources: [.process("Resources")]),
-        .testTarget(name: "DesignKitTests", dependencies: ["ColorCore", "ColorPlatform", "ColorUI", "DesignKit"]),
+        .testTarget(
+            name: "DesignKitTests", dependencies: ["ColorCore", "ColorPlatform", "ColorUI", "DesignKit"],
+            resources: [.process("Resources")]),
     ])

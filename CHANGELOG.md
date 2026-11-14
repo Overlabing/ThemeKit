@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.2.11
+
+Space switching, from a hands-on comparison: the focus ring after a click, a current Space that did not read at a
+glance, and small glyphs. No API is removed or renamed: an app adopts with a version bump.
+
+### Fixed
+
+- **The focus ring shows only when the focus came from the keyboard.** A click on a Space rail item, a sidebar row or
+  any view the kit draws `focusRing(_:in:)` on drew the blue ring. Now every ring asks one `FocusInputTracker`: a mouse
+  button down hides it, a navigation key (Tab, Shift-Tab, an arrow, Home, End, Page Up, Page Down) shows it, and it
+  always shows while VoiceOver runs. A letter, Return or a Command shortcut changes nothing. Before any input (a
+  preview, an offscreen render) it shows, as in 0.2.10. `FocusInputTracker.shared` watches the app's own events (a
+  local event monitor) from the first ring drawn. **An app that passes `isFocused` (`RowState`, `focusRing`) changes
+  nothing**: keep passing the focus as it is, the kit hides the ring a click would draw. An app that draws its own ring
+  can ask `FocusInputTracker.shared.showsFocusRing`. Tested: the tracker's rule, the events read as pointer or
+  keyboard, and an offscreen render of a focused, selected row, light and dark, which after a click matches the
+  unfocused row byte for byte and after a navigation key draws the ring. Gallery: `kit-0.2.11-focus-*`.
+- **The rail's caption names the current Space at rest.** It named nothing until an item was hovered or focused. Now it
+  names the hovered item, else the item focused from the keyboard, else the current Space, and goes back to the current
+  Space as soon as the hover or the focus ends, never leaving a stale name. A click focuses the rail on the clicked item
+  without a ring and without naming it. `SpaceRailModel.currentKey`, `captionKey(hovered:focused:)`.
+- **The rail's keyboard ring is a whole circle.** It was a continuous capsule outside the target, which the tooltip's
+  host and the row clipped to flat sides; it now lies inside the target, a circle 2 pt wide around the glyph's circle.
+- **A `SpaceRailPreviewState` decides the rail's focus alone**: a window's own focus no longer adds a ring in a preview.
+
+### Changed
+
+- **The current Space reads at a glance**: a filled circle in its hue, solved to 3:1 on the column as a folded
+  Profile's dot is (`ColorRoles.railCurrentFill(_:)`), with its symbol or initial in white or black
+  (`railCurrentInk(_:minimum:)`: 3:1 for a symbol, 4.5:1 for an initial), plus the marker. In light the raw hue is
+  darkened toward ink where it fell short (orange reads brown); in dark most hues are unchanged. Tested for every
+  standard Theme and system hue in the four appearances, frame and column; on an offscreen render the circle reaches
+  3:1 on the column's fill.
+- **Bigger glyphs and targets**: `Size.railGlyph` (28 pt circle, was `glyphCircle`'s 24), `TypeScale.railGlyph`
+  (`.title3` semibold, 15 pt on macOS, was 10 pt caption), `Size.railTarget` (32 pt on macOS, 44 on iOS; never under
+  `minTarget`; `SpaceRailModel.target(_:)`). `railHeight` is 40 (was 36). The circle's edge stays on the column's
+  12 pt margin (`SpaceRailModel.inset`, 10). A layout change: 8 Spaces and a folded Profile of 3 take 337 pt (was
+  301); at the narrowest column (300) the last three Spaces fold into "+3" (was two); at the ideal column 8 + 8 folds
+  two Spaces (fitted before); 8 Spaces without Profiles fit at 360 but not at 300 (six show). `ThemeGlyph` and the
+  "+n" panel keep the 24 pt circle.
+- **Tests only: the recorded legibility cases live in JSON** (`Tests/DesignKitTests/Resources/*.json`), decoded at run
+  time. The 1,616-element Swift literal took the compiler several gigabytes to type-check; the test build now peaks
+  under 1 GB. The values are the same text, the checks and counts (1616, 798) unchanged. `DesignKitGallery audit <dir>`
+  writes the four files (byte for byte the committed ones); `audit` alone still prints the table.
+
+### Added
+
+- `FocusInputTracker`, `FocusInput`, `.focusInputTracker(_:)`; `Size.railTarget`, `Size.railGlyph`,
+  `TypeScale.railGlyph`; `ColorRoles.railCurrentFill(_:)`, `railCurrentFillRGBA(_:)`, `railCurrentInk(_:minimum:)`;
+  `SpaceRailModel.currentKey`, `captionKey(hovered:focused:)`, `target(_:)`. Gallery:
+  `swift run --package-path Gallery DesignKitGallery 0.2.11 <dir>` (the rail after, and the focus after a click and
+  after a key, light, dark and Increase Contrast, in a borderless window off screen).
+
 ## 0.2.10
 
 What Oisillon's adoption of 0.2.9 found.
