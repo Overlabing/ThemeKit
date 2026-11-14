@@ -106,7 +106,9 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
 extension View {
     /// A keyboard focus ring around `shape` while `isVisible`, outside it by `Spacing.focusRingOffset`, in
     /// `ColorRoles.focusRing`: the system's focus colour, opaque, at 3:1 at least on the Theme's surfaces. For custom
-    /// controls whose own focus effect is disabled.
+    /// controls whose own focus effect is disabled. It shows only when the focus came from the keyboard (or while
+    /// VoiceOver runs), never after a click (`FocusInputTracker`): pass the view's focus as it is, the kit hides the
+    /// ring a click would otherwise draw.
     public func focusRing(_ isVisible: Bool, in shape: some InsettableShape) -> some View {
         modifier(FocusRing(isVisible: isVisible, shape: shape))
     }
@@ -116,10 +118,13 @@ private struct FocusRing<S: InsettableShape>: ViewModifier {
     let isVisible: Bool
     let shape: S
     @Environment(\.designTokens) private var tokens
+    @Environment(\.focusInputTracker) private var tracker
 
     func body(content: Content) -> some View {
-        content.overlay {
-            if isVisible {
+        // Read even when no ring is asked for, so that the shared tracker watches the app's events before any click.
+        let tracker = tracker ?? .shared
+        return content.overlay {
+            if isVisible && tracker.showsFocusRing {
                 WithColorRoles { roles in
                     shape.inset(by: -(tokens.spacing.focusRingOffset + tokens.size.focusRing))
                         .strokeBorder(roles.focusRing, lineWidth: tokens.size.focusRing)

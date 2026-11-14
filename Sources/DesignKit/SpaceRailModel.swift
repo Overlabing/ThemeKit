@@ -253,7 +253,12 @@ public struct SpaceRailModel: Sendable, Equatable {
 
     /// The row's inset from each side of the rail: the column's margin, less the room a target leaves around its glyph.
     public static func inset(_ tokens: DesignTokens) -> CGFloat {
-        tokens.spacing.listMargin - (tokens.size.minTarget - tokens.size.glyphCircle) / 2
+        tokens.spacing.listMargin - (target(tokens) - tokens.size.railGlyph) / 2
+    }
+
+    /// An item's hit target, each side: `Size.railTarget`, never under `Size.minTarget`.
+    public static func target(_ tokens: DesignTokens) -> CGFloat {
+        max(tokens.size.railTarget, tokens.size.minTarget)
     }
 
     static func dividerWidth(_ tokens: DesignTokens) -> CGFloat {
@@ -262,7 +267,7 @@ public struct SpaceRailModel: Sendable, Equatable {
 
     /// The width `item` takes in the row: a target, or a folded Profile's dots and count with their padding.
     public func itemWidth(_ item: SpaceRailItem, tokens: DesignTokens = .standard) -> CGFloat {
-        let target = tokens.size.minTarget
+        let target = Self.target(tokens)
         guard case .profile(_, let dots, let more) = item, !dots.isEmpty else { return target }
         let gap = tokens.spacing.railDotGap
         let count = CGFloat(dots.count)
@@ -296,6 +301,21 @@ public struct SpaceRailModel: Sendable, Equatable {
         case .add:
             return .add
         }
+    }
+
+    /// The selected Space's item, when the active Profile holds it: what the caption names while nothing is hovered or
+    /// focused from the keyboard.
+    public var currentKey: SpaceRailItem.Key? {
+        guard let selection, activeProfile?.spaces.contains(where: { $0.id == selection }) == true else { return nil }
+        return .space(selection)
+    }
+
+    /// The item the caption names: the hovered one, else the one focused from the keyboard (`focused` is nil when the
+    /// rail has no keyboard focus, or when a click put it there), else the current Space. So the caption always says
+    /// where you are, names another item only while it is pointed at or focused, and comes back to the current Space as
+    /// soon as that ends.
+    public func captionKey(hovered: SpaceRailItem.Key?, focused: SpaceRailItem.Key?) -> SpaceRailItem.Key? {
+        hovered ?? focused ?? currentKey
     }
 
     /// The caption of a hovered or focused item: a Space's name and shortcut; a Profile's emoji, name, how many Spaces

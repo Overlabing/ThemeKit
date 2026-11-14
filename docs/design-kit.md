@@ -93,7 +93,8 @@ them.
 | `segmentedPill`, `segmentMarker` | 36 (macOS), 52 (iOS); 12 | a `SegmentedPill`'s height (`minTarget` plus `2 × segmentPadding`), the marker bar under the selected title |
 | `railPanelMaxHeight` | 480 | how tall a Space rail panel grows before it scrolls |
 | `switcherItemWidth`, `switcherItemHeight` | 52, 40 | the glass switcher (deprecated) |
-| `railHeight` | 36 (macOS), 52 (iOS) | the Space rail's row: `minTarget` plus `Spacing.s` for the marker |
+| `railTarget`, `railGlyph` | 32 (macOS), 44 (iOS); 28 | the Space rail: an item's hit target (never under `minTarget`) and its glyph's circle, 2 pt inside the target each side so that the circle's edge lies on the column's 12 pt margin |
+| `railHeight` | 40 (macOS), 52 (iOS) | the Space rail's row: `railTarget` plus `Spacing.s` for the marker |
 | `railMarker` | 12 | length of the selected Space's marker (thickness `selectionMarker`) |
 | `railDivider` | 16 | height of the hairline before the folded Profiles |
 | `railCount` | 16 | width kept for a folded Profile's "+n" |
@@ -135,7 +136,8 @@ the same share, so their order and the gradient's shape stay.
 Text styles on the system font, never point sizes: rows `.body` (selected semibold), detail lines `.caption`, group
 headers `.caption` semibold uppercase, section headers `.subheadline` semibold, counts `.caption`, pill titles `.body`
 semibold, initials `.callout` bold, switcher names `.callout` semibold, banners `.callout` (their title and a button's
-label `.callout` semibold), segments `.callout` (selected semibold), small glyphs `.caption2` bold. An emoji glyph (a
+label `.callout` semibold), segments `.callout` (selected semibold), small glyphs `.caption2` bold, the Space rail's
+glyphs `railGlyph` (`.title3` semibold, 15 pt on macOS). An emoji glyph (a
 Space's, in the rail and its panel, and `ThemeGlyph`'s) is its circle's style times `glyphEmojiScale` (1.3: 13 pt on
 macOS), at most `DesignTokens.glyphEmojiMaxShare` (0.55) of that circle, so its artwork fills the circle the way an
 initial does and its corners stay inside it (`DesignTokens.glyphEmojiSize(textSize:circle:)`: 13 pt in the 24 pt
@@ -207,7 +209,7 @@ immediate.
 | `GlassSwitcher` | **deprecated in 0.2.4, removed in 0.3**: use `SpaceRail`. The glass bar of themed items at the bottom of a column; an item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`) |
 | `Banner` | a discreet message on glass: a symbol, an optional title, the message, and the client's actions or the kit's (`action:` and `onClose:`). The message shows in full and the banner grows with it; `messageLineLimit:` caps it. Narrower than its actions plus `bannerMessageMin` (160 pt) of text, the actions go under the message; a host breaks at its dots |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label; 1 to 3 `lines`, a `placement`, and `style` `.stack`, `.listCells` or `.sidebarCells` (one real `List` cell per row) |
-| `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control |
+| `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control. It shows only when the focus came from the keyboard (Tab, an arrow, Home, End, Page Up or Down) or while VoiceOver runs, never after a click: `FocusInputTracker.shared` watches the app's events, and every ring the kit draws (rows, the Space rail, its panels, controls) asks it. Pass the focus as it is; `.focusInputTracker(_:)` gives a test or a preview its own tracker |
 | `.surface(_:in:)` | glass or a layer fill, with the accessibility fallbacks below |
 
 ## The column
@@ -354,23 +356,29 @@ SpaceRailCommand(id:title:systemImage:)
 items show at a width, `action(for:)` what activating one asks for, `caption(for:)` and `accessibilityLabel(for:)` what
 the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an arrow moves the focus.
 
-- **Selected Space**: its hue in a `glyphCircle` circle, the symbol or initial in white or black (`ThemeGlyph`'s rule),
-  and a `railMarker` × `selectionMarker` bar in `ColorRoles.selectionMarker` `railMarkerGap` under it, so it is never
-  shown by colour alone. Under Increase Contrast the circle is also outlined in `ColorRoles.outline`.
+- **Selected Space**: a filled `railGlyph` circle in `ColorRoles.railCurrentFill(_:)` (its hue, mixed with ink to 3:1
+  on the column, as a dot is), the symbol or initial in `ColorRoles.railCurrentInk(_:minimum:)` (white, or black where
+  white falls under 3:1 for a symbol, 4.5:1 for an initial), and a `railMarker` × `selectionMarker` bar in
+  `ColorRoles.selectionMarker` `railMarkerGap` under it, so it is never shown by colour alone. Under Increase Contrast
+  the circle is also outlined in `ColorRoles.outline`.
 - **Other Spaces of the active Profile**: quiet. The symbol or initial alone in `ColorRoles.secondaryText`; an emoji
   keeps its colours. A hover fill disc on hover. An emoji, quiet or selected, is drawn at its own size (`Type` above):
-  about 15 pt of artwork in the 24 pt circle, where the initial's capital is 7 pt.
+  about 15 to 19 pt of artwork in the rail's 28 pt circle, where the initial's capital is 11 pt.
 - **Folded Profiles**, after a `railDivider` hairline in `ColorRoles.railDivider`: one target per Profile, its first
   `railDotsMax` Spaces as `dot` dots in `ColorRoles.railDot(_:)` (each Space's own hue, mixed with ink to 3:1), then
   "+n". A click asks the app to switch Profile; the caption says "🏡 Personal · 3 Spaces · opens Home · ⌃⌥⌘→".
-- **Caption**: one line above the row for the hovered or focused item: the name (`switcherLabel`), a detail and the
-  shortcut (`count`, secondary ink). Its height is always kept, so nothing moves; a long name truncates at the tail.
-- **Overflow**: when the items do not fit (`layout(width:)`: a 28 pt target per Space, the divider, each folded
+- **Caption**: one line above the row: the hovered item, else the item focused from the keyboard, else the current
+  Space (`SpaceRailModel.captionKey(hovered:focused:)`, `currentKey`): the name (`switcherLabel`), a detail and the
+  shortcut (`count`, secondary ink). So it says where you are at rest, and comes back to the current Space as soon as a
+  hover or the keyboard focus ends. A rail focused by a click names no focused item. Its height is always kept, so
+  nothing moves; a long name truncates at the tail.
+- **Overflow**: when the items do not fit (`layout(width:)`: a `railTarget` (32 pt) per Space, the divider, each folded
   Profile, the `+`), the active Profile's last Spaces (never the selected one) give way to a trailing "+n". When not one
   Space fits beside the folded Profiles, those go too. "+n" opens `SpaceRailPanel` in a popover: every Profile under a
   header, every Space as a row with its glyph and shortcut, then the commands. A panel is as tall as its rows up to
   `Size.railPanelMaxHeight` (480), then scrolls (↑ and ↓ scroll the focused row into view); 8 + 8 Spaces scrolls. 8 Spaces and a folded Profile of 3 fit
-  the ideal column (360, 301 pt of 340); at `columnMin` (300) the last two Spaces fold into "+2". 8 + 8 fits at 360.
+  the ideal column (360, 337 pt of 340); at `columnMin` (300) the last three Spaces fold into "+3". At 360, 8 + 8 folds
+  two Spaces into "+2"; 8 Spaces without Profiles fit there (288 pt), and at `columnMin` six show.
 - **Context menus**: `.spaceRailContextMenu(space:profile:)` (or `space:` alone) on the rail or above it gives each
   Space and each Profile a menu the app builds for it: a secondary click on a Space, in the row or in the "+n" panel,
   opens `space(thatSpace)`; on a folded Profile, or on a Profile's header in the panel (the active Profile's too),
@@ -387,7 +395,8 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
   ```
 - **No Profiles**: `SpaceRail(spaces:…)`. The row is the Spaces alone: no divider, nothing folded, no panel headers.
 - **Keyboard**: the row is one focus stop. ← and → move the focus ring across its items (mirrored right to left),
-  Return or Space activates. The `+` and the "+n" open their panel, itself one focus stop: ↑ and ↓ move, Return or Space
+  Return or Space activates. A click on an item focuses the row on it without a ring; the next arrow or Tab shows the
+  ring there. The `+` and the "+n" open their panel, itself one focus stop: ↑ and ↓ move, Return or Space
   picks, Escape closes. Opened from the keyboard (or by an assistive technology) the panel's focus ring starts on its
   first row (the selected Space in "+n"); opened with a click it shows none until the first arrow or Tab key, which
   shows it there without moving it, as macOS draws a focus ring for keyboard navigation only. Until then Return picks

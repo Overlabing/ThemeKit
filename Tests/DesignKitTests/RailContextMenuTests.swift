@@ -87,7 +87,7 @@ struct RailContextMenuTests {
         hosting.layoutSubtreeIfNeeded()
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.3))
         // The targets' centres, from the window's bottom edge: the rail's bottom padding, then its row, targets on top.
-        let y = tokens.spacing.switcherBottom + tokens.size.railHeight - tokens.size.minTarget / 2
+        let y = tokens.spacing.switcherBottom + tokens.size.railHeight - SpaceRailModel.target(tokens) / 2
         let inset = SpaceRailModel.inset(tokens)
         func menuTitles(atX x: CGFloat) -> [String] {
             let event = NSEvent.mouseEvent(
@@ -96,8 +96,9 @@ struct RailContextMenuTests {
             guard let event, let menu = hosting.menu(for: event) else { return [] }
             return menu.items.map(\.title)
         }
-        let second = inset + tokens.size.minTarget * 1.5
-        let folded = inset + tokens.size.minTarget * 3 + (2 * tokens.spacing.railGroupGap + tokens.size.stroke) + 10
+        let target = SpaceRailModel.target(tokens)
+        let second = inset + target * 1.5
+        let folded = inset + target * 3 + (2 * tokens.spacing.railGroupGap + tokens.size.stroke) + 10
         #expect(menuTitles(atX: second) == ["Delete Work 2"])
         #expect(menuTitles(atX: folded) == ["Edit Personal"])
     }

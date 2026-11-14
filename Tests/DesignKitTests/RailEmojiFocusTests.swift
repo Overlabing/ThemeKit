@@ -29,7 +29,7 @@ struct RailEmojiSizeTests {
 
 #if os(macOS)
 /// The rail's emoji read back from an offscreen render: a quiet 📚, a quiet initial (H) and the selected 📖, side by
-/// side. Every ink pixel lies inside its 24 pt circle, and an emoji's artwork spans about twice the initial's height.
+/// side. Every ink pixel lies inside its 28 pt circle, and an emoji's artwork spans about twice the initial's height.
 /// (At the glyph font's own size an emoji's artwork already spans 11 to 13 pt; 1.3 makes it fill two thirds of the
 /// circle, the largest tenth at which a square emoji's corners stay inside it.)
 @MainActor
@@ -57,12 +57,12 @@ struct RailEmojiRenderTests {
             .environment(\.colorScheme, scheme))
     }
 
-    /// The `index`th target's glyph circle: centre and the row's top. The row is the bottom 36 pt above an 8 pt margin;
-    /// targets are 28 pt from x 10, the circle 2…26 from the row's top.
+    /// The `index`th target's glyph circle: centre and the row's top. The row is the bottom 40 pt above an 8 pt margin;
+    /// targets are 32 pt from x 10, the circle 2…30 from the row's top.
     func circle(_ index: Int, in raster: Raster) -> (cx: Double, cy: Double, top: Int, left: Int) {
-        let top = raster.height - 8 - 36
-        let left = 10 + 28 * index
-        return (Double(left) + 14, Double(top) + 14, top, left)
+        let top = raster.height - 8 - 40
+        let left = 10 + 32 * index
+        return (Double(left) + 16, Double(top) + 16, top, left)
     }
 
     func distance(_ x: Int, _ y: Int, _ c: (cx: Double, cy: Double, top: Int, left: Int)) -> Double {
@@ -74,10 +74,10 @@ struct RailEmojiRenderTests {
         let c = circle(index, in: raster)
         var box = Box()
         var outside = 0
-        for y in c.top..<(c.top + 28) {
-            for x in c.left..<(c.left + 28) where raster.alpha(x: x, y: y) > 0.25 {
+        for y in c.top..<(c.top + 32) {
+            for x in c.left..<(c.left + 32) where raster.alpha(x: x, y: y) > 0.25 {
                 box.add(x, y)
-                if distance(x, y, c) > 12.5 { outside += 1 }
+                if distance(x, y, c) > 14.5 { outside += 1 }
             }
         }
         return (box, outside)
@@ -89,13 +89,13 @@ struct RailEmojiRenderTests {
         let fill = raster.color(x: Int(c.cx), y: c.top + 3)
         var box = Box()
         var outside = 0
-        for y in c.top..<(c.top + 28) {
-            for x in c.left..<(c.left + 28) {
+        for y in c.top..<(c.top + 32) {
+            for x in c.left..<(c.left + 32) {
                 let d = distance(x, y, c)
-                if d > 12.5 {
-                    // The marker sits under the circle, 28…31 from the row's top: outside these rows nothing is drawn.
-                    if y < c.top + 27, raster.alpha(x: x, y: y) > 0.25 { outside += 1 }
-                } else if d < 11, Contrast.ratio(raster.color(x: x, y: y), fill) > 1.3 {
+                if d > 14.5 {
+                    // The marker sits under the circle, 32…35 from the row's top: outside these rows nothing is drawn.
+                    if y < c.top + 31, raster.alpha(x: x, y: y) > 0.25 { outside += 1 }
+                } else if d < 13, Contrast.ratio(raster.color(x: x, y: y), fill) > 1.3 {
                     box.add(x, y)
                 }
             }
@@ -110,12 +110,12 @@ struct RailEmojiRenderTests {
         let (initial, initialOutside) = quietInk(1, raster)
         let (selected, selectedOutside) = selectedInk(2, raster)
         #expect(emojiOutside == 0 && initialOutside == 0 && selectedOutside == 0, "nothing drawn outside the circles")
-        // The caption's H is 7 pt tall (8 with its antialiased edge in dark); at 1.0 an emoji was 11 to 13 pt, at 1.3
-        // it is 14 to 16, about twice the H.
-        #expect((7...8).contains(initial.height), "initial \(initial)")
-        #expect((14...18).contains(emoji.height) && (14...18).contains(emoji.width), "quiet emoji \(emoji)")
-        #expect((12...18).contains(selected.height) && (14...18).contains(selected.width), "selected emoji \(selected)")
-        #expect(emoji.height >= initial.height + 6)
+        // Since 0.2.11 the rail's glyph is 15 pt (title3): its H is 11 pt tall, and an emoji is drawn at 15.4 pt (0.55
+        // of the 28 pt circle), its artwork 15 to 19 pt across (📖 is wider than tall).
+        #expect((10...12).contains(initial.height), "initial \(initial)")
+        #expect((15...19).contains(emoji.height) && (15...19).contains(emoji.width), "quiet emoji \(emoji)")
+        #expect((14...18).contains(selected.height) && (17...21).contains(selected.width), "selected emoji \(selected)")
+        #expect(emoji.height >= initial.height + 5)
     }
 }
 
