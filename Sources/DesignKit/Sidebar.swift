@@ -4,7 +4,8 @@ import AppKit
 #endif
 
 // The system sidebar, dressed by the kit: a `NavigationSplitView` flush with the window's edges, the Theme's gradient
-// behind it, the system's own sidebar material and its inactive-window dimming kept as they are.
+// behind it, the system's own sidebar material and its inactive-window dimming kept as they are. An AppKit window can
+// instead put the column on the window's own background (`SidebarSurface.windowBackground`).
 
 // MARK: Window
 
@@ -58,18 +59,43 @@ extension View {
 }
 
 #if os(macOS)
+/// What the column of an AppKit sidebar (`NSSplitViewItem.sidebar(hosting:tokens:surface:)`) sits on.
+public enum SidebarSurface: Sendable, Hashable {
+    /// The system's sidebar: its material over the window's gradient, a tone of its own, dimmed by the system when the
+    /// window is inactive. The default, and the only surface before 0.2.13.
+    case systemMaterial
+    /// The window's own background: no material and no tone, so the Theme's gradient runs under the column exactly as
+    /// it does around the detail's card, and the card's edge is the only boundary. Put the split in a
+    /// `SeamlessSplitViewController`, whose divider draws nothing, or the system draws a line where the column ends.
+    case windowBackground
+}
+
 extension NSSplitViewItem {
-    /// The system sidebar item for an AppKit window: `NSSplitViewItem(sidebarWithViewController:)` hosting `column` (a
-    /// `List` with `sidebarColumn(field:header:bottomBar:)`), between `Size.columnMin` and `columnMax`, `columnIdeal`
-    /// wide at first. The window is `.fullSizeContentView` with a transparent title bar and no title shown, its toolbar
-    /// holds `sidebarToolbarItems` (`.iconOnly`), and a `WindowBackground` lies under the split view, as
-    /// `SidebarSplitView` sets them in SwiftUI.
+    /// The sidebar item for an AppKit window, hosting `column` (a `List` with `sidebarColumn(field:header:bottomBar:)`),
+    /// between `Size.columnMin` and `columnMax`, `columnIdeal` wide at first. The window is `.fullSizeContentView` with
+    /// a transparent title bar and no title shown, its toolbar holds `sidebarToolbarItems` (`.iconOnly`), and a
+    /// `WindowBackground` lies under the split view, as `SidebarSplitView` sets them in SwiftUI.
+    ///
+    /// `surface` is what the column sits on: `.systemMaterial`, the system's sidebar item
+    /// (`NSSplitViewItem(sidebarWithViewController:)`), or `.windowBackground`, a plain item that can collapse, on the
+    /// window's gradient, for a `SeamlessSplitViewController`.
     @MainActor
-    public static func sidebar(hosting column: some View, tokens: DesignTokens = .standard) -> NSSplitViewItem {
+    public static func sidebar(
+        hosting column: some View, tokens: DesignTokens = .standard, surface: SidebarSurface = .systemMaterial
+    ) -> NSSplitViewItem {
         let controller = NSHostingController(rootView: column.designTokens(tokens))
         controller.sizingOptions = []
         controller.view.frame.size.width = tokens.size.columnIdeal
-        let item = NSSplitViewItem(sidebarWithViewController: controller)
+        let item: NSSplitViewItem
+        switch surface {
+        case .systemMaterial:
+            item = NSSplitViewItem(sidebarWithViewController: controller)
+        case .windowBackground:
+            item = NSSplitViewItem(viewController: controller)
+            item.canCollapse = true
+            // The system sidebar's own priority: the column keeps its width and the detail takes a window resize.
+            item.holdingPriority = NSLayoutConstraint.Priority(260)
+        }
         item.minimumThickness = tokens.size.columnMin
         item.maximumThickness = tokens.size.columnMax
         return item
@@ -78,6 +104,58 @@ extension NSSplitViewItem {
     /// The toolbar of a window with a kit sidebar: the system's sidebar button at the column's trailing edge, where
     /// `NavigationSplitView` puts it, and the separator that follows the column's width.
     public static let sidebarToolbarItems: [NSToolbarItem.Identifier] = [.flexibleSpace, .toggleSidebar, .sidebarTrackingSeparator]
+}
+
+/// The split view controller of a `.windowBackground` sidebar: its split view is a `SeamlessSplitView`, and its divider
+/// keeps a resize zone the width of the card's margin (`Spacing.canvasInset`) on the detail's side, where only the
+/// gradient shows, so the boundary the user sees (the card's edge) is where they grab it. With the column collapsed the
+/// zone is the divider alone. Subclass it as you would `NSSplitViewController`.
+open class SeamlessSplitViewController: NSSplitViewController {
+    private let tokens: DesignTokens
+
+    public init(tokens: DesignTokens = .standard) {
+        self.tokens = tokens
+        super.init(nibName: nil, bundle: nil)
+        splitView = SeamlessSplitView()
+    }
+
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not used")
+    }
+
+    override open func splitView(
+        _ splitView: NSSplitView, effectiveRect proposedEffectiveRect: NSRect, forDrawnRect drawnRect: NSRect,
+        ofDividerAt dividerIndex: Int
+    ) -> NSRect {
+        let proposed = super.splitView(splitView, effectiveRect: proposedEffectiveRect, forDrawnRect: drawnRect,
+                                       ofDividerAt: dividerIndex)
+        guard splitViewItems.indices.contains(dividerIndex), !splitViewItems[dividerIndex].isCollapsed else {
+            return proposed
+        }
+        var zone = drawnRect
+        zone.size.width += tokens.spacing.canvasInset
+        return proposed.union(zone)
+    }
+}
+
+/// The split view of a `SeamlessSplitViewController`: vertical, with a thin divider that draws nothing, so the
+/// gradient shows where the column ends. The divider keeps its place and its cursor.
+public final class SeamlessSplitView: NSSplitView {
+    override public init(frame: NSRect) {
+        super.init(frame: frame)
+        isVertical = true
+        dividerStyle = .thin
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not used")
+    }
+
+    override public var dividerColor: NSColor { .clear }
+
+    override public func drawDivider(in rect: NSRect) {}
 }
 #endif
 
