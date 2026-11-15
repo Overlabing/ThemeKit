@@ -234,6 +234,17 @@ if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "0.2.11" {
     MainActor.assumeIsolated { run0211(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory)) }
     exit(0)
 }
+if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "0.2.12" {
+    MainActor.assumeIsolated { run0212(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory)) }
+    exit(0)
+}
+if CommandLine.arguments.count == 5 && CommandLine.arguments[1] == "fullscreen" {
+    MainActor.assumeIsolated {
+        runFullScreen(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory),
+                      variant: CommandLine.arguments[3], isDark: CommandLine.arguments[4] == "dark")
+    }
+    exit(0)
+}
 if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "0.2.10" {
     MainActor.assumeIsolated { run0210(output: URL(filePath: CommandLine.arguments[2], directoryHint: .isDirectory)) }
     exit(0)
@@ -243,7 +254,7 @@ if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "rail" {
     exit(0)
 }
 guard CommandLine.arguments.count >= 2 else {
-    print("usage: DesignKitGallery <output directory> [Theme id…] | rail <output directory> | client <output directory> | 0.2.8 <output directory> | 0.2.9 <output directory> | 0.2.10 <output directory> | 0.2.11 <output directory> | audit [recordings directory]")
+    print("usage: DesignKitGallery <output directory> [Theme id…] | rail <output directory> | client <output directory> | 0.2.8 <output directory> | 0.2.9 <output directory> | 0.2.10 <output directory> | 0.2.11 <output directory> | 0.2.12 <output directory> | fullscreen <output directory> <before|swiftui-toolbar|hide> <light|dark> | audit [recordings directory]")
     exit(2)
 }
 let named = CommandLine.arguments.dropFirst(2).map { id in

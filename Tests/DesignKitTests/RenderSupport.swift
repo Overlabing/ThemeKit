@@ -52,3 +52,35 @@ func raster(_ view: some View) throws -> Raster {
     _ = try once()
     return try once()
 }
+
+#if os(macOS)
+import AppKit
+
+/// Renders `view` at one pixel per point in a new `NSHostingView` of its own, never shown. `ImageRenderer` (`raster`)
+/// can carry what one render drew into the next render of the same size: after a focused row, an unfocused one of the
+/// same size came back with the ring. A view of its own each time starts clean.
+@MainActor
+func hostedRaster(_ view: some View) throws -> Raster {
+    let hosting = NSHostingView(rootView: view)
+    hosting.frame.size = hosting.fittingSize
+    hosting.layoutSubtreeIfNeeded()
+    let rep = try #require(NSBitmapImageRep(
+        bitmapDataPlanes: nil, pixelsWide: Int(hosting.bounds.width), pixelsHigh: Int(hosting.bounds.height),
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+        bytesPerRow: 0, bitsPerPixel: 0))
+    rep.size = hosting.bounds.size
+    hosting.cacheDisplay(in: hosting.bounds, to: rep)
+    let image = try #require(rep.cgImage)
+    var data = [UInt8](repeating: 0, count: image.width * image.height * 4)
+    let drawn = data.withUnsafeMutableBytes { buffer in
+        guard let context = CGContext(
+            data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8,
+            bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        return true
+    }
+    #expect(drawn)
+    return Raster(width: image.width, height: image.height, data: data)
+}
+#endif

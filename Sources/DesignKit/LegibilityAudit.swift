@@ -19,7 +19,8 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
         case textOnHue
         /// A symbol on an opaque hue (a tile, a glyph, a field pill's circle): white, or black where white falls short.
         case symbolOnHue
-        /// The keyboard focus ring: `ColorRoles.focusRing` instead of the translucent system focus colour.
+        /// The keyboard focus ring: `ColorRoles.focusRing`, the Theme's primary hue solved to 3:1, instead of the
+        /// translucent system focus colour (`before`).
         case focusRing
         /// The outline of a selected or current row under Increase Contrast: `ColorRoles.outline` instead of the
         /// separator.
@@ -95,7 +96,7 @@ public struct LegibilityCase: Sendable, Equatable, CustomStringConvertible {
 extension DesignTokens {
     /// Every text and glyph role on every surface the kit draws them on, for one Theme in one appearance, on the
     /// window's gradient or inside a list column, with resolved colours (pure: runs without a window). The focus ring
-    /// cases need the system's focus colour, the outline cases (Increase Contrast only) the separator's; without them
+    /// cases need the system's focus colour (their `before`; the kit's ring is the Theme's hue), the outline cases (Increase Contrast only) the separator's; without them
     /// those cases are left out. Inside a column the surfaces sit on its fill (`columnSurfaces(in:)`), the hue keeps
     /// the frame's share, a symbol or a text on the opaque hue is left to the frame's cases (nothing under it changes),
     /// and the column's edge has its two cases.
@@ -168,7 +169,7 @@ extension DesignTokens {
                 Contrast.ratio(Contrast.ink(on: hue, minimum: text), hue), text)
         }
         if let focus {
-            let ring = solved.focusRing(focus, ink: ink, minimum: nonText)
+            let ring = solved.focusRing(colors.primary, ink: ink, minimum: nonText)
             for (kind, surfaces) in rows {
                 add(.focusRing, kind, Contrast.worst(foreground: focus, on: surfaces),
                     Contrast.worst(opaque: ring, onLuminances: Contrast.luminances(surfaces)), nonText)

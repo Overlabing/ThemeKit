@@ -396,7 +396,8 @@ struct ClientViewTests {
         #expect(share < 0.5 && share > 0.3, "disabled ink is \(share) of the enabled ink")
     }
 
-    /// Keyboard focus draws the kit's ring, opaque and 3:1 on the surfaces, 2 pt wide at 2 pt from the target.
+    /// Keyboard focus draws the kit's ring, opaque and 3:1 on the surfaces, 1.5 pt wide inside the target (0.2.12; it
+    /// was 2 pt wide, 2 pt outside it).
     @Test(arguments: [ColorScheme.light, .dark])
     func aFocusedButtonShowsTheKitsRing(_ scheme: ColorScheme) throws {
         let appearance: Appearance = scheme == .dark ? .dark : .light
@@ -405,10 +406,11 @@ struct ClientViewTests {
             let focused = try raster(column(button.padding(10).controlFocusPreview(), scheme: scheme))
             let plain = try raster(column(button.padding(10), scheme: scheme))
             let y = focused.height / 2
-            // The target starts 10 pt in; its ring is 2 pt wide, from 4 to 2 pt outside it.
-            #expect(focused.alpha(x: 7, y: y) == 1)
-            #expect(Contrast.ratio(focused.color(x: 7, y: y), ring) < 1.02, "the ring is the kit's")
-            #expect(plain.alpha(x: 7, y: y) == 0, "and absent unfocused")
+            // The target starts 10 pt in; its ring covers its first point and half the next.
+            #expect(Contrast.ratio(focused.color(x: 10, y: y), ring) < 1.02, "the ring is the kit's, inside the target")
+            #expect(Contrast.ratio(plain.color(x: 10, y: y), ring) > 1.02, "and absent unfocused")
+            #expect(focused.alpha(x: 7, y: y) == 0, "nothing outside the target")
+            #expect(focused.alpha(x: 9, y: y) == 0)
         }
     }
 
@@ -465,7 +467,7 @@ struct ClientViewTests {
         let plain = try pill("list")
         #expect(focused.data != plain.data)
         let ring = ColorRoles(theme: theme, tokens: .standard, appearance: .light).focusRingRGBA
-        // Around the first segment: 4 pt in plus 2 pt out is 4 pt left of the segment's edge, inside the pill's padding.
+        // Inside the first segment's edge, 4 pt into the pill.
         let found = (0..<focused.width).contains { x in Contrast.ratio(focused.color(x: x, y: 10 + 18), ring) < 1.03 }
         #expect(found)
     }

@@ -13,7 +13,7 @@ public enum FocusInput: Sendable, Equatable {
 }
 
 /// Decides whether the kit's focus ring shows: macOS draws one for keyboard navigation, never because a click put the
-/// focus somewhere. Every `focusRing(_:in:)` asks it, so every row, the Space rail, its panel and the kit's controls
+/// focus somewhere, and a list row draws none while it is selected (`showsFocusRing(isSelected:)`). Every `focusRing(_:in:)` asks it, so every row, the Space rail, its panel and the kit's controls
 /// follow one rule without the app changing its code: a ring a view asks for shows unless the last focus-moving input
 /// was the pointer. Before any input (a preview, an offscreen render) it shows, as in 0.2.10. While VoiceOver runs it
 /// always shows, since VoiceOver moves the focus without a key the app sees.
@@ -47,6 +47,13 @@ public final class FocusInputTracker {
 
     /// Whether a focus ring a view asks for shows now.
     public var showsFocusRing: Bool { isVoiceOverRunning || last != .pointer }
+
+    /// Whether the focus ring of a row a view asks for shows now: as `showsFocusRing`, but never on a selected row
+    /// (the arrow keys move a list's selection, so the selection already shows where the focus is), except while
+    /// VoiceOver runs, when the ring always shows.
+    public func showsFocusRing(isSelected: Bool) -> Bool {
+        isVoiceOverRunning || (!isSelected && last != .pointer)
+    }
 
     /// Notes `input` as the last focus-moving input.
     public func record(_ input: FocusInput) {

@@ -94,7 +94,8 @@ extension DesignTokens {
         public var barFade: CGFloat = l
         /// From the status line (or the controls in its place) to the list.
         public var statusLineToList: CGFloat = 10
-        /// Gap between a focus ring and the shape it surrounds.
+        /// Gap between a focus ring and the shape it surrounds, when the ring was drawn outside it (0.2.11 and before).
+        /// The kit's ring now lies inside its shape (`focusRing(_:in:)`) and no longer reads it.
         public var focusRingOffset: CGFloat = xxs
         /// The selected row's marker: from the leading edge of the row's background, and from its top and bottom.
         public var selectionMarkerLeading: CGFloat = xxs
@@ -222,7 +223,8 @@ extension DesignTokens {
         /// Stroke under Increase Contrast or Reduce Transparency, and around a canvas.
         public var stroke: CGFloat = 1
         public var hairline: CGFloat = 0.5
-        public var focusRing: CGFloat = 2
+        /// The keyboard focus ring's width, drawn inside the focused shape (2 pt outside it before 0.2.12).
+        public var focusRing: CGFloat = 1.5
         /// The selected row's marker bar: its width.
         public var selectionMarker: CGFloat = 3
         /// Row tiles: standard 32 pt, compact 28 pt, small 22 pt, status 20 pt.

@@ -161,8 +161,9 @@ public struct ColorRoles: Sendable {
     public var selectionMarker: Color { Color(rgba: selectionMarkerRGBA) }
     public var selectionMarkerRGBA: RGBA { solved.values.selectionMarker }
 
-    /// The keyboard focus ring: the system's focus colour made opaque and mixed with ink until it reaches 3:1 on every
-    /// surface a row sits on (drawn translucent, it falls to 1.5:1 on a bright frame).
+    /// The keyboard focus ring: the Theme's primary hue, opaque, mixed with ink until it reaches 3:1 on every surface a
+    /// row sits on, the selection's fill included, as `selectionMarker` is. Never the system's blue focus colour (0.2.11
+    /// and before), which clashed with every Theme but a blue one; drawn translucent it fell to 1.5:1 on a bright frame.
     public var focusRing: Color { Color(rgba: focusRingRGBA) }
     public var focusRingRGBA: RGBA { solved.values.focusRing }
 
@@ -346,7 +347,7 @@ extension ColorRoles {
                 accentInks: resolved.accents.indices.map { resolved.accents[$0].mixed(with: ink, by: legibility.accentMix[$0]) },
                 selectionMarker: resolved.primary.mixed(
                     with: ink, by: legibility.mix(of: resolved.primary, toward: ink, reaching: minimum)),
-                focusRing: legibility.focusRing(RGBA.keyboardFocus(in: appearance), ink: ink, minimum: minimum),
+                focusRing: legibility.focusRing(resolved.primary, ink: ink, minimum: minimum),
                 edge: ink.opacity(ColorRoles.edgeAlpha(
                     colors: resolved, frame: tokens.surfaces(in: appearance),
                     column: tokens.columnFillSurfaces(in: appearance), hueScale: legibility.hueScale, minimum: minimum)),
@@ -384,7 +385,8 @@ extension ColorRoles {
 }
 
 extension Legibility {
-    /// An opaque version of `focus`, mixed with `ink` until it reaches `minimum` on every surface solved.
+    /// An opaque version of `focus` (the Theme's primary hue), mixed with `ink` until it reaches `minimum` on every
+    /// surface solved.
     func focusRing(_ focus: RGBA, ink: RGBA, minimum: Double) -> RGBA {
         let opaque = RGBA(red: focus.red, green: focus.green, blue: focus.blue)
         return opaque.mixed(with: ink, by: mix(of: opaque, toward: ink, reaching: minimum))
