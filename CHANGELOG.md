@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.2.12
+
+The keyboard focus ring, redesigned after a hands-on try of 0.2.11: a thick system-blue ring around the selected row,
+clipped at the column's edges. No API is removed or renamed: an app adopts with a version bump.
+
+### Changed
+
+- **No ring on a selected row.** In a list the arrow keys move the selection with the focus, so the selection already
+  shows where the focus is. `ListRowBackground` and `sidebarRowCell` (and so every `ListRow`) read `RowState.isSelected`
+  themselves: **an app that passes `isFocused` from its `@FocusState` changes nothing**, and needs to pass nothing more
+  for this rule. A custom row passes it with `focusRing(_:isSelected:in:)`. Rows whose focus moves over a selection that
+  stays put (a menu-like list) set `.selectionFollowsFocus(false)`, and a focused selected row shows the ring; the Space
+  rail's panel does. `FocusInputTracker.showsFocusRing(isSelected:)` is the rule.
+- **The ring is thin, inside, and in the Theme's colour.** A 1.5 pt line (`Size.focusRing`, was 2) inside the focused
+  shape's edge, so no container clips it (it lay 2 pt outside, `Spacing.focusRingOffset`, which the kit no longer
+  reads), drawn in `ColorRoles.focusRing`: now the Theme's primary hue, opaque, mixed with ink to 3:1 on every surface a
+  row sits on, the selection's fill included (the selection marker's colour). It was the system's blue focus colour.
+  Everywhere else it shows as before: a focused unselected row, the Space rail's items (the current Space too: the
+  rail's arrows move the focus, not the selection), its panel's rows, `IconButton`, `SegmentedPill`, a banner's buttons.
+  It comes and goes at once on a row, without the fills' fade.
+- **Kept from 0.2.11**: no ring after a click; the ring always shows while VoiceOver runs, on a selected row too.
+- **Legibility**: the `focusRing` cases now measure the Theme's ring (`after`) against the system's translucent focus
+  colour (`before`). All 99 changed cases still reach 3:1 (1616 cases, counts unchanged); `RecordedCases.json` is
+  regenerated with `DesignKitGallery audit`.
+
+Tested: the row rule (keyboard, click, VoiceOver; selected or not); a selected focused row drawn byte for byte as the
+same row unfocused, in light, dark and both Increase Contrast modes; an unselected focused row drawn with its ring on
+the shape's first point and half the next, the Theme's colour, nothing outside the shape; no ring after a click; the
+ring on a selected row while VoiceOver runs or under `selectionFollowsFocus(false)`; the rail's current Space focused
+shows the ring; the ring is the Theme's hue at 3:1 in the four appearances of every standard Theme and not the system's
+blue. `IconButton`'s ring is 1.5 pt inside its target. The row renders use a fresh `NSHostingView` each
+(`hostedRaster`): `ImageRenderer` carried a ring into the next render of the same size. Gallery:
+`swift run --package-path Gallery DesignKitGallery 0.2.12 <dir>` (`kit-0.2.12-focus-*`).
+
+### Not in this release: the full screen toolbar band
+
+In window full screen AppKit shows the toolbar in its own window over a system-grey material band. No public API was
+found that draws the Theme there for an AppKit split view window. Tried on macOS 27, in a real full screen window
+(`DesignKitGallery fullscreen <dir> <variant> <light|dark>`): the sidebar's `NSHostingController` with
+`sceneBridgingOptions = [.toolbars]` and `toolbarBackgroundVisibility(.hidden, for: .windowToolbar)`; the window's root
+an `NSHostingController` with `sceneBridgingOptions = .all` and `sidebarWindowChrome()`, with the app's NSToolbar and
+with a toolbar SwiftUI creates itself. Each keeps the grey band, and the content's safe area grows by the band's height
+when the toolbar is pinned. Hiding the toolbar while in full screen (`NSToolbar.isVisible`) leaves no band and nothing
+moves, but takes the sidebar button away in full screen; that is a product decision, not shipped.
+
+### Added
+
+- `focusRing(_:isSelected:in:)`, `FocusInputTracker.showsFocusRing(isSelected:)`, `EnvironmentValues.selectionFollowsFocus`,
+  `.selectionFollowsFocus(_:)`.
+
 ## 0.2.11
 
 Space switching, from a hands-on comparison: the focus ring after a click, a current Space that did not read at a

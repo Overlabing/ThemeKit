@@ -61,7 +61,7 @@ them.
 | `bannerLines` | 2 | between a banner's title and message |
 | `listCellMargin` | 8 (macOS), 0 (iOS) | what a `List` keeps round a cell's content; `listRowCell` cancels it |
 | `statusLineToList` | 10 | status line (or what sits in its place) to the list |
-| `focusRingOffset` | 2 | a focus ring outside its shape |
+| `focusRingOffset` | 2 | a focus ring outside its shape (0.2.11 and before; the kit's ring now lies inside its shape and does not read it) |
 | `selectionMarkerLeading`, `selectionMarkerVertical` | 2, 8 | the selected row's marker: from the leading edge of the row's background, and from its top and bottom |
 
 ### Radii (pt, always `.continuous`)
@@ -83,7 +83,7 @@ them.
 | `tile`, `compactTile`, `smallTile`, `statusTile` | 32, 28, 22, 20 | row tiles |
 | `compactRow`, `statusLine` | 40, 38 | a compact row, the status line |
 | `dot` | 8 | unread or status dot |
-| `stroke`, `hairline`, `focusRing` | 1, 0.5, 2 | lines |
+| `stroke`, `hairline`, `focusRing` | 1, 0.5, 1.5 | lines (the focus ring inside its shape) |
 | `selectionMarker` | 3 | width of the selected row's marker bar |
 | `floatingPill`, `pillButton`, `pillSymbol`, `pillDivider` | 56, 36, 20, 22 | a floating pill |
 | `toolbarButton` | 28 | a toolbar icon button |
@@ -209,7 +209,7 @@ immediate.
 | `GlassSwitcher` | **deprecated in 0.2.4, removed in 0.3**: use `SpaceRail`. The glass bar of themed items at the bottom of a column; an item's help is its name and the shortcut the app gives it (`SwitcherItem.shortcut`) |
 | `Banner` | a discreet message on glass: a symbol, an optional title, the message, and the client's actions or the kit's (`action:` and `onClose:`). The message shows in full and the banner grows with it; `messageLineLimit:` caps it. Narrower than its actions plus `bannerMessageMin` (160 pt) of text, the actions go under the message; a host breaks at its dots |
 | `SkeletonRows` | static placeholder rows while loading, one VoiceOver label; 1 to 3 `lines`, a `placement`, and `style` `.stack`, `.listCells` or `.sidebarCells` (one real `List` cell per row) |
-| `.focusRing(_:in:)` | the system focus colour, opaque and at 3:1 at least on the Theme's surfaces, around a custom control. It shows only when the focus came from the keyboard (Tab, an arrow, Home, End, Page Up or Down) or while VoiceOver runs, never after a click: `FocusInputTracker.shared` watches the app's events, and every ring the kit draws (rows, the Space rail, its panels, controls) asks it. Pass the focus as it is; `.focusInputTracker(_:)` gives a test or a preview its own tracker |
+| `.focusRing(_:in:)` | a 1.5 pt line inside the shape's edge (no container clips it) in `ColorRoles.focusRing`, the Theme's hue at 3:1 at least on the Theme's surfaces, never the system's blue. `.focusRing(_:isSelected:in:)` for a list row: none on a selected row, whose selection already shows the focus, as the arrow keys move a list's selection with its focus (`ListRowBackground` and `sidebarRowCell` pass `RowState.isSelected` themselves); `.selectionFollowsFocus(false)` for rows whose focus moves over a selection that stays put (the rail's panel). It shows only when the focus came from the keyboard (Tab, an arrow, Home, End, Page Up or Down) or while VoiceOver runs, never after a click: `FocusInputTracker.shared` watches the app's events, and every ring the kit draws (rows, the Space rail, its panels, controls) asks it. Pass the focus as it is; `.focusInputTracker(_:)` gives a test or a preview its own tracker |
 | `.surface(_:in:)` | glass or a layer fill, with the accessibility fallbacks below |
 
 ## The column
@@ -247,7 +247,7 @@ the bar sit on the same pixels as in a column of `ListRow`s (a test compares the
 draws a background of its own. Increase Contrast reaches the background: a selected or current cell is outlined in
 `ColorRoles.outline`, and the bar is not drawn. A `List` hands each cell the system's own Increase Contrast and colour
 scheme, so `accessibilityOverrides(increaseContrast:)` is carried to the kit's views by an environment value of the kit's
-own as well. A focus ring on a cell is clipped by the cell's bounds.
+own as well. The focus ring lies inside the row's background, so the cell's bounds never clip it.
 
 ## Sidebar
 
@@ -328,6 +328,10 @@ window.toolbar = toolbar
 `.searchable(placement: .sidebar)` needs a `NavigationSplitView`, so an AppKit window passes its own field. Hosting the
 whole `SidebarSplitView` in an `NSHostingController` is not the way: the window's toolbar then keeps its background
 and has no sidebar button.
+
+In window full screen AppKit shows the toolbar in a window of its own, over a system-grey band, and the kit has no
+public way to draw the Theme there (0.2.12 tried scene bridging from the sidebar's and from the window's hosting
+controller; CHANGELOG 0.2.12). `DesignKitGallery fullscreen` reproduces it.
 
 ## Space rail
 
@@ -458,7 +462,8 @@ the caption and VoiceOver say, `SpaceRailLayout.key(movingFrom:by:)` where an ar
 - **Legibility**: every text reaches 4.5:1 and every glyph, focus ring, selection outline and selection marker 3:1, on every surface,
   for every standard Theme in the four appearances. Secondary and tinted text use the inks `ColorRoles` gets from the
   solver (`Legibility.fit`); a symbol or an initial on a solid colour is white, or black where white falls short; the
-  focus ring is the system's focus colour made opaque and mixed toward the ink. `DesignTokens.legibilityCases(for:in:)`
+  focus ring is the Theme's primary hue made opaque and mixed toward the ink (the selection marker's colour; the system's
+  focus colour until 0.2.11). `DesignTokens.legibilityCases(for:in:)`
   and `symbolCases(in:)` list each role on each surface with the system default's contrast and the kit's;
   `legibilityCases(for:in:placement: .column)` does the same inside a list column, with the column's edge. CHANGELOG.md
   records the 804 cases of 0.2.1, the 14 selection marker cases added in 0.2.2 (818 on the frame) and the 798 column

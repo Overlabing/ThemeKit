@@ -76,14 +76,15 @@ struct FocusInputTrackerTests {
 }
 
 /// A focused sidebar row read back from an offscreen render: after a click (a pointer selection) it draws no ring,
-/// after a navigation key it does. The row asks nothing new of the app: it still passes `isFocused` as it is.
+/// after a navigation key it does. The row asks nothing new of the app: it still passes `isFocused` as it is. Since
+/// 0.2.12 the row is unselected: a selected row draws no ring at all (FocusRing0212Tests).
 @MainActor
 struct FocusRingRenderTests {
     static let theme = Palette.standard.themes[0]
 
     func row(_ tracker: FocusInputTracker, focused: Bool, _ scheme: ColorScheme) throws -> Raster {
-        try raster(
-            ListRowBackground(state: RowState(isSelected: true, isFocused: focused))
+        try hostedRaster(
+            ListRowBackground(state: RowState(isFocused: focused))
                 .frame(width: 240, height: 36)
                 .padding(8)
                 .focusInputTracker(tracker)
@@ -101,7 +102,7 @@ struct FocusRingRenderTests {
         #expect(try row(clicked, focused: true, scheme).data == unfocused.data, "a click draws no ring")
         let ringed = try row(keyboard, focused: true, scheme)
         #expect(ringed.data != unfocused.data, "a navigation key draws the ring")
-        #expect(ringed.alphaSum > unfocused.alphaSum)
+        #expect(ringed.alpha(x: 12, y: 26) == 1 && unfocused.alpha(x: 12, y: 26) == 0, "on the row's edge")
     }
 }
 

@@ -104,30 +104,53 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
 }
 
 extension View {
-    /// A keyboard focus ring around `shape` while `isVisible`, outside it by `Spacing.focusRingOffset`, in
-    /// `ColorRoles.focusRing`: the system's focus colour, opaque, at 3:1 at least on the Theme's surfaces. For custom
-    /// controls whose own focus effect is disabled. It shows only when the focus came from the keyboard (or while
-    /// VoiceOver runs), never after a click (`FocusInputTracker`): pass the view's focus as it is, the kit hides the
-    /// ring a click would otherwise draw.
+    /// A keyboard focus ring on `shape` while `isVisible`: a `Size.focusRing` line (1.5 pt) inside the shape's edge, so
+    /// no container clips it, in `ColorRoles.focusRing` (the Theme's hue at 3:1 at least on the Theme's surfaces, never
+    /// the system's blue). For custom controls whose own focus effect is disabled. It shows only when the focus came
+    /// from the keyboard (or while VoiceOver runs), never after a click (`FocusInputTracker`): pass the view's focus as
+    /// it is, the kit hides the ring a click would otherwise draw.
     public func focusRing(_ isVisible: Bool, in shape: some InsettableShape) -> some View {
-        modifier(FocusRing(isVisible: isVisible, shape: shape))
+        modifier(FocusRing(isVisible: isVisible, isSelected: false, shape: shape))
+    }
+
+    /// The same for a row of a list, where the arrow keys move the selection: a selected row shows no ring, since its
+    /// selection already shows where the focus is (`FocusInputTracker.showsFocusRing(isSelected:)`). A focused row
+    /// that is not selected shows the ring, and so does a selected one under `selectionFollowsFocus(false)`. `ListRowBackground` and the kit's sidebar cells pass `RowState.isSelected`
+    /// themselves.
+    public func focusRing(_ isVisible: Bool, isSelected: Bool, in shape: some InsettableShape) -> some View {
+        modifier(FocusRing(isVisible: isVisible, isSelected: isSelected, shape: shape))
+    }
+}
+
+extension EnvironmentValues {
+    /// Whether the arrow keys move the selection of the rows below with their focus, as in a `List` (the default): a
+    /// selected row then shows no focus ring, its selection is the focus. False for rows whose focus moves on its own,
+    /// over a selection that stays put (the Space rail's panel, a menu-like list): a focused selected row shows the ring.
+    @Entry public var selectionFollowsFocus: Bool = true
+}
+
+extension View {
+    /// Sets `selectionFollowsFocus` for the rows below.
+    public func selectionFollowsFocus(_ follows: Bool) -> some View {
+        environment(\.selectionFollowsFocus, follows)
     }
 }
 
 private struct FocusRing<S: InsettableShape>: ViewModifier {
     let isVisible: Bool
+    let isSelected: Bool
     let shape: S
     @Environment(\.designTokens) private var tokens
     @Environment(\.focusInputTracker) private var tracker
+    @Environment(\.selectionFollowsFocus) private var selectionFollowsFocus
 
     func body(content: Content) -> some View {
         // Read even when no ring is asked for, so that the shared tracker watches the app's events before any click.
         let tracker = tracker ?? .shared
         return content.overlay {
-            if isVisible && tracker.showsFocusRing {
+            if isVisible && tracker.showsFocusRing(isSelected: isSelected && selectionFollowsFocus) {
                 WithColorRoles { roles in
-                    shape.inset(by: -(tokens.spacing.focusRingOffset + tokens.size.focusRing))
-                        .strokeBorder(roles.focusRing, lineWidth: tokens.size.focusRing)
+                    shape.strokeBorder(roles.focusRing, lineWidth: tokens.size.focusRing)
                 }
                 .accessibilityHidden(true)
                 .allowsHitTesting(false)

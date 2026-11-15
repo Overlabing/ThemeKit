@@ -424,7 +424,14 @@ public struct ListRowBackground: View {
                             .accessibilityHidden(true)
                     }
                 }
-                .focusRing(state.isFocused, in: shape)
+                .overlay {
+                    // On the row's own fill, indented in a nested panel as the fill is. The ring comes and goes at once,
+                    // as the system's does: it does not fade with the fills.
+                    Color.clear
+                        .focusRing(state.isFocused, isSelected: state.isSelected, in: shape)
+                        .padding(.leading, indent)
+                        .transaction { $0.animation = nil }
+                }
                 .padding(.horizontal, placement.sideInset(spacing))
                 .padding(.top, placement.topInset(spacing))
                 .padding(.bottom, placement.bottomInset(spacing))

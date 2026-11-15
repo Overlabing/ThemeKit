@@ -262,11 +262,11 @@ public struct SpaceRail: View {
         let glyph = tokens.size.railGlyph
         // The ring lies inside the target, its outer edge on the target's: the tooltip's host and the focusable row
         // clip to their bounds, so a ring outside the target (0.2.10) lost its sides and top. A circular capsule, so
-        // that around a glyph it is a circle like the glyph's, not a continuous capsule's rounded square.
-        let ringInset = tokens.spacing.focusRingOffset + tokens.size.focusRing
+        // that around a glyph it is a circle like the glyph's, not a continuous capsule's rounded square. The rail's
+        // arrows move the focus, not the selection, so the current Space shows the ring too.
         let base = itemContent(item, roles, isHovered: isHovered)
             .frame(width: model.itemWidth(item, tokens: tokens), height: target)
-            .focusRing(isFocused, in: Capsule(style: .circular).inset(by: ringInset))
+            .focusRing(isFocused, in: Capsule(style: .circular))
             .frame(height: tokens.size.railHeight, alignment: .top)
             .overlay(alignment: .top) {
                 if isSelected {
@@ -590,6 +590,8 @@ public struct SpaceRailPanel: View {
             }
         }
         .padding(.vertical, tokens.spacing.layerInset)
+        // The arrows move the focus over the rows; the current Space stays selected, so a focused one shows the ring.
+        .selectionFollowsFocus(false)
     }
 }
 
