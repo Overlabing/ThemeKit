@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.2.13
+
+An AppKit sidebar can sit on the window's own background, as in Zen: no material, no tone of its own and no divider
+line, the Theme's gradient running under the column as it does around the detail's card. It is an option; the default
+is the system sidebar as before, so an app that changes nothing looks the same.
+
+### Added
+
+- **`SidebarSurface`**, passed to `NSSplitViewItem.sidebar(hosting:tokens:surface:)`: `.systemMaterial` (the default,
+  `NSSplitViewItem(sidebarWithViewController:)` as in 0.2.12) or `.windowBackground`, a plain split item that can
+  collapse, at the kit's column widths, holding its width like the system sidebar (priority 260) while the detail
+  takes a window resize.
+- **`SeamlessSplitViewController`**, the split view controller for a `.windowBackground` column: its split view
+  (`SeamlessSplitView`) is vertical with a thin divider that draws nothing. The divider keeps its place and its
+  resize cursor, and its resize zone runs over the card's margin (`Spacing.canvasInset`) on the detail's side, where
+  only the gradient shows; with the column collapsed the zone is the divider alone. An app subclasses it as it would
+  `NSSplitViewController` (to handle `toggleSidebar(_:)` itself, say).
+
+A `.windowBackground` column is not dimmed by the system when the window resigns key: there is no system sidebar to
+dim. Public API only.
+
+Tested: the default item is still the system sidebar; the window-background item is a plain collapsible item at 300
+to 480 pt, 360 pt at first, holding priority 260; no `NSVisualEffectView` in the split, and the window's background
+shows under the column, on the divider and between the divider and the card in light, dark and both Increase Contrast
+appearances; the divider draws no pixel; its resize zone reaches 13 pt past a 1 pt divider, none once the column is
+collapsed, and moving the divider sets the column's width. Gallery: `swift run --package-path Gallery DesignKitGallery
+0.2.13 <dir>` (`kit-0.2.13-sidebar-<system|window>-<light|dark|light-contrast|dark-contrast>.png`; the system's
+material does not render offscreen, so `system` shows where the column ends, not its tone).
+
 ## 0.2.12
 
 The keyboard focus ring, redesigned after a hands-on try of 0.2.11: a thick system-blue ring around the selected row,

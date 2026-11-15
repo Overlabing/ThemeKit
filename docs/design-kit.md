@@ -189,6 +189,7 @@ immediate.
 | `.sidebarDetailCard()`, `.sidebarDetailInset()` | `SidebarDetail`'s card alone (no padding, no size) and its inset alone, for a detail of several cards: each card gets `sidebarDetailCard()`, spaced `canvasInset`, with `sidebarDetailInset()` round them |
 | `.sidebarWindowChrome()` | the window of a sidebar app: transparent toolbar, no title shown, toolbar on hover in full screen |
 | `NSSplitViewItem.sidebar(hosting:)` | AppKit: the system's sidebar split item hosting a `sidebarColumn`, at the column widths; `sidebarToolbarItems` for the window's toolbar |
+| `SidebarSurface`, `SeamlessSplitViewController` | AppKit: the column on the window's own background (`surface: .windowBackground`), no material and no divider line |
 | `ColumnLayout(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
 | `ColumnSurface(side:)`, `.columnSurface(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`, deprecated with it) |
 | `ContentCanvas` | content inset 12 pt, rounded 12 pt, 1 pt separator line |
@@ -323,6 +324,15 @@ window.titlebarAppearsTransparent = true
 window.titleVisibility = .hidden
 toolbar.displayMode = .iconOnly                                // its delegate returns NSSplitViewItem.sidebarToolbarItems
 window.toolbar = toolbar
+```
+
+For a column on the window's own background, as in Zen (no material, no tone, no divider line; the card's edge is the
+only boundary), pass `surface: .windowBackground` and use a `SeamlessSplitViewController`, whose invisible divider keeps
+its resize zone over the card's margin:
+
+```swift
+let split = SeamlessSplitViewController()
+split.addSplitViewItem(.sidebar(hosting: column, surface: .windowBackground))
 ```
 
 `.searchable(placement: .sidebar)` needs a `NavigationSplitView`, so an AppKit window passes its own field. Hosting the
