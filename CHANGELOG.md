@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.2.14
+
+A sidebar head laid out as in Zen: the sidebar button and the app's buttons on the line of the window's buttons, then
+a field pill the column's full width with the app's accessory inside it. It is a new `sidebarColumn` overload; the
+others do not change, so an app that only bumps the version looks the same.
+
+### Added
+
+- **`sidebarColumn(sidebarButtonShortcut:titleBar:field:fieldAccessory:header:bottomBar:)`** (macOS):
+  - a title bar row in the window's title bar band over the column: the kit's sidebar button (`sidebar.left`, help tag
+    "Hide Sidebar (⌘B)" with the shortcut passed), flexible space, then the app's `titleBar` slot at the column's
+    trailing edge. The button calls `toggleSidebar(_:)` on the nearest split view controller up the column's responder
+    chain. The row's empty part drags the window; a double click zooms, minimizes or does nothing, as the user set for
+    title bars. With no band (full screen, toolbar hidden) the row takes 40 pt at the column's top;
+  - a field pill under it, the column's width, 36 pt tall, rounded 10 pt, on glass: the app's `field` on the leading
+    side in `.title3` medium, its `fieldAccessory` inside the pill on the trailing edge. Empty slots take no room.
+- **`NSSplitViewItem.sidebarHeadToolbarItems`**: no items, for the window's `.unifiedCompact` toolbar, since the row
+  holds the sidebar button.
+- Tokens: `Spacing.sidebarWindowButtonsGap` (8), `sidebarHeadButtonGap` (2), `sidebarFieldPillTop` (2),
+  `sidebarFieldPillLeading` (12), `sidebarFieldPillTrailing` (4); `Size.sidebarTitleBar` (40), `sidebarFieldPill`
+  (36); `Radius.sidebarFieldPill` (10); `TypeScale.sidebarFieldTitle` (`.title3` medium), `sidebarHeadSymbol`
+  (`.title3`).
+- Strings: "Hide Sidebar", "Hide Sidebar (%@)", with French.
+
+Public API only: the window's buttons are read with `standardWindowButton(_:)`, the band from `contentLayoutRect`,
+the drag is `performDrag(with:)`, and the double click reads the global `AppleActionOnDoubleClick` default.
+
+Tested: the row's buttons on the line of the window's buttons (20 pt down a 40 pt band), the sidebar button 8 pt
+after the zoom button, the app's buttons ending 10 pt from the column's edge and 2 pt apart; the pill 2 pt under the
+band, the field 22 pt from the column's edge, the accessory 14 pt; with no band, the row at the column's top from its
+10 pt margin; the row's empty part is the drag area in the window's hit test, its buttons and the pill are not; the
+sidebar button's action reaches a `SeamlessSplitViewController` subclass (a split controller with no system sidebar
+item says it does not respond to `toggleSidebar(_:)`, so the action is not sent up the chain); the double click
+preference; the French strings. Gallery: `swift run --package-path Gallery DesignKitGallery 0.2.14 <dir>`
+(`kit-0.2.14-head-<page|empty>-<light|dark>-contrast.png`; glass does not draw offscreen, so only the Reduce
+Transparency appearances).
+
 ## 0.2.13
 
 An AppKit sidebar can sit on the window's own background, as in Zen: no material, no tone of its own and no divider

@@ -134,6 +134,40 @@
         }
       }
     },
+    "Hide Sidebar" : {
+      "comment" : "The sidebar button at the top of a sidebar: its VoiceOver label and help tag.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Sidebar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer la barre latérale"
+          }
+        }
+      }
+    },
+    "Hide Sidebar (%@)" : {
+      "comment" : "Help tag of the sidebar button: its title and its keyboard shortcut, for example ⌘B.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Sidebar (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer la barre latérale (%@)"
+          }
+        }
+      }
+    },
     "Opens %@." : {
       "comment" : "VoiceOver hint of a folded Profile in the Space rail, read after its label: the Space a click lands on. A full sentence.",
       "localizations" : {

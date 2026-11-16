@@ -49,6 +49,8 @@ them.
 | `switcherBottom` | 8 | the Space rail's (and the glass switcher's) margin to the column's bottom edge |
 | `barFade` | 16 | a sidebar's bottom bar: the list fades out over the bar's first points |
 | `sidebarFieldSide`, `sidebarFieldTop`, `sidebarFieldBottom` | 10, 9, 8 | a sidebar's own head field: from the column's sides, above it, under it; where the system's sidebar search field sits |
+| `sidebarWindowButtonsGap`, `sidebarHeadButtonGap` | 8, 2 | a sidebar head: the window's buttons to the sidebar button; between two buttons of its title bar row or of its field's accessory |
+| `sidebarFieldPillTop`, `sidebarFieldPillLeading`, `sidebarFieldPillTrailing` | 2, 12, 4 | a sidebar head: the title bar row to the field pill; inside the pill, before the field and after the accessory (`Leading` both sides with no accessory) |
 | `railMarkerGap` | 2 | the Space rail: a glyph to its marker |
 | `railGroupGap` | 4 | the Space rail: either side of the divider |
 | `railDotGap` | 4 | the Space rail: between a folded Profile's dots, and before its count |
@@ -73,6 +75,7 @@ them.
 | `layer` | 12 | a panel holding rows (`row + layerInset`, concentric) |
 | `banner` | 12 | a banner |
 | `canvas` | 12 | a content canvas |
+| `sidebarFieldPill` | 10 | a sidebar head's field pill: rounded, not a capsule |
 | `column` | 12 | **deprecated in 0.2.6, removed in 0.3**, with `ColumnSurface`: a list column's surface (`row` + the 4 pt from its edge to a row's background, concentric) |
 
 ### Sizes (pt)
@@ -101,6 +104,7 @@ them.
 | `railDotsMax` | 4 (a count) | dots a folded Profile shows before its "+n" |
 | `columnMin`, `columnIdeal`, `columnMax` | 300, 360, 480 | a list column |
 | `sidebarField` | 29 | a sidebar's head field: the height of the system's sidebar search field, the least the slot gives it |
+| `sidebarTitleBar`, `sidebarFieldPill` | 40, 36 | a sidebar head: its title bar row where the window gives it no band (full screen), the band of a `.unifiedCompact` toolbar; its field pill |
 | `disclosureDegrees` | 90 | an open folder's chevron |
 
 ### Emphasis (opacity of the Theme's primary hue unless noted)
@@ -137,7 +141,8 @@ Text styles on the system font, never point sizes: rows `.body` (selected semibo
 headers `.caption` semibold uppercase, section headers `.subheadline` semibold, counts `.caption`, pill titles `.body`
 semibold, initials `.callout` bold, switcher names `.callout` semibold, banners `.callout` (their title and a button's
 label `.callout` semibold), segments `.callout` (selected semibold), small glyphs `.caption2` bold, the Space rail's
-glyphs `railGlyph` (`.title3` semibold, 15 pt on macOS). An emoji glyph (a
+glyphs `railGlyph` (`.title3` semibold, 15 pt on macOS), a sidebar head's field `sidebarFieldTitle` (`.title3` medium) and
+the symbols of its buttons `sidebarHeadSymbol` (`.title3`). An emoji glyph (a
 Space's, in the rail and its panel, and `ThemeGlyph`'s) is its circle's style times `glyphEmojiScale` (1.3: 13 pt on
 macOS), at most `DesignTokens.glyphEmojiMaxShare` (0.55) of that circle, so its artwork fills the circle the way an
 initial does and its corners stay inside it (`DesignTokens.glyphEmojiSize(textSize:circle:)`: 13 pt in the 24 pt
@@ -188,7 +193,8 @@ immediate.
 | `SidebarDetail` | the detail beside a sidebar: a card inset 12 pt, from the window's top edge, with an optional floating bottom bar |
 | `.sidebarDetailCard()`, `.sidebarDetailInset()` | `SidebarDetail`'s card alone (no padding, no size) and its inset alone, for a detail of several cards: each card gets `sidebarDetailCard()`, spaced `canvasInset`, with `sidebarDetailInset()` round them |
 | `.sidebarWindowChrome()` | the window of a sidebar app: transparent toolbar, no title shown, toolbar on hover in full screen |
-| `NSSplitViewItem.sidebar(hosting:)` | AppKit: the system's sidebar split item hosting a `sidebarColumn`, at the column widths; `sidebarToolbarItems` for the window's toolbar |
+| `NSSplitViewItem.sidebar(hosting:)` | AppKit: the system's sidebar split item hosting a `sidebarColumn`, at the column widths; `sidebarToolbarItems` for the window's toolbar, `sidebarHeadToolbarItems` (none) with a sidebar head |
+| `.sidebarColumn(sidebarButtonShortcut:titleBar:field:fieldAccessory:header:bottomBar:)` | macOS: the sidebar column with a head as in Zen: a title bar row on the line of the window's buttons (the kit's sidebar button, space, the app's `titleBar` buttons; the window drags from its empty part) and a field pill the column's width with `fieldAccessory` inside it; see "Sidebar head" |
 | `SidebarSurface`, `SeamlessSplitViewController` | AppKit: the column on the window's own background (`surface: .windowBackground`), no material and no divider line |
 | `ColumnLayout(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
 | `ColumnSurface(side:)`, `.columnSurface(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`, deprecated with it) |
@@ -334,6 +340,44 @@ its resize zone over the card's margin:
 let split = SeamlessSplitViewController()
 split.addSplitViewItem(.sidebar(hosting: column, surface: .windowBackground))
 ```
+
+### Sidebar head
+
+A head laid out as in Zen replaces the system's toolbar row and search field with two rows of the column's own:
+
+```swift
+list.sidebarColumn(sidebarButtonShortcut: "⌘B") {
+    IconButton("Back", systemImage: "arrow.left") { back() }       // the title bar row's trailing slot
+    IconButton("Forward", systemImage: "arrow.right") { forward() }
+} field: {
+    AddressText(page)                                               // leading in the pill, sidebarFieldTitle
+} fieldAccessory: {
+    IconButton("Copy Link", systemImage: "link") { copy() }         // trailing, inside the pill
+} header: {
+    EmptyView()
+} bottomBar: {
+    rail
+}
+```
+
+- **Title bar row.** On the line of the window's buttons, in the window's title bar band over the column: the kit's
+  sidebar button (`sidebar.left`, "Hide Sidebar" and the shortcut in its help tag) `sidebarWindowButtonsGap` after the
+  window's buttons, flexible space, then `titleBar` ending `sidebarFieldSide` from the column's trailing edge, its
+  buttons `sidebarHeadButtonGap` apart. The button calls `toggleSidebar(_:)` on the split view controller holding the
+  column, the one the system's toolbar button reaches: a `SeamlessSplitViewController` subclass decides what it means.
+  The row's empty part drags the window, and a double click there does what the user set for title bars (zoom,
+  minimize or nothing). Where the window gives the column no band (full screen with the toolbar hidden), the row takes
+  `Size.sidebarTitleBar` at the column's top and starts `sidebarFieldSide` from its edge.
+- **Window.** The row holds the sidebar button, so the toolbar holds none: `NSSplitViewItem.sidebarHeadToolbarItems`
+  (no items) with the `.unifiedCompact` style, whose 40 pt band is the row's height, as in Zen. In SwiftUI,
+  `.toolbar(removing: .sidebarToggle)` and `.windowToolbarStyle(.unifiedCompact)`.
+- **Field pill.** `sidebarFieldPillTop` under the row, the column's width less `sidebarFieldSide` each side,
+  `Size.sidebarFieldPill` tall, rounded `Radius.sidebarFieldPill`, on glass. `field` sits `sidebarFieldPillLeading`
+  in, filling the pill's height and the width the accessory leaves; `fieldAccessory` ends `sidebarFieldPillTrailing`
+  from the pill's edge. A field that takes a click across the pill draws its own content shape past its leading inset.
+  No `field`, no pill.
+- **Empty slots** take no room: `EmptyView()` in `titleBar` leaves the sidebar button alone in the row, and in
+  `fieldAccessory` the field reaches `sidebarFieldPillLeading` from both edges.
 
 `.searchable(placement: .sidebar)` needs a `NavigationSplitView`, so an AppKit window passes its own field. Hosting the
 whole `SidebarSplitView` in an `NSHostingController` is not the way: the window's toolbar then keeps its background

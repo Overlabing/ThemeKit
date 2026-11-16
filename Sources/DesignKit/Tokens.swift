@@ -90,6 +90,14 @@ extension DesignTokens {
         public var sidebarFieldSide: CGFloat = 10
         public var sidebarFieldTop: CGFloat = 9
         public var sidebarFieldBottom: CGFloat = s
+        /// A sidebar head (`sidebarColumn(titleBar:field:fieldAccessory:header:bottomBar:)`): from the window's buttons
+        /// to the sidebar button, between two buttons of its title bar row or of its field's accessory, from the title
+        /// bar row to the field pill, and inside the pill, before the field and after the accessory.
+        public var sidebarWindowButtonsGap: CGFloat = s
+        public var sidebarHeadButtonGap: CGFloat = xxs
+        public var sidebarFieldPillTop: CGFloat = xxs
+        public var sidebarFieldPillLeading: CGFloat = m
+        public var sidebarFieldPillTrailing: CGFloat = xs
         /// A sidebar's bottom bar: the list fades out over the bar's first points, gone before the window's edge.
         public var barFade: CGFloat = l
         /// From the status line (or the controls in its place) to the list.
@@ -152,6 +160,8 @@ extension DesignTokens {
         public var layer: CGFloat = 12
         public var banner: CGFloat = 12
         public var canvas: CGFloat = 12
+        /// A sidebar head's field pill: rounded, not a capsule.
+        public var sidebarFieldPill: CGFloat = 10
         /// A list column's surface: `row` plus the 4 pt from the surface's edge to a row's background
         /// (`listMargin - rowInsetHorizontal`), so the rows' backgrounds stay concentric to it.
         @available(*, deprecated, message: "ColumnSurface is deprecated: use SidebarSplitView, the system sidebar. Removed in 0.3.")
@@ -260,6 +270,10 @@ extension DesignTokens {
         public var switcherItemHeight: CGFloat = 40
         /// A sidebar's head field: the height of the system's sidebar search field, the least the slot gives the field.
         public var sidebarField: CGFloat = 29
+        /// A sidebar head: its title bar row where the window gives it no title bar band (in full screen, say), the
+        /// band of a `.unifiedCompact` toolbar; and its field pill, taller than the system's search field.
+        public var sidebarTitleBar: CGFloat = 40
+        public var sidebarFieldPill: CGFloat = 36
         /// A banner's text beside its actions: the least width it keeps there; narrower, the actions go under it.
         public var bannerMessageMin: CGFloat = 160
         /// A list column: minimum, ideal and maximum widths.
@@ -335,6 +349,10 @@ extension DesignTokens {
         public var segment = TextRole(.callout)
         public var segmentSelected = TextRole(.callout, .semibold)
         public var accessory = TextRole(.caption, .semibold)
+        /// A sidebar head: the field's text in its pill, and the symbols of its buttons (the title bar row, the
+        /// field's accessory).
+        public var sidebarFieldTitle = TextRole(.title3, .medium)
+        public var sidebarHeadSymbol = TextRole(.title3)
 
         public init() {}
     }

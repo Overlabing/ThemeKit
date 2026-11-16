@@ -104,6 +104,12 @@ extension NSSplitViewItem {
     /// The toolbar of a window with a kit sidebar: the system's sidebar button at the column's trailing edge, where
     /// `NavigationSplitView` puts it, and the separator that follows the column's width.
     public static let sidebarToolbarItems: [NSToolbarItem.Identifier] = [.flexibleSpace, .toggleSidebar, .sidebarTrackingSeparator]
+
+    /// The toolbar of a window whose column has the kit's sidebar head
+    /// (`sidebarColumn(sidebarButtonShortcut:titleBar:field:fieldAccessory:header:bottomBar:)`): none, since the head's
+    /// title bar row holds the sidebar button. Give the toolbar the `.unifiedCompact` style, so its band is the row's
+    /// `Size.sidebarTitleBar` (40 pt) and the window's buttons sit on the row's line.
+    public static let sidebarHeadToolbarItems: [NSToolbarItem.Identifier] = []
 }
 
 /// The split view controller of a `.windowBackground` sidebar: its split view is a `SeamlessSplitView`, and its divider
@@ -165,7 +171,7 @@ extension View {
     /// The sidebar column around its `List` with no bottom bar: as `sidebarColumn(bottomBar:)`, every row shown down to
     /// the column's bottom edge.
     public func sidebarColumn() -> some View {
-        modifier(SidebarColumn(field: EmptyView(), header: EmptyView(), bottomBar: EmptyView()))
+        modifier(SidebarColumn(head: EmptyView(), header: EmptyView(), bottomBar: EmptyView()))
     }
 
     /// The sidebar column around its `List`: the kit's column widths (`sidebarColumnWidth()`), a plain list on the
@@ -180,7 +186,7 @@ extension View {
     /// there itself, so the column can sit anywhere in its sidebar; in a `NavigationSplitView` of the client's, either
     /// apply `sidebarColumn` at the column's root or put `sidebarColumnWidth()` there.
     public func sidebarColumn<BottomBar: View>(@ViewBuilder bottomBar: () -> BottomBar) -> some View {
-        modifier(SidebarColumn(field: EmptyView(), header: EmptyView(), bottomBar: bottomBar()))
+        modifier(SidebarColumn(head: EmptyView(), header: EmptyView(), bottomBar: bottomBar()))
     }
 
     /// The sidebar column with a header row under the head field (`Spacing.statusLineToList` above the list), a
@@ -188,7 +194,7 @@ extension View {
     public func sidebarColumn<Header: View, BottomBar: View>(
         @ViewBuilder header: () -> Header, @ViewBuilder bottomBar: () -> BottomBar
     ) -> some View {
-        modifier(SidebarColumn(field: EmptyView(), header: header(), bottomBar: bottomBar()))
+        modifier(SidebarColumn(head: EmptyView(), header: header(), bottomBar: bottomBar()))
     }
 
     /// The sidebar column with the client's own head field (an address field, say) where the system's sidebar search
@@ -196,8 +202,40 @@ extension View {
     public func sidebarColumn<Field: View, Header: View, BottomBar: View>(
         @ViewBuilder field: () -> Field, @ViewBuilder header: () -> Header, @ViewBuilder bottomBar: () -> BottomBar
     ) -> some View {
-        modifier(SidebarColumn(field: field(), header: header(), bottomBar: bottomBar()))
+        modifier(SidebarColumn(head: SidebarFieldSlot(field: field()), header: header(), bottomBar: bottomBar()))
     }
+
+    #if os(macOS)
+    /// The sidebar column with a head laid out as in Zen, for a window whose column runs under a transparent title bar.
+    ///
+    /// - A title bar row, on the line of the window's buttons: the kit's sidebar button (`sidebar.left`, which calls
+    ///   `toggleSidebar(_:)` on the split view controller holding the column, as the system's toolbar button does), then
+    ///   flexible space, then `titleBar` at the column's trailing edge. The window drags from the row's empty part,
+    ///   and a double click there does what the system's title bar does (zoom, by default). The row takes the window's
+    ///   title bar band over the column; where there is none (full screen) it takes `Size.sidebarTitleBar` at the top
+    ///   of the column, starting at the column's edge. Since the row holds the sidebar button, the window's toolbar
+    ///   holds none (`NSSplitViewItem.sidebarHeadToolbarItems`; `.toolbar(removing: .sidebarToggle)` in SwiftUI).
+    /// - A field pill under it, the column's full width less `sidebarFieldSide` each side: `field` on the leading side
+    ///   (in `TextRole.sidebarFieldTitle` unless it sets its own font), `fieldAccessory` inside the pill on its trailing
+    ///   edge. With no `field` there is no pill.
+    ///
+    /// `sidebarButtonShortcut` ("⌘B") goes in the sidebar button's help tag. Buttons in `titleBar` and
+    /// `fieldAccessory` are spaced `sidebarHeadButtonGap` apart, their symbols in `TextRole.sidebarHeadSymbol`. Pass
+    /// `EmptyView()` for a slot with nothing in it. Nothing changes for the other `sidebarColumn` overloads.
+    public func sidebarColumn<TitleBar: View, Field: View, FieldAccessory: View, Header: View, BottomBar: View>(
+        sidebarButtonShortcut: String? = nil,
+        @ViewBuilder titleBar: () -> TitleBar,
+        @ViewBuilder field: () -> Field,
+        @ViewBuilder fieldAccessory: () -> FieldAccessory,
+        @ViewBuilder header: () -> Header,
+        @ViewBuilder bottomBar: () -> BottomBar
+    ) -> some View {
+        modifier(SidebarColumn(
+            head: SidebarHead(sidebarButtonShortcut: sidebarButtonShortcut, titleBar: titleBar(), field: field(),
+                              accessory: fieldAccessory()),
+            header: header(), bottomBar: bottomBar()))
+    }
+    #endif
 
     /// A sidebar `List` cell drawn like a `ListRow`: `ListRowBackground(state:placement:)` behind it, no separator, and
     /// insets that keep the `List`'s own margin (`Spacing.listCellMargin`). The background sits where a `ListRow`'s
@@ -243,9 +281,26 @@ private struct SidebarColumnWidth: ViewModifier {
     }
 }
 
-private struct SidebarColumn<Field: View, Header: View, BottomBar: View>: ViewModifier {
+/// The head field of `sidebarColumn(field:header:bottomBar:)`, where the system's sidebar search would sit; nothing
+/// for `EmptyView()`.
+private struct SidebarFieldSlot<Field: View>: View {
     @Environment(\.designTokens) private var tokens
     let field: Field
+
+    var body: some View {
+        if Field.self != EmptyView.self {
+            field
+                .frame(minHeight: tokens.size.sidebarField)
+                .padding(.horizontal, tokens.spacing.sidebarFieldSide)
+                .padding(.top, tokens.spacing.sidebarFieldTop)
+                .padding(.bottom, tokens.spacing.sidebarFieldBottom)
+        }
+    }
+}
+
+private struct SidebarColumn<Head: View, Header: View, BottomBar: View>: ViewModifier {
+    @Environment(\.designTokens) private var tokens
+    let head: Head
     let header: Header
     let bottomBar: BottomBar
     @State private var barHeight: CGFloat = 0
@@ -261,13 +316,7 @@ private struct SidebarColumn<Field: View, Header: View, BottomBar: View>: ViewMo
             .listSelectionPlatterOff()
             .safeAreaBar(edge: .top, spacing: Header.self == EmptyView.self ? 0 : tokens.spacing.statusLineToList) {
                 VStack(spacing: 0) {
-                    if Field.self != EmptyView.self {
-                        field
-                            .frame(minHeight: tokens.size.sidebarField)
-                            .padding(.horizontal, tokens.spacing.sidebarFieldSide)
-                            .padding(.top, tokens.spacing.sidebarFieldTop)
-                            .padding(.bottom, tokens.spacing.sidebarFieldBottom)
-                    }
+                    if Head.self != EmptyView.self { head }
                     if Header.self != EmptyView.self { header }
                 }
             }
