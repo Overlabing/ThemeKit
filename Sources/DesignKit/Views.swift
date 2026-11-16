@@ -967,12 +967,19 @@ public struct IconButton: View {
     @Environment(\.designTokens) private var tokens
     private let title: String
     private let systemImage: String?
+    private var helpText: String?
     private let action: () -> Void
 
     public init(_ title: String, systemImage: String, action: @escaping () -> Void) {
         self.title = title
         self.systemImage = systemImage
         self.action = action
+    }
+
+    /// A symbol button whose help tag says more than its title (the title and a shortcut).
+    init(_ title: String, systemImage: String, help: String, action: @escaping () -> Void) {
+        self.init(title, systemImage: systemImage, action: action)
+        helpText = help
     }
 
     /// A label-only button: `title` is what it shows.
@@ -1006,7 +1013,7 @@ public struct IconButton: View {
             .buttonStyle(PressedOpacityStyle())
             .focusEffectDisabled()
             .foregroundStyle(roles.secondaryText)
-            .help(title)
+            .help(helpText ?? title)
         }
     }
 }
