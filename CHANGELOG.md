@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.2.15
+
+A sidebar swap, as Zen opens its settings and its library: the column's content gives way to sections grouped under
+headings, with a back arrow at the bottom left, and the detail shows the chosen section instead of the app's content.
+The app's content stays alive under it and comes back as it was. It is new API; nothing else changes.
+
+### Added
+
+- **`SidebarSwapModel<ID>`** (`@Observable`, one per window): `groups` of `SidebarSwapSection`s, `isPresented`,
+  `selection`; `present(_:)`, `dismiss()`, `toggle(_:)` (the command that opens the swap returns when it is shown on its
+  section, and switches section otherwise), `select(_:)`, `selectAdjacent(_:)`, `setGroups(_:)` (a window that lists
+  fewer sections keeps the selection when it is still listed), `onSelect` to store the last section.
+- **`View.sidebarSwap(_:swap:)`**: the app's column while the swap is hidden, the `swap` view while it is shown.
+- **`SidebarSwapList`**: the swap's column. A title, the app's `header` (a menu naming what the sections apply to, say),
+  the groups' headings (rows with the header trait, never selected), the sections as `sidebarRowCell`s on a small tinted
+  tile, and the back arrow (`arrow.left`, help "Back (Esc)") in the bottom bar. A plain `List` with a selection: a click
+  or the arrow keys show a section, Escape returns. On the Mac it keeps the kit's sidebar head with its sidebar button.
+- **`SidebarSwapPane`**: a section's pane in the detail: its title and subtitle, then the content, from the top,
+  `Spacing.swapPaneMargin` in and at most `Size.swapPaneWidth` wide; Escape returns. One VoiceOver container named after
+  the section.
+- **`SidebarSwapDetail`** (SwiftUI): the app's detail, kept alive, hidden, out of VoiceOver and of the hit test while the
+  pane of the shown section is over it. An AppKit window does the same with its own views (hide the content view; never
+  remove a web view, which would reload).
+- Tokens: `Spacing.swapTitleToHeader` (8), `swapPaneMargin` (24), `swapPaneHeadToContent` (16); `Size.swapPaneWidth`
+  (720); `TypeScale.swapTitle` (`.title2` bold), `swapPaneTitle` (`.title` bold), `swapPaneSubtitle` (`.callout`).
+- Strings: "Back", "Back (Esc)", with French.
+
+Tested (`SidebarSwap0215Tests`): the model (start section, present and dismiss, the same command again, another
+section's command, the stored selection only on a change, a section the column does not list, arrows across groups and
+at the ends, fewer groups); the detail keeps the app's content (made once across present, switch and dismiss) and shows
+the pane of the shown section only; the column swaps to the list and back; the French strings.
+
 ## 0.2.14
 
 A sidebar head laid out as in Zen: the sidebar button and the app's buttons on the line of the window's buttons, then

@@ -100,6 +100,40 @@
         }
       }
     },
+    "Back" : {
+      "comment" : "The back arrow at the bottom of a sidebar showing settings or a library: its VoiceOver label.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retour"
+          }
+        }
+      }
+    },
+    "Back (Esc)" : {
+      "comment" : "Help tag of the back arrow at the bottom of a sidebar showing settings or a library: its title and its key.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back (Esc)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retour (Échap)"
+          }
+        }
+      }
+    },
     "Collapsed" : {
       "comment" : "VoiceOver value of a folder row whose children are hidden.",
       "localizations" : {

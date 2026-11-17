@@ -98,6 +98,11 @@ extension DesignTokens {
         public var sidebarFieldPillTop: CGFloat = xxs
         public var sidebarFieldPillLeading: CGFloat = m
         public var sidebarFieldPillTrailing: CGFloat = xs
+        /// A sidebar swap (`SidebarSwapList`, `SidebarSwapPane`): from the column's title to the app's header under it;
+        /// a pane's margin from the detail card's edges, and from the pane's head to its content.
+        public var swapTitleToHeader: CGFloat = s
+        public var swapPaneMargin: CGFloat = xl
+        public var swapPaneHeadToContent: CGFloat = l
         /// A sidebar's bottom bar: the list fades out over the bar's first points, gone before the window's edge.
         public var barFade: CGFloat = l
         /// From the status line (or the controls in its place) to the list.
@@ -274,6 +279,9 @@ extension DesignTokens {
         /// band of a `.unifiedCompact` toolbar; and its field pill, taller than the system's search field.
         public var sidebarTitleBar: CGFloat = 40
         public var sidebarFieldPill: CGFloat = 36
+        /// A sidebar swap's pane (`SidebarSwapPane`): the widest it gets, its margins included, so its lines stay
+        /// readable in a wide window.
+        public var swapPaneWidth: CGFloat = 720
         /// A banner's text beside its actions: the least width it keeps there; narrower, the actions go under it.
         public var bannerMessageMin: CGFloat = 160
         /// A list column: minimum, ideal and maximum widths.
@@ -353,6 +361,10 @@ extension DesignTokens {
         /// field's accessory).
         public var sidebarFieldTitle = TextRole(.title3, .medium)
         public var sidebarHeadSymbol = TextRole(.title3)
+        /// A sidebar swap: the column's title ("Settings"), a pane's title and its subtitle.
+        public var swapTitle = TextRole(.title2, .bold)
+        public var swapPaneTitle = TextRole(.title, .bold)
+        public var swapPaneSubtitle = TextRole(.callout)
 
         public init() {}
     }
