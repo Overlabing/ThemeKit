@@ -98,6 +98,11 @@ extension DesignTokens {
         public var sidebarFieldPillTop: CGFloat = xxs
         public var sidebarFieldPillLeading: CGFloat = m
         public var sidebarFieldPillTrailing: CGFloat = xs
+        /// The Library (`LibraryRail`, `LibraryPane`): a pane's margin from the window's chrome, from its head to its
+        /// content, and between the rail's items.
+        public var libraryPaneMargin: CGFloat = xl
+        public var libraryPaneHeadToContent: CGFloat = l
+        public var libraryRailItemGap: CGFloat = xs
         /// A sidebar's bottom bar: the list fades out over the bar's first points, gone before the window's edge.
         public var barFade: CGFloat = l
         /// From the status line (or the controls in its place) to the list.
@@ -274,6 +279,12 @@ extension DesignTokens {
         /// band of a `.unifiedCompact` toolbar; and its field pill, taller than the system's search field.
         public var sidebarTitleBar: CGFloat = 40
         public var sidebarFieldPill: CGFloat = 36
+        /// The Library: its rail's width and an item's height in it; the widest a pane's content gets; and how much of
+        /// the pushed page stays in sight at the window's trailing edge.
+        public var libraryRail: CGFloat = 76
+        public var libraryRailItem: CGFloat = 56
+        public var libraryPaneWidth: CGFloat = 760
+        public var libraryPeek: CGFloat = 96
         /// A banner's text beside its actions: the least width it keeps there; narrower, the actions go under it.
         public var bannerMessageMin: CGFloat = 160
         /// A list column: minimum, ideal and maximum widths.
@@ -353,6 +364,10 @@ extension DesignTokens {
         /// field's accessory).
         public var sidebarFieldTitle = TextRole(.title3, .medium)
         public var sidebarHeadSymbol = TextRole(.title3)
+        /// The Library: a rail item's caption, a pane's title and its subtitle.
+        public var libraryRailCaption = TextRole(.caption2, .medium)
+        public var libraryPaneTitle = TextRole(.title, .bold)
+        public var libraryPaneSubtitle = TextRole(.callout)
 
         public init() {}
     }

@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.2.15
+
+The Library, as Zen draws it: the window's sidebar gives way to a rail of items (History, Downloads, Settings…), the
+chosen item's content is drawn on the window's own chrome with no card, and the page's card is pushed toward the
+trailing edge with a strip of it in sight. The page is never rebuilt. It is new API; nothing else changes.
+
+### Added
+
+- **`LibraryModel<ID>`** (`@Observable`, one per window): `items` (`LibraryItem`: id, title, symbol), `isPresented`,
+  `selection`; `present(_:)`, `dismiss()`, `toggle(_:)` (a command opens the Library on its item, and closes it when
+  it already shows that item), `select(_:)`, `selectAdjacent(_:)`, `setItems(_:)`, `onSelect` to store the last item.
+- **`LibraryRail`**: the rail on the window's chrome, under the window's buttons: each item a symbol over its caption,
+  the shown one filled in the Theme's colour, then the back arrow (←, help "Back (Esc)") at the bottom with the app's
+  `bottom` buttons after it. Up and Down move between items; Escape and ← close the Library.
+- **`LibraryPane`**: an item's content in chrome style: its title and subtitle, then the content, on the window's
+  background (no card), `Spacing.libraryPaneMargin` in, at most `Size.libraryPaneWidth` wide; Escape closes.
+- **`LibraryPush`**: where the views stand at a progress from 0 to 1, as Zen moves them: the Library slides in from
+  the leading edge at the window's width less `Size.libraryPeek`; the page's card moves by the Library's width less
+  the sidebar's, at its own size; the sidebar fades and shrinks to 96 % over the first third. Its `animation(reduceMotion:)`
+  is Zen's spring (stiffness 720, damping 47, mass 1.2), a short cross-fade with Reduce Motion; `duration` and
+  `timingControlPoints` give the same motion to Core Animation.
+- **`LibraryLayout`** (SwiftUI): a sidebar and a detail side by side, the Library pushing them as above. The sidebar
+  and the detail stay alive all along; a click on the part of the detail left in sight closes the Library.
+- Tokens: `Spacing.libraryPaneMargin` (24), `libraryPaneHeadToContent` (16), `libraryRailItemGap` (4);
+  `Size.libraryRail` (76), `libraryRailItem` (56), `libraryPaneWidth` (760), `libraryPeek` (96);
+  `TypeScale.libraryRailCaption` (`.caption2` medium), `libraryPaneTitle` (`.title` bold), `libraryPaneSubtitle`
+  (`.callout`).
+- Strings: "Back", "Back (Esc)", with French.
+
+Tested (`Library0215Tests`): the model (start item, open and close, the same command again, stored selection only on a
+change, arrows at the ends, fewer items); the push (the card's offset, 96 pt of it in sight at 1200 pt, the Library's
+slide, the sidebar gone a third of the way in at 96 %, a window too narrow for a push); the SwiftUI layout keeps the
+detail alive (made once across open and close) and shows the Library only while open; the French strings.
+
 ## 0.2.14
 
 A sidebar head laid out as in Zen: the sidebar button and the app's buttons on the line of the window's buttons, then
