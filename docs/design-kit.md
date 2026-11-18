@@ -195,7 +195,7 @@ immediate.
 | `.sidebarWindowChrome()` | the window of a sidebar app: transparent toolbar, no title shown, toolbar on hover in full screen |
 | `NSSplitViewItem.sidebar(hosting:)` | AppKit: the system's sidebar split item hosting a `sidebarColumn`, at the column widths; `sidebarToolbarItems` for the window's toolbar, `sidebarHeadToolbarItems` (none) with a sidebar head |
 | `.sidebarColumn(sidebarButtonShortcut:titleBar:field:fieldAccessory:header:bottomBar:)` | macOS: the sidebar column with a head as in Zen: a title bar row on the line of the window's buttons (the kit's sidebar button, space, the app's `titleBar` buttons; the window drags from its empty part) and a field pill the column's width with `fieldAccessory` inside it; see "Sidebar head" |
-| `SidebarSwapModel`, `.sidebarSwap(_:swap:)`, `SidebarSwapList`, `SidebarSwapPane`, `SidebarSwapDetail` | a sidebar swap: the column gives way to grouped sections with a back arrow, the detail to the chosen section's pane, the app's content kept alive under it; see "Sidebar swap" |
+| `LibraryModel`, `LibraryRail`, `LibraryPane`, `LibraryPush`, `LibraryLayout` | the Library, as in Zen: a rail of items on the chrome, the item's content beside it with no card, the page pushed aside with a strip in sight; see "Library" |
 | `SidebarSurface`, `SeamlessSplitViewController` | AppKit: the column on the window's own background (`surface: .windowBackground`), no material and no divider line |
 | `ColumnLayout(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column on its `ColumnSurface` beside a detail in a `ContentCanvas` on the gradient; `.left` (default) or `.right`, mirrored |
 | `ColumnSurface(side:)`, `.columnSurface(side:)` | **deprecated in 0.2.6, removed in 0.3**: use `SidebarSplitView` (see "The column" below). A list column's own surface: inset `columnInset` from the window's edges, rounded `Radius.column`, the plain background at `Emphasis.column` over the gradient, a 1 pt edge in `ColorRoles.columnEdge` (3:1 against the gradient and the fill), content from `columnTop` down, clipped. The views in it solve their colours on its fill (`SurfacePlacement.column`, deprecated with it) |
@@ -388,33 +388,34 @@ In window full screen AppKit shows the toolbar in a window of its own, over a sy
 public way to draw the Theme there (0.2.12 tried scene bridging from the sidebar's and from the window's hosting
 controller; CHANGELOG 0.2.12). `DesignKitGallery fullscreen` reproduces it.
 
-### Sidebar swap
+### Library
 
-Settings or a library in the window itself, as in Zen: one `SidebarSwapModel` per window, the app's column wrapped in
-`sidebarSwap`, and its detail in `SidebarSwapDetail`.
+The Library replaces the sidebar with a rail of items while the page is pushed aside, as Zen's Library does:
 
 ```swift
-let swap = SidebarSwapModel(groups: [
-    SidebarSwapGroup(id: "profile", title: "This Profile", sections: [SidebarSwapSection(.engine, title: "Search Engine", systemImage: "magnifyingglass")]),
-    SidebarSwapGroup(id: "app", title: "App", sections: [SidebarSwapSection(.general, title: "General", subtitle: "Updates.", systemImage: "gearshape")]),
+let library = LibraryModel(items: [
+    LibraryItem(.downloads, title: "Downloads", systemImage: "arrow.down.circle"),
+    LibraryItem(.settings, title: "Settings", systemImage: "gearshape"),
 ])
 
-list.sidebarColumn(…)                                   // the app's own column
-    .sidebarSwap(swap) {
-        SidebarSwapList(swap, title: "Settings") { EmptyView() } header: { ProfileMenu() }
+LibraryLayout(library, sidebarWidth: columnWidth) {
+    sidebar                                              // the app's own column, alive all along
+} detail: {
+    page                                                 // pushed toward the trailing edge, never rebuilt
+} library: {
+    HStack(spacing: 0) {
+        LibraryRail(library, title: "Library")
+        LibraryPane(title: library.current.title, onExit: library.dismiss) { content(for: library.selection) }
     }
-
-SidebarSwapDetail(swap) { appDetail } pane: { section in pane(for: section.id) }
+}
 ```
 
-- The command that opens the swap calls `toggle(section)`: shown on that section it returns, otherwise it shows it.
-  The back arrow and Escape call `dismiss()`.
-- The app's content is never rebuilt: `SidebarSwapDetail` hides it under the pane. In AppKit, hide the content view
-  and lay a hosting view of `SidebarSwapPane` over it; never remove a web view from the window, which reloads it.
-- Keyboard: the arrow keys move in the list, which shows the section; the app moves the focus into the pane when it
-  opens and back to its content when it returns.
-- VoiceOver: the list is named after the title, the groups' headings carry the header trait, the shown section is
-  selected, and the pane is a container named after its section.
+- A command calls `toggle(item)`: it opens the Library on that item, and closes it when it is already shown. The rail's
+  ←, Escape and a click on the page left in sight call `dismiss()`.
+- Content is drawn on the window's own background: group rows on the kit's layer surface, never in a card.
+- An AppKit window applies `LibraryPush` to its own views with `LibraryPush.duration` and `timingControlPoints`,
+  hides (never removes) the sidebar once it has faded, and lays a cover over the page left in sight that closes the
+  Library when clicked. Safira's `BrowserWindowLayout` does this.
 
 ## Space rail
 

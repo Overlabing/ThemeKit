@@ -101,7 +101,7 @@
       }
     },
     "Back" : {
-      "comment" : "The back arrow at the bottom of a sidebar showing settings or a library: its VoiceOver label.",
+      "comment" : "The back arrow at the bottom of the Library's rail: its VoiceOver label.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -118,7 +118,7 @@
       }
     },
     "Back (Esc)" : {
-      "comment" : "Help tag of the back arrow at the bottom of a sidebar showing settings or a library: its title and its key.",
+      "comment" : "Help tag of the back arrow at the bottom of the Library's rail: its title and its key.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
